@@ -1,9 +1,5 @@
 import sqlite3
-import os
 
-# Verifica o caminho onde o banco será salvo
-db_path = os.path.abspath("lol_datamatches.db")
-print(f"📍 Banco será criado/em aberto em: {db_path}")
 
 # Conecta ao banco
 conexao = sqlite3.connect("lol_datamatches.db")
@@ -42,10 +38,6 @@ cursor.execute('''
         inhibitors INTEGER
     );
 ''')
-
-# Confirma a criação
-cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-print("✅ Tabelas existentes no banco:", cursor.fetchall())
 
 # Fecha a conexão
 conexao.close()
