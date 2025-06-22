@@ -19,7 +19,7 @@ print(f'Sua chave configurada é: {api_key}')
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     temperature=0.8,
-    google_api_key="AIzaSyCUDMsVWhEXc1s1Zhx_Lin08WGuo4hzi1s"
+    google_api_key=api_key
 )
 
 # Criação do parser para a saída do modelo de linguagem
