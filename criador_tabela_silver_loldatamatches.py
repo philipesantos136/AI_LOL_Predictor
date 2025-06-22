@@ -8,8 +8,10 @@ cursor = conexao.cursor()
 # Cria a tabela
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS match_data_silver (
+        league TEXT,
         side TEXT,
         position TEXT,
+        teamname TEXT,
         champion TEXT,
         result TEXT,
         kills INTEGER,
