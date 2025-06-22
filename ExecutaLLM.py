@@ -39,7 +39,7 @@ def dsa_gera_analises():
     # Query para buscar dados do time1
     query_time1 = f"""
         SELECT
-            side, position, champion, result, kills, deaths, assists,
+            split, side, position, champion, result, kills, deaths, assists,
             teamkills, teamdeaths, firstblood, firstdragon, firstherald,
             firstbaron, dragons, heralds, barons, gamelength, kpm, ckpm,
             totalgold, earnedgold, goldspent, total_cs, minionkills,
@@ -51,7 +51,7 @@ def dsa_gera_analises():
     # Query para buscar dados do time2
     query_time2 = f"""
         SELECT
-            side, position, champion, result, kills, deaths, assists,
+            split, side, position, champion, result, kills, deaths, assists,
             teamkills, teamdeaths, firstblood, firstdragon, firstherald,
             firstbaron, dragons, heralds, barons, gamelength, kpm, ckpm,
             totalgold, earnedgold, goldspent, total_cs, minionkills,
@@ -71,6 +71,7 @@ def dsa_gera_analises():
     estatisticas_time1 = []
     for row in dados_time1:
         estatisticas_time1.append({
+            'split': row['split'],
             'side': row['side'],
             'champion': row['champion'],
             'result': row['result'],
@@ -104,6 +105,7 @@ def dsa_gera_analises():
     estatisticas_time2 = []
     for row in dados_time2:
         estatisticas_time2.append({
+            'split': row['split'],
             'side': row['side'],
             'champion': row['champion'],
             'result': row['result'],
@@ -159,7 +161,7 @@ def dsa_gera_analises():
         firstblood, 
         towers, 
         inhibitors    
-    
+    Priorize o split mais recente, mas caso não haja dados suficientes, use splits passados, mas ainda assim dê peso maior ao split mais recente (quanto maior o número associado a palavra split 'numero" indica que é mais recenete. Ex: Split 2 é mais recente que Split 1)
     """
 
     
