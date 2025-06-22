@@ -11,13 +11,15 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 # setx GEMINI_API_KEY your_api_key
 # Caso não encontre a variável, lembre de reiniciar o terminal
 
-print(os.environ.get('GEMINI_API_KEY'))
+api_key = os.environ.get('GEMINI_API_KEY')
+
+print(f'Sua chave configurada é: {api_key}')
 
 # Instanciação do LLM através do Gemini
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     temperature=0.8,
-    google_api_key=os.environ.get('GEMINI_API_KEY')
+    google_api_key="AIzaSyCUDMsVWhEXc1s1Zhx_Lin08WGuo4hzi1s"
 )
 
 # Criação do parser para a saída do modelo de linguagem
