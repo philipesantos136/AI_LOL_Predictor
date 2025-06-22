@@ -18,7 +18,7 @@ print(f'Sua chave configurada é: {api_key}')
 # Instanciação do LLM através do Gemini
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
-    temperature=0.8,
+    temperature=0.0,
     google_api_key=api_key
 )
 
