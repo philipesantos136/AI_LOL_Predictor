@@ -162,6 +162,7 @@ def dsa_gera_analises():
         towers, 
         inhibitors    
     Priorize o split mais recente, mas caso não haja dados suficientes, use splits passados, mas ainda assim dê peso maior ao split mais recente (quanto maior o número associado a palavra split 'numero" indica que é mais recenete. Ex: Split 2 é mais recente que Split 1)
+    resuma suas respostas.
     """
 
     
