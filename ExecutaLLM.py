@@ -28,7 +28,7 @@ output_parser = StrOutputParser()
 # Nome do banco de dados SQLite
 db_file = "lol_datamatches.db"
 tabela = "match_data_silver"
-time1 = "LOUD"
+time1 = "FURIA"
 time2 = "paiN Gaming"
 
 def dsa_gera_analises():
@@ -151,7 +151,8 @@ def dsa_gera_analises():
     
     analise estes dados e forneça sua previsão sobre qual time tem maior probabilidade de vitória, justificando com base nas estatísticas apresentadas.
     Não repita informações.
-    Traga a probabilidade de qual time pegará:
+    Sempre traga estatísticas de cada time.
+    Traga a probabilidade de qual time pegará primeiro:
         firstdragon, 
         firstherald, 
         firstbarão, 
@@ -160,6 +161,7 @@ def dsa_gera_analises():
         inhibitors    
     
     """
+
     
     # Definição da cadeia de execução
     chain = prompt | llm | output_parser
