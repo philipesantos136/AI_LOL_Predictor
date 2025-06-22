@@ -150,6 +150,16 @@ def dsa_gera_analises():
     {estatisticas_time2}
     
     analise estes dados e forneça sua previsão sobre qual time tem maior probabilidade de vitória, justificando com base nas estatísticas apresentadas.
+    Não repita informações.
+    Traga a probabilidade de qual time pegará:
+        firsttorre, 
+        firstdragon, 
+        firstherald, 
+        firstbarão, 
+        firstblood, 
+        firsttower, 
+        firstinhibitor    
+    
     """
     
     # Definição da cadeia de execução
