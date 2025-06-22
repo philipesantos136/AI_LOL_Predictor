@@ -5,8 +5,10 @@ cursor = conexao.cursor()
 
 cursor.execute('''
 INSERT INTO match_data_silver (
+    league,
     side,
     position,
+    teamname,
     champion,
     result,
     kills,
@@ -35,8 +37,10 @@ INSERT INTO match_data_silver (
     inhibitors
 )
 SELECT
+    league,
     side,
     position,
+    teamname,
     champion,
     result,
     kills,
