@@ -4,6 +4,7 @@
 
 import re
 import gdown
+import os
 
 # URL da pasta pública no Google Drive (OE Public Match Data)
 FOLDER_URL = "https://drive.google.com/drive/folders/1gLSw0RLjBbtaNy0dgnGQDAZOHIgCe-HH"
@@ -52,7 +53,8 @@ def baixar_arquivo_mais_recente():
     print(f"📥 Arquivo mais recente: {arquivo_alvo.path} ({ano_mais_recente})")
 
     # 3. Baixa apenas o arquivo mais recente
-    output_filename = f"{ano_mais_recente}loesport_matchdata.csv"
+    os.makedirs("data", exist_ok=True)
+    output_filename = os.path.join("data", f"{ano_mais_recente}loesport_matchdata.csv")
     download_url = f"https://drive.google.com/uc?id={arquivo_alvo.id}"
 
     print(f"⬇️  Baixando para: {output_filename}")
