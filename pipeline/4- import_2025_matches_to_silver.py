@@ -30,22 +30,19 @@ def popular_tabela_silver():
             cursor = conexao.cursor()
             print(f"🔌 Conectado ao banco '{db_file}'.")
             
-            # (Opcional) Limpa a tabela Silver antes de popular para evitar dados duplicados se rodar duas vezes
-            print("🧹 Limpando dados antigos da tabela Silver...")
-            cursor.execute("DELETE FROM match_data_silver;")
-            
-            print(f"📥 Importando dados da tabela Bronze '{tabela_bronze}' para a Silver 'match_data_silver'...")
+            # Carregamos com UPSERT (INSERT OR REPLACE) para lidar com duplicados
+            print(f"📥 Importando/Atualizando dados da Bronze '{tabela_bronze}' para a Silver 'match_data_silver'...")
             
             cursor.execute(f'''
-            INSERT INTO match_data_silver (
-                league, split, side, position, teamname, champion, result, kills,
+            INSERT OR REPLACE INTO match_data_silver (
+                gameid, participantid, league, split, side, position, teamname, champion, result, kills,
                 deaths, assists, teamkills, teamdeaths, firstblood, firstdragon,
                 firstherald, firstbaron, dragons, heralds, barons, gamelength,
                 kpm, ckpm, totalgold, earnedgold, goldspent, total_cs, minionkills,
                 damagetochampions, damagetakenperminute, towers, inhibitors
             )
             SELECT
-                league, split, side, position, teamname, champion, result, kills,
+                gameid, participantid, league, split, side, position, teamname, champion, result, kills,
                 deaths, assists, teamkills, teamdeaths, firstblood, firstdragon,
                 firstherald, firstbaron, dragons, heralds, barons, gamelength,
                 "team kpm", ckpm, totalgold, earnedgold, goldspent, "total cs",

@@ -17,9 +17,11 @@ def criar_tabela_silver():
             print(f"🔌 Conectado ao banco '{db_file}' com sucesso.")
             print("🏗️  Criando estrutura da tabela 'match_data_silver'...")
             
-            # Cria a tabela
+            # Cria a tabela com UNIQUE constraint para upsert
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS match_data_silver (
+                    gameid TEXT,
+                    participantid INTEGER,
                     league TEXT,
                     split TEXT,
                     side TEXT,
@@ -50,7 +52,8 @@ def criar_tabela_silver():
                     damagetochampions INTEGER,
                     damagetakenperminute REAL,
                     towers INTEGER,
-                    inhibitors INTEGER
+                    inhibitors INTEGER,
+                    UNIQUE(gameid, participantid)
                 );
             ''')
             

@@ -35,10 +35,25 @@ def main():
         print(f"🔌 Conectando ao banco SQLite '{db_file}'...")
         con = sqlite3.connect(db_file)
         
-        # 5. Exporta o DataFrame para o SQLite (substituindo se já existir)
-        print(f"💾 Salvando dados na tabela '{tabela}' (camada Bronze)...")
-        df.to_sql(tabela, con, if_exists="replace", index=False)
-        print("✅ Dados salvos com sucesso no banco de dados!")
+        # 5. Exporta o DataFrame para uma tabela TEMPORÁRIA
+        print(f"💾 Carregando dados temporários para merge...")
+        df.to_sql("temp_import_bronze", con, if_exists="replace", index=False)
+        
+        # 6. Cria a tabela Bronze definitiva se não existir (com chaves primárias para o upsert)
+        cursor = con.cursor()
+        colunas_sql = ", ".join([f'"{c}" TEXT' for c in df.columns])
+        cursor.execute(f'CREATE TABLE IF NOT EXISTS "{tabela}" ({colunas_sql}, PRIMARY KEY (gameid, participantid))')
+        
+        # 7. Executa o UPSERT (Merge) da temporária para a definitiva
+        print(f"🔄 Realizando Merge (Upsert) na tabela '{tabela}'...")
+        colunas_list = ", ".join([f'"{c}"' for c in df.columns])
+        cursor.execute(f'INSERT OR REPLACE INTO "{tabela}" ({colunas_list}) SELECT {colunas_list} FROM temp_import_bronze')
+        
+        # 8. Limpa a tabela temporária
+        cursor.execute("DROP TABLE temp_import_bronze")
+        
+        con.commit()
+        print(f"✅ Dados mesclados com sucesso na camada Bronze!")
         
     except Exception as e:
         print(f"❌ Ocorreu um erro durante o processamento: {e}")
