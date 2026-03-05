@@ -98,35 +98,128 @@ def atualizar_dropdowns():
     return gr.update(choices=times), gr.update(choices=times), gr.update(choices=patches)
 
 def create_interface():
-    # --- INTERFACE GRADIO ---
-    with gr.Blocks(title="LoL e-Sports Predictor AI", theme=gr.themes.Soft()) as app:
-        gr.Markdown("# 🏆 AI LoL Predictor\nAnalise o histórico de times do circuito competitivo e use Inteligência Artificial para prever o vencedor da partida!")
-        
-        with gr.Tab("🤖 Previsão de Partida"):
-            gr.Markdown("Selecione dois times abaixo para gerar a análise comparativa.")
-            
-            with gr.Row():
-                times_iniciais = get_times_disponiveis()
-                patches_iniciais = get_patches_disponiveis()
-                dropdown_t1 = gr.Dropdown(choices=times_iniciais, label="Time 1 (Blue Side na visão da IA)", allow_custom_value=True)
-                dropdown_t2 = gr.Dropdown(choices=times_iniciais, label="Time 2 (Red Side na visão da IA)", allow_custom_value=True)
-                dropdown_patches = gr.Dropdown(choices=patches_iniciais, value=["Todos"], multiselect=True, label="Filtrar por Patch (Versão do Jogo)")
-                
-            btn_prever = gr.Button("🔮 Gerar Predição com Modelo Local", variant="primary")
-            btn_atualizar_times = gr.Button("🔄 Atualizar Lista de Times", size="sm")
-            
-            with gr.Row():
-                resultado_markdown = gr.Markdown("O relatório de análise aparecerá aqui...", elem_classes="caixa-resultado")
-                
-            btn_prever.click(fn=prever_partida, inputs=[dropdown_t1, dropdown_t2, dropdown_patches], outputs=resultado_markdown)
-            btn_atualizar_times.click(fn=atualizar_dropdowns, inputs=[], outputs=[dropdown_t1, dropdown_t2, dropdown_patches])
+    # --- CSS PERSONALIZADO ---
+    css = """
+    .sidebar-menu-btn {
+        text-align: left !important;
+        justify-content: flex-start !important;
+        border: none !important;
+        background: transparent !important;
+        transition: all 0.3s ease !important;
+        padding: 10px 15px !important;
+    }
+    .sidebar-menu-btn:hover {
+        background: rgba(255, 255, 255, 0.1) !important;
+        transform: translateX(5px);
+    }
+    .sidebar-active {
+        background: rgba(255, 255, 255, 0.2) !important;
+        border-left: 4px solid #fff !important;
+    }
+    .glass-container {
+        background: rgba(255, 255, 255, 0.05) !important;
+        backdrop-filter: blur(10px) !important;
+        border-radius: 15px !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 20px !important;
+    }
+    .main-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .caixa-resultado {
+        min-height: 200px;
+        border: 1px solid #444;
+        padding: 15px;
+        background: #111;
+        border-radius: 8px;
+    }
+    /* Animação de entrada */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .view-content {
+        animation: fadeIn 0.5s ease forwards;
+    }
+    """
 
-        with gr.Tab("⚙️ Engenharia de Dados (Pipeline)"):
-            gr.Markdown("Execute as etapas de engenharia de dados (Medallion Architecture) para manter sua base atualizada com as informações mais recentes do Google Drive.")
+    with gr.Blocks(title="LoL e-Sports Predictor AI", theme=gr.themes.Default(primary_hue="blue", secondary_hue="slate"), css=css) as app:
+        
+        # Estado para controlar qual menu está ativo
+        current_view = gr.State("predicao")
+
+        with gr.Sidebar(label="LoL Predictor Menu") as sidebar:
+            gr.Markdown("## 🎮 NAVEGAÇÃO")
+            btn_menu_predicao = gr.Button("🏆 Vencedor da Partida", elem_classes=["sidebar-menu-btn", "sidebar-active"])
+            btn_menu_pipeline = gr.Button("⚙️ Engenharia de Dados", elem_classes="sidebar-menu-btn")
             
-            btn_pipeline = gr.Button("🚀 Rodar Pipeline Inteiro (Bronze + Silver)", variant="secondary")
-            console_saida = gr.Textbox(label="Logs do Pipeline", lines=15, max_lines=25)
+            gr.Markdown("---")
+            gr.Markdown("Powered by **Gemini 2.0 Flash**\nLocal Stats Database")
             
-            btn_pipeline.click(fn=executar_pipeline_completo, inputs=[], outputs=console_saida)
+        # Conteúdo Principal
+        with gr.Column(elem_classes="view-content"):
             
+            # --- SEÇÃO 1: VENCEDOR DA PARTIDA ---
+            with gr.Group(visible=True) as group_predicao:
+                gr.Markdown("# 🏆 Análise de Vencedor", elem_classes="main-header")
+                
+                with gr.Row(elem_classes="glass-container"):
+                    with gr.Column():
+                        times_iniciais = get_times_disponiveis()
+                        patches_iniciais = get_patches_disponiveis()
+                        
+                        with gr.Row():
+                            dropdown_t1 = gr.Dropdown(choices=times_iniciais, label="🟦 Time 1 (Blue Side)", allow_custom_value=True)
+                            dropdown_t2 = gr.Dropdown(choices=times_iniciais, label="🟥 Time 2 (Red Side)", allow_custom_value=True)
+                        
+                        dropdown_patches = gr.Dropdown(choices=patches_iniciais, value=["Todos"], multiselect=True, label="📅 Versão do Patch")
+                        
+                        with gr.Row():
+                            btn_prever = gr.Button("🔮 Gerar Predição", variant="primary")
+                            btn_atualizar_times = gr.Button("🔄 Atualizar Dados", size="sm")
+
+                gr.Markdown("### 📝 Relatório de Inteligência")
+                resultado_markdown = gr.Markdown("Selecione os times e clique em prever...", elem_classes="caixa-resultado")
+
+            # --- SEÇÃO 2: PIPELINE ---
+            with gr.Group(visible=False) as group_pipeline:
+                gr.Markdown("# ⚙️ Engenharia de Dados", elem_classes="main-header")
+                
+                with gr.Column(elem_classes="glass-container"):
+                    gr.Markdown("Clique no botão abaixo para baixar os dados mais recentes do Google Drive e atualizar sua base local (Bronze & Silver).")
+                    btn_pipeline = gr.Button("🚀 Rodar Pipeline Completo", variant="secondary")
+                    console_saida = gr.Textbox(label="Painel de Monitoramento", lines=15, max_lines=20)
+
+        # --- LÓGICA DE NAVEGAÇÃO ---
+        def navigate_to_predicao():
+            return (
+                gr.update(visible=True), 
+                gr.update(visible=False), 
+                gr.update(elem_classes=["sidebar-menu-btn", "sidebar-active"]),
+                gr.update(elem_classes="sidebar-menu-btn")
+            )
+            
+        def navigate_to_pipeline():
+            return (
+                gr.update(visible=False), 
+                gr.update(visible=True), 
+                gr.update(elem_classes="sidebar-menu-btn"),
+                gr.update(elem_classes=["sidebar-menu-btn", "sidebar-active"])
+            )
+
+        btn_menu_predicao.click(
+            fn=navigate_to_predicao, 
+            outputs=[group_predicao, group_pipeline, btn_menu_predicao, btn_menu_pipeline]
+        )
+        btn_menu_pipeline.click(
+            fn=navigate_to_pipeline, 
+            outputs=[group_predicao, group_pipeline, btn_menu_predicao, btn_menu_pipeline]
+        )
+
+        # --- LÓGICA DE FUNCIONALIDADE ---
+        btn_prever.click(fn=prever_partida, inputs=[dropdown_t1, dropdown_t2, dropdown_patches], outputs=resultado_markdown)
+        btn_atualizar_times.click(fn=atualizar_dropdowns, inputs=[], outputs=[dropdown_t1, dropdown_t2, dropdown_patches])
+        btn_pipeline.click(fn=executar_pipeline_completo, inputs=[], outputs=console_saida)
+
     return app
