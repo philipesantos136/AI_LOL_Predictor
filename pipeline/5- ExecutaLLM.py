@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 # Carrega as variáveis do arquivo .env
 load_dotenv()
@@ -37,8 +37,7 @@ def obter_dados_time(cursor, time_nome, patches=None):
 
 def formatar_estatisticas(linhas_db):
     """
-    Recebe as linhas retornadas do banco (sqlite3.Row) e as converte
-    em uma lista de dicionários para ser enviada ao LLM.
+    Converte as linhas do banco em um formato CSV compacto para economizar tokens.
     """
     colunas = [
         'patch', 'split', 'side', 'champion', 'result', 'kills', 'deaths', 'assists',
@@ -48,21 +47,27 @@ def formatar_estatisticas(linhas_db):
         'damagetochampions', 'damagetakenperminute', 'towers', 'inhibitors'
     ]
     
-    return [{col: row[col] for col in colunas} for row in linhas_db]
+    header = ",".join(colunas)
+    linhas = []
+    for row in linhas_db:
+        # Converte cada linha em uma string separada por vírgula
+        valores = [str(row[col]) for col in colunas]
+        linhas.append(",".join(valores))
+    
+    return header + "\n" + "\n".join(linhas)
 
 def dsa_gera_analises(time1, time2, patches=None):
-    # 1. Configuração do LLM Local
-    # Buscamos a URL no .env, com fallback para o endereço padrão do LM Studio/Ollama
-    local_url = os.environ.get('LOCAL_LLM_URL', 'http://127.0.0.1:1234/v1')
+    # 1. Configuração do LLM (Gemini via API Key)
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        raise ValueError("❌ Erro: GEMINI_API_KEY não encontrada no arquivo .env")
+        
+    print(f"🤖 Iniciando motor de IA do Google Gemini...")
     
-    print(f"🤖 Iniciando motor de IA Local ({local_url})...")
-    
-    # Usamos a interface da OpenAI para conectar ao modelo local
-    llm = ChatOpenAI(
-        base_url=local_url,
-        api_key="not-needed", 
-        model="local-model",
-        temperature=0.0
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        temperature=0.0,
+        google_api_key=api_key
     )
     
     # 2. Conexão com o Banco de Dados
