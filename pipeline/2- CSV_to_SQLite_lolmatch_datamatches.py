@@ -22,7 +22,9 @@ def main():
     ano = match.group(1) if match else "2025"
     
     # 2. Configurações
-    db_file = "lol_datamatches.db"
+    db_dir = os.path.join("data", "db")
+    os.makedirs(db_dir, exist_ok=True)
+    db_file = os.path.join(db_dir, "lol_datamatches.db")
     tabela = f"{ano}_lol_matches"
     
     try:

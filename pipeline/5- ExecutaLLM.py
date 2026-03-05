@@ -71,7 +71,7 @@ def dsa_gera_analises(time1, time2, patches=None):
     )
     
     # 2. Conexão com o Banco de Dados
-    db_file = "lol_datamatches.db"
+    db_file = os.path.join("data", "db", "lol_datamatches.db")
     if not os.path.exists(db_file):
         raise FileNotFoundError(f"❌ Banco de dados '{db_file}' não encontrado. Execute o pipeline de importação primeiro.")
         

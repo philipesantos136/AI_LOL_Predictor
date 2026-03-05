@@ -22,7 +22,9 @@ def popular_tabela_silver():
     ano = match.group(1) if match else "2025"
     tabela_bronze = f"{ano}_lol_matches"
     
-    db_file = "lol_datamatches.db"
+    db_dir = os.path.join("data", "db")
+    os.makedirs(db_dir, exist_ok=True)
+    db_file = os.path.join(db_dir, "lol_datamatches.db")
     
     # Executa a limpeza e depois inserção
     try:

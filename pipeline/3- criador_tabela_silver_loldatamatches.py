@@ -1,11 +1,14 @@
 import sqlite3
+import os
 
 def criar_tabela_silver():
     """
     Cria a estrutura da tabela match_data_silver no banco de dados SQLite.
     Esta tabela representa a camada Silver (dados refinados).
     """
-    db_file = "lol_datamatches.db"
+    db_dir = os.path.join("data", "db")
+    os.makedirs(db_dir, exist_ok=True)
+    db_file = os.path.join(db_dir, "lol_datamatches.db")
     
     print("Iniciando criação da tabela Silver...")
     

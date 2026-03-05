@@ -28,7 +28,10 @@ from pathlib import Path
 
 def get_db_path():
     """Retorna o caminho absoluto do banco de dados."""
-    return Path(__file__).parent.parent / "lol_datamatches.db"
+    db_path = Path(__file__).parent.parent / "data" / "db" / "lol_datamatches.db"
+    # Garante que a pasta existe
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    return db_path
 
 def get_times_disponiveis():
     """Busca a lista de times únicos na tabela Silver para preencher os Dropdowns."""
