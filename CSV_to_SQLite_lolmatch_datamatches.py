@@ -7,10 +7,10 @@ import re
 def main():
     print("Iniciando processo de importação do CSV para SQLite...")
     
-    # 1. Encontra o CSV mais recente no diretório 'data'
-    csv_files = glob.glob(os.path.join("data", "*loesport_matchdata.csv"))
+    # 1. Encontra o CSV mais recente no diretório 'data/raw'
+    csv_files = glob.glob(os.path.join("data", "raw", "*loesport_matchdata.csv"))
     if not csv_files:
-        print("❌ Erro: Nenhum arquivo CSV de matchdata encontrado no diretório 'data'.")
+        print("❌ Erro: Nenhum arquivo CSV de matchdata encontrado no diretório 'data/raw'.")
         return
         
     # Ordena para pegar o mais recente (ex: 2026 > 2025)
