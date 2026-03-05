@@ -53,8 +53,8 @@ def baixar_arquivo_mais_recente():
     print(f"📥 Arquivo mais recente: {arquivo_alvo.path} ({ano_mais_recente})")
 
     # 3. Baixa apenas o arquivo mais recente
-    os.makedirs("data", exist_ok=True)
-    output_filename = os.path.join("data", f"{ano_mais_recente}loesport_matchdata.csv")
+    os.makedirs(os.path.join("data", "raw"), exist_ok=True)
+    output_filename = os.path.join("data", "raw", f"{ano_mais_recente}loesport_matchdata.csv")
     download_url = f"https://drive.google.com/uc?id={arquivo_alvo.id}"
 
     print(f"⬇️  Baixando para: {output_filename}")
