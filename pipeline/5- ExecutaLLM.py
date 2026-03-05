@@ -3,19 +3,19 @@ import os
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 
 # Carrega as variáveis do arquivo .env
 load_dotenv()
 
-def obter_dados_time(cursor, time_nome):
+def obter_dados_time(cursor, time_nome, patches=None):
     """
     Busca os dados de um time específico na tabela Silver de forma segura
     utilizando query parametrizada para evitar SQL Injection.
     """
     query = """
         SELECT
-            split, side, position, champion, result, kills, deaths, assists,
+            patch, split, side, position, champion, result, kills, deaths, assists,
             teamkills, teamdeaths, firstblood, firstdragon, firstherald,
             firstbaron, dragons, heralds, barons, gamelength, kpm, ckpm,
             totalgold, earnedgold, goldspent, total_cs, minionkills,
@@ -23,7 +23,16 @@ def obter_dados_time(cursor, time_nome):
         FROM match_data_silver
         WHERE teamname = ?
     """
-    cursor.execute(query, (time_nome,))
+    
+    params = [time_nome]
+    
+    if patches and "Todos" not in patches:
+        # Adiciona o filtro de patches se não for "Todos"
+        placeholders = ", ".join(["?" for _ in patches])
+        query += f" AND patch IN ({placeholders})"
+        params.extend(patches)
+        
+    cursor.execute(query, tuple(params))
     return cursor.fetchall()
 
 def formatar_estatisticas(linhas_db):
@@ -32,7 +41,7 @@ def formatar_estatisticas(linhas_db):
     em uma lista de dicionários para ser enviada ao LLM.
     """
     colunas = [
-        'split', 'side', 'champion', 'result', 'kills', 'deaths', 'assists',
+        'patch', 'split', 'side', 'champion', 'result', 'kills', 'deaths', 'assists',
         'teamkills', 'teamdeaths', 'firstblood', 'firstdragon', 'firstherald',
         'firstbaron', 'dragons', 'heralds', 'barons', 'gamelength', 'kpm', 'ckpm',
         'totalgold', 'earnedgold', 'goldspent', 'total_cs', 'minionkills',
@@ -41,19 +50,21 @@ def formatar_estatisticas(linhas_db):
     
     return [{col: row[col] for col in colunas} for row in linhas_db]
 
-def dsa_gera_analises(time1, time2):
-    # 1. Validação da Chave de API
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key or api_key == "sua_chave_api_aqui":
-        raise ValueError(
-            "❌ ERRO: Chave da API do Gemini não encontrada!\n"
-            "Crie um arquivo '.env' na raiz do projeto contendo:\n"
-            "GEMINI_API_KEY=sua_chave_real_aqui"
-        )
+def dsa_gera_analises(time1, time2, patches=None):
+    # 1. Configuração do LLM Local
+    # Buscamos a URL no .env, com fallback para o endereço padrão do LM Studio/Ollama
+    local_url = os.environ.get('LOCAL_LLM_URL', 'http://127.0.0.1:1234/v1')
     
-    # Obs: Mascaramos a chave por segurança, exibindo só o final
-    print(f"🔑 Chave API carregada com sucesso (...{api_key[-4:]}).")
-
+    print(f"🤖 Iniciando motor de IA Local ({local_url})...")
+    
+    # Usamos a interface da OpenAI para conectar ao modelo local
+    llm = ChatOpenAI(
+        base_url=local_url,
+        api_key="not-needed", 
+        model="local-model",
+        temperature=0.0
+    )
+    
     # 2. Conexão com o Banco de Dados
     db_file = "lol_datamatches.db"
     if not os.path.exists(db_file):
@@ -65,22 +76,14 @@ def dsa_gera_analises(time1, time2):
         cursor = conn.cursor()
         
         # Busca os dados usando queries seguras (evita SQL Injection)
-        dados_time1_brutos = obter_dados_time(cursor, time1)
-        dados_time2_brutos = obter_dados_time(cursor, time2)
+        dados_time1_brutos = obter_dados_time(cursor, time1, patches)
+        dados_time2_brutos = obter_dados_time(cursor, time2, patches)
         
     print(f"📊 Registros encontrados: {time1} ({len(dados_time1_brutos)} partidas), {time2} ({len(dados_time2_brutos)} partidas).")
 
-    # 3. Formatação dos dados (reaproveitamento de código)
+    # 3. Formatação dos dados
     estatisticas_time1 = formatar_estatisticas(dados_time1_brutos)
     estatisticas_time2 = formatar_estatisticas(dados_time2_brutos)
-
-    # 4. Configuração do LLM
-    print("🤖 Iniciando motor de IA do Google Gemini...")
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        temperature=0.0,
-        google_api_key=api_key
-    )
     
     output_parser = StrOutputParser()
     
