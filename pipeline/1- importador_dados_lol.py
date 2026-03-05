@@ -58,9 +58,21 @@ def baixar_arquivo_mais_recente():
     download_url = f"https://drive.google.com/uc?id={arquivo_alvo.id}"
 
     print(f"⬇️  Baixando para: {output_filename}")
-    gdown.download(download_url, output_filename, quiet=False)
+    try:
+        gdown.download(download_url, output_filename, quiet=False)
+        print(f"✅ Download concluído: {output_filename}")
+    except PermissionError:
+        if os.path.exists(output_filename):
+            print(f"⚠️  AVISO: Permissão negada para sobrescrever {output_filename}.")
+            print("O arquivo parece estar em uso. Prosseguindo com a versão local existente.")
+        else:
+            raise RuntimeError(f"❌ Erro de permissão ao criar {output_filename}. Verifique se o arquivo está aberto.")
+    except Exception as e:
+        print(f"❌ Erro ao baixar o arquivo: {e}")
+        if not os.path.exists(output_filename):
+            raise
+        print("Prosseguindo com a versão local existente.")
 
-    print(f"✅ Download concluído: {output_filename}")
     return output_filename
 
 

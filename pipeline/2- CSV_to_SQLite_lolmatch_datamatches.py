@@ -41,6 +41,15 @@ def main():
         
         # 6. Cria a tabela Bronze definitiva se não existir (com chaves primárias para o upsert)
         cursor = con.cursor()
+        
+        # Verifica se o esquema atual possui a coluna 'patch'
+        cursor.execute(f"PRAGMA table_info('{tabela}')")
+        colunas_existentes = [col[1] for col in cursor.fetchall()]
+        
+        if colunas_existentes and "patch" not in colunas_existentes:
+            print(f"⚠️  Esquema antigo na Bronze '{tabela}' detectado. Resetando para novo formato...")
+            cursor.execute(f"DROP TABLE '{tabela}'")
+
         colunas_sql = ", ".join([f'"{c}" TEXT' for c in df.columns])
         cursor.execute(f'CREATE TABLE IF NOT EXISTS "{tabela}" ({colunas_sql}, PRIMARY KEY (gameid, participantid))')
         

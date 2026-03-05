@@ -15,6 +15,16 @@ def criar_tabela_silver():
             cursor = conexao.cursor()
             
             print(f"🔌 Conectado ao banco '{db_file}' com sucesso.")
+            
+            # Verifica se a coluna 'patch' já existe
+            cursor.execute("PRAGMA table_info(match_data_silver)")
+            colunas_existentes = [col[1] for col in cursor.fetchall()]
+            
+            if colunas_existentes and "patch" not in colunas_existentes:
+                print("⚠️  Esquema antigo detectado (coluna 'patch' ausente). Recriando tabela Silver...")
+                cursor.execute("DROP TABLE match_data_silver")
+                colunas_existentes = []
+
             print("🏗️  Criando estrutura da tabela 'match_data_silver'...")
             
             # Cria a tabela com UNIQUE constraint para upsert
@@ -22,6 +32,7 @@ def criar_tabela_silver():
                 CREATE TABLE IF NOT EXISTS match_data_silver (
                     gameid TEXT,
                     participantid INTEGER,
+                    patch TEXT,
                     league TEXT,
                     split TEXT,
                     side TEXT,
