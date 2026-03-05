@@ -39,6 +39,21 @@ def get_times_disponiveis():
     except Exception:
         return ["Erro ao carregar times"]
 
+def get_patches_disponiveis():
+    """Busca a lista de patches únicos na tabela Silver."""
+    db_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "lol_datamatches.db"))
+    if not os.path.exists(db_file):
+        return ["Todos"]
+        
+    try:
+        with sqlite3.connect(db_file) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT DISTINCT patch FROM match_data_silver WHERE patch IS NOT NULL ORDER BY patch DESC")
+            patches = [row[0] for row in cursor.fetchall()]
+            return ["Todos"] + patches
+    except Exception:
+        return ["Todos"]
+
 def executar_pipeline_completo():
     """Executa todas as etapas de ingestão e preparação de dados em sequência."""
     log = ""
@@ -64,7 +79,7 @@ def executar_pipeline_completo():
     except Exception as e:
         return f"❌ ERRO DURANTE O PIPELINE: {str(e)}\n\nVerifique os arquivos originais e a conexão de rede."
 
-def prever_partida(time1, time2):
+def prever_partida(time1, time2, patches):
     """Aciona o Gemini para analisar os dois times informados."""
     if not time1 or not time2 or time1 == "Rode o Pipeline Primeiro" or time2 == "Rode o Pipeline Primeiro":
         return "⚠️ Por favor, atualize o pipeline e selecione dois times válidos primeiro."
@@ -72,14 +87,15 @@ def prever_partida(time1, time2):
         return "⚠️ Por favor, selecione times diferentes."
         
     try:
-        return dsa_gera_analises(time1, time2)
+        return dsa_gera_analises(time1, time2, patches)
     except Exception as e:
         return f"❌ ERRO NA PREDIÇÃO: {str(e)}"
 
 def atualizar_dropdowns():
-    """Atualiza a lista de times nos dois dropdowns."""
+    """Atualiza a lista de times e patches nos dropdowns."""
     times = get_times_disponiveis()
-    return gr.update(choices=times), gr.update(choices=times)
+    patches = get_patches_disponiveis()
+    return gr.update(choices=times), gr.update(choices=times), gr.update(choices=patches)
 
 def create_interface():
     # --- INTERFACE GRADIO ---
@@ -91,17 +107,19 @@ def create_interface():
             
             with gr.Row():
                 times_iniciais = get_times_disponiveis()
+                patches_iniciais = get_patches_disponiveis()
                 dropdown_t1 = gr.Dropdown(choices=times_iniciais, label="Time 1 (Blue Side na visão da IA)", allow_custom_value=True)
                 dropdown_t2 = gr.Dropdown(choices=times_iniciais, label="Time 2 (Red Side na visão da IA)", allow_custom_value=True)
+                dropdown_patches = gr.Dropdown(choices=patches_iniciais, value=["Todos"], multiselect=True, label="Filtrar por Patch (Versão do Jogo)")
                 
-            btn_prever = gr.Button("🔮 Gerar Predição com Gemini AI", variant="primary")
+            btn_prever = gr.Button("🔮 Gerar Predição com Modelo Local", variant="primary")
             btn_atualizar_times = gr.Button("🔄 Atualizar Lista de Times", size="sm")
             
             with gr.Row():
                 resultado_markdown = gr.Markdown("O relatório de análise aparecerá aqui...", elem_classes="caixa-resultado")
                 
-            btn_prever.click(fn=prever_partida, inputs=[dropdown_t1, dropdown_t2], outputs=resultado_markdown)
-            btn_atualizar_times.click(fn=atualizar_dropdowns, inputs=[], outputs=[dropdown_t1, dropdown_t2])
+            btn_prever.click(fn=prever_partida, inputs=[dropdown_t1, dropdown_t2, dropdown_patches], outputs=resultado_markdown)
+            btn_atualizar_times.click(fn=atualizar_dropdowns, inputs=[], outputs=[dropdown_t1, dropdown_t2, dropdown_patches])
 
         with gr.Tab("⚙️ Engenharia de Dados (Pipeline)"):
             gr.Markdown("Execute as etapas de engenharia de dados (Medallion Architecture) para manter sua base atualizada com as informações mais recentes do Google Drive.")
