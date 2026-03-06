@@ -716,56 +716,56 @@ def generate_charts(team1, team2, odds_data=None):
     html = INSIGHTS_CSS
     html += '<div class="insights-container">'
     
-    # Header
+    # Header — usa inline styles porque Gradio remove <style> tags
     html += f'''
-    <div class="insights-header">
-        <h2>📊 Insights de Apostas ao Vivo</h2>
-        <div class="matchup">
-            <span class="team-blue">{team1}</span>
-            <span class="vs-text">VS</span>
-            <span class="team-red">{team2}</span>
+    <div style="text-align:center;padding:30px 20px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%);border-radius:16px;margin-bottom:24px;border:1px solid rgba(59,130,246,0.3);">
+        <h2 style="margin:0 0 8px 0;font-size:1.5rem;color:#60a5fa;">📊 Insights de Apostas ao Vivo</h2>
+        <div style="display:inline-flex;align-items:center;gap:12px;background:rgba(30,41,59,0.8);padding:8px 24px;border-radius:50px;border:1px solid rgba(59,130,246,0.2);">
+            <span style="color:#60a5fa;font-weight:700;font-size:1.1rem;">{team1}</span>
+            <span style="color:#eab308;font-weight:800;font-size:0.9rem;">VS</span>
+            <span style="color:#f87171;font-weight:700;font-size:1.1rem;">{team2}</span>
         </div>
-        <div class="stats-row">
-            <div class="stat-card">
-                <div class="stat-value">{stats1["total_games"]}</div>
-                <div class="stat-label">Jogos {team1}</div>
+        <div style="display:flex;justify-content:center;gap:20px;margin-top:16px;">
+            <div style="background:rgba(30,41,59,0.6);padding:12px 20px;border-radius:12px;border:1px solid rgba(59,130,246,0.15);text-align:center;min-width:100px;">
+                <div style="font-size:1.4rem;font-weight:800;color:#60a5fa;">{stats1["total_games"]}</div>
+                <div style="color:#94a3b8;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;">Jogos {team1}</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-value">{stats2["total_games"]}</div>
-                <div class="stat-label">Jogos {team2}</div>
+            <div style="background:rgba(30,41,59,0.6);padding:12px 20px;border-radius:12px;border:1px solid rgba(59,130,246,0.15);text-align:center;min-width:100px;">
+                <div style="font-size:1.4rem;font-weight:800;color:#60a5fa;">{stats2["total_games"]}</div>
+                <div style="color:#94a3b8;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;">Jogos {team2}</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-value">{stats1["avg_kills"]:.1f} vs {stats2["avg_kills"]:.1f}</div>
-                <div class="stat-label">Média Kills</div>
+            <div style="background:rgba(30,41,59,0.6);padding:12px 20px;border-radius:12px;border:1px solid rgba(59,130,246,0.15);text-align:center;min-width:100px;">
+                <div style="font-size:1.4rem;font-weight:800;color:#60a5fa;">{stats1["avg_kills"]:.1f} vs {stats2["avg_kills"]:.1f}</div>
+                <div style="color:#94a3b8;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;">Média Kills</div>
             </div>
         </div>
     </div>
     '''
     
     # Win Rate
-    html += '<div class="chart-section"><div class="charts-grid">'
-    html += f'<div class="chart-card">{_gen_winrate_chart(stats1, stats2, team1, team2)}</div>'
+    html += '<div style="margin-bottom:24px;"><div style="display:grid;grid-template-columns:1fr;gap:20px;">'
+    html += f'<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;overflow:hidden;">{_gen_winrate_chart(stats1, stats2, team1, team2)}</div>'
     html += '</div></div>'
     
     # Radar
-    html += '<div class="chart-section"><div class="charts-grid">'
-    html += f'<div class="chart-card">{_gen_radar_chart(stats1, stats2, team1, team2)}</div>'
+    html += '<div style="margin-bottom:24px;"><div style="display:grid;grid-template-columns:1fr;gap:20px;">'
+    html += f'<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;overflow:hidden;">{_gen_radar_chart(stats1, stats2, team1, team2)}</div>'
     html += '</div></div>'
     
     # Kills + Objetivos
-    html += '<div class="chart-section"><div class="section-title">⚔️ Análise de Combate e Objetivos</div><div class="charts-grid">'
-    html += f'<div class="chart-card">{_gen_kills_comparison(stats1, stats2, team1, team2)}</div>'
-    html += f'<div class="chart-card">{_gen_objectives_chart(stats1, stats2, team1, team2)}</div>'
+    html += '<div style="margin-bottom:24px;"><div style="color:#e2e8f0;font-size:1.1rem;font-weight:600;margin-bottom:12px;padding-left:12px;border-left:3px solid #3b82f6;">⚔️ Análise de Combate e Objetivos</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(450px,1fr));gap:20px;">'
+    html += f'<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;overflow:hidden;">{_gen_kills_comparison(stats1, stats2, team1, team2)}</div>'
+    html += f'<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;overflow:hidden;">{_gen_objectives_chart(stats1, stats2, team1, team2)}</div>'
     html += '</div></div>'
     
     # First Objectives + Duração
-    html += '<div class="chart-section"><div class="section-title">🎯 First Objectives & Tempo</div><div class="charts-grid">'
-    html += f'<div class="chart-card">{_gen_first_objectives_chart(stats1, stats2, team1, team2)}</div>'
-    html += f'<div class="chart-card">{_gen_duration_chart(stats1, stats2, team1, team2)}</div>'
+    html += '<div style="margin-bottom:24px;"><div style="color:#e2e8f0;font-size:1.1rem;font-weight:600;margin-bottom:12px;padding-left:12px;border-left:3px solid #3b82f6;">🎯 First Objectives & Tempo</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(450px,1fr));gap:20px;">'
+    html += f'<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;overflow:hidden;">{_gen_first_objectives_chart(stats1, stats2, team1, team2)}</div>'
+    html += f'<div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155;overflow:hidden;">{_gen_duration_chart(stats1, stats2, team1, team2)}</div>'
     html += '</div></div>'
     
     # Forma recente
-    html += '<div class="chart-section"><div class="section-title">📈 Forma Recente</div><div class="charts-grid">'
+    html += '<div style="margin-bottom:24px;"><div style="color:#e2e8f0;font-size:1.1rem;font-weight:600;margin-bottom:12px;padding-left:12px;border-left:3px solid #3b82f6;">📈 Forma Recente</div><div style="display:grid;grid-template-columns:1fr;gap:20px;">'
     html += _gen_recent_form(stats1, stats2, team1, team2)
     html += '</div></div>'
     
@@ -777,7 +777,7 @@ def generate_charts(team1, team2, odds_data=None):
     # Footer
     betboom_status = "✅ Odds BetBoom disponíveis" if (odds_data and odds_data.get("status") == "success") else "ℹ️ Análise baseada apenas em dados históricos"
     html += f'''
-    <div class="footer-note">
+    <div style="text-align:center;color:#64748b;font-size:0.8rem;margin-top:20px;padding:12px;">
         Dados extraídos da camada Silver (banco local). {betboom_status}<br>
         ⚠️ Este é um projeto educacional. Aposte com responsabilidade.
     </div>
