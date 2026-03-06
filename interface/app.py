@@ -4,6 +4,19 @@ import os
 import sys
 import importlib
 
+# Importa módulos de scraping e gráficos
+try:
+    from interface.scraper_betboom import scrape_match_odds
+    from interface.charts_insights import generate_charts
+except ImportError as e:
+    # Se o erro for que o módulo 'interface' não foi encontrado (execução direta),
+    # tenta importar diretamente. Caso contrário (como falta de dependência), relança o erro.
+    if "interface" in str(e):
+        from scraper_betboom import scrape_match_odds
+        from charts_insights import generate_charts
+    else:
+        raise e
+
 # Adiciona o diretório "pipeline" ao PYTHONPATH para podermos importar os módulos
 # Subindo um nível para encontrar o diretório "pipeline" a partir de "interface/"
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "pipeline")))
@@ -105,6 +118,21 @@ def prever_partida(time1, time2, patches):
     except Exception as e:
         return f"❌ ERRO NA PREDIÇÃO: {str(e)}"
 
+def gerar_insights(time1, time2):
+    """Gera gráficos dinâmicos usando dados Silver (instantâneo)."""
+    if not time1 or not time2 or time1 == "Rode o Pipeline Primeiro" or time2 == "Rode o Pipeline Primeiro":
+        return "<div style='color:#f87171;padding:20px;text-align:center;'>⚠️ Selecione dois times válidos primeiro.</div>"
+    if time1 == time2:
+        return "<div style='color:#f87171;padding:20px;text-align:center;'>⚠️ Selecione times diferentes.</div>"
+    
+    try:
+        # Gera gráficos com dados Silver (banco local, instantâneo)
+        # BetBoom scraping desabilitado por padrão — lento e frágil
+        charts_html = generate_charts(time1, time2, odds_data=None)
+        return charts_html
+    except Exception as e:
+        return f"<div style='color:#f87171;padding:20px;text-align:center;'>❌ Erro ao gerar insights: {str(e)}</div>"
+
 def atualizar_dropdowns():
     """Atualiza a lista de times e patches nos dropdowns."""
     times = get_times_disponiveis()
@@ -182,8 +210,8 @@ def create_interface():
                     patches_originais = get_patches_disponiveis()
                     
                     with gr.Row():
-                        dropdown_t1 = gr.Dropdown(choices=times_originais, label="🟦 Time 1 (Blue Side)", allow_custom_value=True)
-                        dropdown_t2 = gr.Dropdown(choices=times_originais, label="🟥 Time 2 (Red Side)", allow_custom_value=True)
+                        dropdown_t1 = gr.Dropdown(choices=times_originais, value=None, label="🟦 Time 1 (Blue Side)", allow_custom_value=False)
+                        dropdown_t2 = gr.Dropdown(choices=times_originais, value=None, label="🟥 Time 2 (Red Side)", allow_custom_value=False)
                     
                     dropdown_patches = gr.Dropdown(
                         choices=patches_originais, 
@@ -195,10 +223,13 @@ def create_interface():
                     
                     with gr.Row():
                         btn_prever = gr.Button("🔮 Gerar Predição", variant="primary")
-                        btn_atualizar_times = gr.Button("🔄 Atualizar Dados")
+                        btn_insights = gr.Button("📊 Gerar Insights", variant="secondary")
 
                 gr.Markdown("### 📝 Relatório de Inteligência")
                 resultado_markdown = gr.Markdown("Selecione os times e clique em prever...", elem_classes="caixa-resultado")
+                
+                gr.Markdown("### 📊 Insights de Apostas (BetBoom)")
+                insights_html = gr.HTML(value="<div style='color:#94a3b8;text-align:center;padding:30px;'>Selecione dois times e clique em <b>📊 Gerar Insights</b> para análise estatística completa.</div>")
 
             # --- SEÇÃO 2: PIPELINE ---
             with gr.Group(visible=False) as group_pipeline:
@@ -237,7 +268,7 @@ def create_interface():
 
         # --- LÓGICA DE FUNCIONALIDADE ---
         btn_prever.click(fn=prever_partida, inputs=[dropdown_t1, dropdown_t2, dropdown_patches], outputs=resultado_markdown)
-        btn_atualizar_times.click(fn=atualizar_dropdowns, inputs=[], outputs=[dropdown_t1, dropdown_t2, dropdown_patches])
+        btn_insights.click(fn=gerar_insights, inputs=[dropdown_t1, dropdown_t2], outputs=insights_html)
         btn_pipeline.click(fn=executar_pipeline_completo, inputs=[], outputs=console_saida)
 
     return app, css
