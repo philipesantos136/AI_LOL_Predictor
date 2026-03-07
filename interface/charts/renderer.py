@@ -12,6 +12,7 @@ from .chart_generators import (
     gen_first_objectives_egr, gen_mlr_proxy,
     gen_total_abates, gen_kills_por_time,
     gen_handicap, gen_duracao,
+    gen_dragons, gen_torres, gen_baroes,
 )
 from .ev_finder import gen_betting_recommendations
 
@@ -85,6 +86,14 @@ def generate_charts(team1, team2, patches=None, odds_data=None):
     html += f'<div {CARD}>{gen_total_abates(stats1, stats2, team1, team2)}</div>'
     html += f'<div {CARD}>{gen_kills_por_time(stats1, stats2, team1, team2)}</div>'
     html += f'<div {CARD}>{gen_handicap(stats1, stats2, team1, team2)}</div>'
+    html += '</div></div>'
+
+    # Distribuições de Objetivos (Dragões, Torres, Barões)
+    TITLE4 = 'style="color:#f97316;font-size:1.1rem;font-weight:600;margin-bottom:12px;padding-left:12px;border-left:3px solid #f97316;"'
+    html += f'<div {SECTION}><div {TITLE4}>🐉 Distribuições de Objetivos (Dragões, Torres, Barões)</div><div style="display:grid;grid-template-columns:1fr;gap:20px;">'
+    html += f'<div {CARD}>{gen_dragons(stats1, stats2, team1, team2)}</div>'
+    html += f'<div {CARD}>{gen_torres(stats1, stats2, team1, team2)}</div>'
+    html += f'<div {CARD}>{gen_baroes(stats1, stats2, team1, team2)}</div>'
     html += '</div></div>'
 
     # Duração

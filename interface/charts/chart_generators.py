@@ -344,3 +344,143 @@ def gen_duracao(s1, s2, t1, t2):
 
     return (fig_to_html(fig) + f'<div style="margin-top:8px;">{stats_html(st, "min")}</div>' + bets
             + explain("A <b>Duração (AGT - Avg Game Time)</b> reflete se os times controlam o pace. Um time de EGR baixo e AGT alto joga na defensiva pelas torres e falha nas chamadas de Barão."))
+
+
+# ============================================================================
+# Objective Distribution Charts (Dragons, Torres, Barões)
+# ============================================================================
+
+def gen_dragons(s1, s2, t1, t2):
+    """Distribuição de dragões por time (subplots lado a lado) + totais combinados."""
+    fig = make_subplots(rows=1, cols=2, subplot_titles=[f"{t1}", f"{t2}"], horizontal_spacing=0.1)
+    combo_html = ""
+    for col, (stats, team, bar_c, line_c) in enumerate([(s1, t1, "#f97316", "#fb923c"), (s2, t2, "#c2410c", "#ea580c")], 1):
+        raw = int_list(stats.get("dragons_history", []))
+        if not raw:
+            continue
+        st = calc_stats(raw)
+        counts = Counter(raw)
+        x_vals = sorted(counts.keys())
+        y_vals = [counts[v] for v in x_vals]
+        fig.add_trace(go.Bar(x=x_vals, y=y_vals, name=team, marker_color=bar_c, marker_line_color=line_c, marker_line_width=1, showlegend=False, text=[str(c) for c in y_vals], textposition="outside"), row=1, col=col)
+        fig.add_vline(x=st["avg"], line=dict(color=line_c, width=2.5, dash="dash"), row=1, col=col)
+        combo_html += f'<div style="margin-top:4px;"><span style="color:{line_c};font-weight:700;">{team}:</span> {stats_html(st)} {odd_badge(sum(1 for v in raw if v > 3.5)/len(raw)*100)} <b>Over 3.5 Dragões</b></div>'
+
+    layout = base_layout("🐉 Distribuição de Dragões por Time", height=400)
+    layout["xaxis"] = dict(title="Dragões Conquistados", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
+    layout["yaxis"] = dict(title="Nº de Partidas", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
+    layout["xaxis2"] = dict(title="Dragões Conquistados", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
+    layout["yaxis2"] = dict(title="Nº de Partidas", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
+    fig.update_layout(**layout)
+
+    # Total combinado
+    d1 = int_list(s1.get("dragons_history", []))
+    d2 = int_list(s2.get("dragons_history", []))
+    min_len = min(len(d1), len(d2))
+    total_html = ""
+    if min_len > 0:
+        total = [d1[i] + d2[i] for i in range(min_len)]
+        st_t = calc_stats(total)
+        bets = '<div style="margin-top:10px;"><b style="color:#e2e8f0;">📌 Entradas Total Dragões (Partida):</b><br>'
+        for lv in [3.5, 4.5, 5.5]:
+            prob_o = sum(1 for v in total if v > lv) / len(total) * 100
+            bets += bet_line(f"{t1}+{t2}", "Over", f"{lv:.1f} dragões", prob_o, len(total),
+                f"Em {sum(1 for v in total if v > lv)} de {len(total)} jogos, o total de dragões foi > {lv:.1f}. "
+                f"Média combinada: {st_t['avg']:.1f}. Dragon Soul exige 4 dragões para um time.")
+            bets += '<br>'
+        bets += '</div>'
+        total_html = f'<div style="margin-top:8px;">{stats_html(st_t, " dragões (total)")}</div>' + bets
+
+    return (fig_to_html(fig) + combo_html + total_html
+            + explain("O controle de <b>Dragões</b> é um proxy do domínio bot-side e da visão do rio. Times com FD% alto tendem a acumular 3-4 dragões de modo mais consisteente. O Dragon Soul (~4 dragões) é um gamechanger."))
+
+
+def gen_torres(s1, s2, t1, t2):
+    """Distribuição de torres destruídas por time (subplots lado a lado)."""
+    fig = make_subplots(rows=1, cols=2, subplot_titles=[f"{t1}", f"{t2}"], horizontal_spacing=0.1)
+    combo_html = ""
+    for col, (stats, team, bar_c, line_c) in enumerate([(s1, t1, "#eab308", "#fbbf24"), (s2, t2, "#a16207", "#ca8a04")], 1):
+        raw = int_list(stats.get("towers_history", []))
+        if not raw:
+            continue
+        st = calc_stats(raw)
+        counts = Counter(raw)
+        x_vals = sorted(counts.keys())
+        y_vals = [counts[v] for v in x_vals]
+        fig.add_trace(go.Bar(x=x_vals, y=y_vals, name=team, marker_color=bar_c, marker_line_color=line_c, marker_line_width=1, showlegend=False, text=[str(c) for c in y_vals], textposition="outside"), row=1, col=col)
+        fig.add_vline(x=st["avg"], line=dict(color=line_c, width=2.5, dash="dash"), row=1, col=col)
+        combo_html += f'<div style="margin-top:4px;"><span style="color:{line_c};font-weight:700;">{team}:</span> {stats_html(st)} {odd_badge(sum(1 for v in raw if v > 5.5)/len(raw)*100)} <b>Over 5.5 Torres</b></div>'
+
+    layout = base_layout("🏰 Distribuição de Torres Destruídas por Time", height=400)
+    layout["xaxis"] = dict(title="Torres Destruídas", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
+    layout["yaxis"] = dict(title="Nº de Partidas", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
+    layout["xaxis2"] = dict(title="Torres Destruídas", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
+    layout["yaxis2"] = dict(title="Nº de Partidas", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
+    fig.update_layout(**layout)
+
+    # Total combinado
+    t1_d = int_list(s1.get("towers_history", []))
+    t2_d = int_list(s2.get("towers_history", []))
+    min_len = min(len(t1_d), len(t2_d))
+    total_html = ""
+    if min_len > 0:
+        total = [t1_d[i] + t2_d[i] for i in range(min_len)]
+        st_t = calc_stats(total)
+        bets = '<div style="margin-top:10px;"><b style="color:#e2e8f0;">📌 Entradas Total Torres (Partida):</b><br>'
+        for lv in [10.5, 12.5, 14.5]:
+            prob_o = sum(1 for v in total if v > lv) / len(total) * 100
+            bets += bet_line(f"{t1}+{t2}", "Over", f"{lv:.1f} torres", prob_o, len(total),
+                f"Em {sum(1 for v in total if v > lv)} de {len(total)} jogos, o total de torres foi > {lv:.1f}. "
+                f"Média combinada: {st_t['avg']:.1f}. Existem 11 torres por time (22 no total).")
+            bets += '<br>'
+        bets += '</div>'
+        total_html = f'<div style="margin-top:8px;">{stats_html(st_t, " torres (total)")}</div>' + bets
+
+    return (fig_to_html(fig) + combo_html + total_html
+            + explain("O <b>MLR (Mid/Late Rating)</b> mostra que torres destruídas indicam conversão de vantagem. Times que pegam Barão mas não derrubam torres são passivos e falham em <i>snowballar</i>."))
+
+
+def gen_baroes(s1, s2, t1, t2):
+    """Distribuição de barões por time (subplots lado a lado)."""
+    fig = make_subplots(rows=1, cols=2, subplot_titles=[f"{t1}", f"{t2}"], horizontal_spacing=0.1)
+    combo_html = ""
+    for col, (stats, team, bar_c, line_c) in enumerate([(s1, t1, "#22c55e", "#4ade80"), (s2, t2, "#15803d", "#16a34a")], 1):
+        raw = int_list(stats.get("barons_history", []))
+        if not raw:
+            continue
+        st = calc_stats(raw)
+        counts = Counter(raw)
+        x_vals = sorted(counts.keys())
+        y_vals = [counts[v] for v in x_vals]
+        fig.add_trace(go.Bar(x=x_vals, y=y_vals, name=team, marker_color=bar_c, marker_line_color=line_c, marker_line_width=1, showlegend=False, text=[str(c) for c in y_vals], textposition="outside"), row=1, col=col)
+        fig.add_vline(x=st["avg"], line=dict(color=line_c, width=2.5, dash="dash"), row=1, col=col)
+        combo_html += f'<div style="margin-top:4px;"><span style="color:{line_c};font-weight:700;">{team}:</span> {stats_html(st)} {odd_badge(sum(1 for v in raw if v > 0.5)/len(raw)*100)} <b>Over 0.5 Barões</b></div>'
+
+    layout = base_layout("💚 Distribuição de Barões por Time", height=400)
+    layout["xaxis"] = dict(title="Barões Conquistados", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
+    layout["yaxis"] = dict(title="Nº de Partidas", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
+    layout["xaxis2"] = dict(title="Barões Conquistados", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
+    layout["yaxis2"] = dict(title="Nº de Partidas", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
+    fig.update_layout(**layout)
+
+    # Total combinado
+    b1 = int_list(s1.get("barons_history", []))
+    b2 = int_list(s2.get("barons_history", []))
+    min_len = min(len(b1), len(b2))
+    total_html = ""
+    if min_len > 0:
+        total = [b1[i] + b2[i] for i in range(min_len)]
+        st_t = calc_stats(total)
+        bets = '<div style="margin-top:10px;"><b style="color:#e2e8f0;">📌 Entradas Total Barões (Partida):</b><br>'
+        for lv in [0.5, 1.5]:
+            prob_o = sum(1 for v in total if v > lv) / len(total) * 100
+            bets += bet_line(f"{t1}+{t2}", "Over", f"{lv:.1f} barões", prob_o, len(total),
+                f"Em {sum(1 for v in total if v > lv)} de {len(total)} jogos, o total de barões foi > {lv:.1f}. "
+                f"Média combinada: {st_t['avg']:.1f}. Jogos que ultrapassam 25min tendem a ter pelo menos 1 Barão.")
+            bets += '<br>'
+        bets += '</div>'
+        total_html = f'<div style="margin-top:8px;">{stats_html(st_t, " barões (total)")}</div>' + bets
+
+    return (fig_to_html(fig) + combo_html + total_html
+            + explain("O <b>Barão Nashor</b> é o principal indicador do MLR. Seu buff de empurro de lanes permite cercar torres e inibidores. Times que controlam o Baron Pit ditam o ritmo do mid-late game."))
+
