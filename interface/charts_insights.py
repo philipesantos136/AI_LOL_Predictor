@@ -611,6 +611,10 @@ def _gen_kills_por_time(s1, s2, t1, t2):
         stats_htmls.append(f'<div style="margin-top:4px;"><span style="color:{line_color};font-weight:700;">{team}:</span> {_stats_html(st)} {_odd_badge(pct_over)} <b>Over {avg_line:.1f} kills</b></div>')
 
     layout = _base_layout("🎯 Distribuição de Kills Individuais", height=420)
+    layout["xaxis"] = dict(title="Kills do Time", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
+    layout["yaxis"] = dict(title="Nº de Partidas", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
+    layout["xaxis2"] = dict(title="Kills do Time", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
+    layout["yaxis2"] = dict(title="Nº de Partidas", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
     fig.update_layout(**layout)
     return (_fig_to_html(fig) + "".join(stats_htmls)
             + _explain("A <b>Odd ideal</b> exibida refere-se à entrada <b>Over X.X kills</b> (arredondamento da média). Se o time puxar mais que a média histórica, a linha é coberta. Kills por time medem a pressão terminal, mas times com alta kill rate sem EGR alto podem estar apenas sendo engajados frequentemente."))
@@ -833,34 +837,62 @@ def _gen_betting_recommendations(s1, s2, t1, t2):
     if not categories:
         return '<div style="background:#1e293b;border-radius:12px;padding:20px;border:1px solid #334155;color:#94a3b8;text-align:center;">📭 Nenhum dado disponível para gerar recomendações.</div>'
 
-    # Função para extrair probabilidade de uma entrada para ordenação
     import re
     def _extract_prob(entry_html):
         m = re.search(r'\((\d+)%\)', entry_html)
         return int(m.group(1)) if m else 0
 
-    # Montar HTML por time com tabs de risco
+    market_groups = [
+        ("Vencedor (ML)",  "🏆 Vencedor",         "#6366f1", "Moneyline"),
+        ("Handicap",       "📊 Handicap de Kills", "#a78bfa", "Kill Diff"),
+        ("Over Kills",     "⚔️ Over Kills",        "#60a5fa", "Kills individuais"),
+        ("Over Dragões",   "🐉 Over Dragões",      "#f97316", "Dragon control"),
+        ("Over Torres",    "🏰 Over Torres",        "#eab308", "Tower destruction"),
+        ("Over Barões",    "💚 Over Barões",        "#22c55e", "Baron Pit control"),
+        ("First Blood",    "🩸 First Blood",        "#ef4444", "EGR component"),
+        ("First Dragon",   "🐲 First Dragon",       "#fb923c", "EGR component"),
+        ("Over Duração",   "⏱️ Over Duração",      "#06b6d4", "AGT"),
+    ]
+
     for team, tcolor, entries in categories:
-        html += f'<div style="background:#1e293b;border-radius:12px;padding:20px;border:1px solid #334155;margin-bottom:16px;">'
-        html += f'<h3 style="color:{tcolor};margin:0 0 12px 0;font-size:1.1rem;">{team} — Todas as Entradas</h3>'
-        html += f'<div style="color:#94a3b8;font-size:0.78rem;margin-bottom:12px;">Clique em qualquer entrada para ver o detalhamento completo do cálculo e a explicação do risco.</div>'
+        # outer team card header
+        html += (
+            f'<div style="background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:14px;'
+            f'border:2px solid {tcolor}33;margin-bottom:20px;overflow:hidden;">'
+            f'<div style="background:linear-gradient(90deg,{tcolor}22,transparent);'
+            f'padding:14px 20px;border-bottom:1px solid {tcolor}33;display:flex;align-items:center;gap:12px;">'
+            f'<span style="color:{tcolor};font-weight:800;font-size:1.15rem;">{team}</span>'
+            f'<span style="color:#64748b;font-size:0.8rem;">— Todas as Entradas por Mercado</span>'
+            f'</div>'
+            f'<div style="padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;">'
+        )
 
-        # Separar por risco e ordenar por probabilidade (maior primeiro)
-        low_entries = sorted([e for e in entries if '🟢' in e], key=_extract_prob, reverse=True)
-        med_entries = sorted([e for e in entries if '🟡' in e], key=_extract_prob, reverse=True)
-        high_entries = sorted([e for e in entries if '🔴' in e], key=_extract_prob, reverse=True)
+        for market_key, market_label, market_color, market_note in market_groups:
+            group = [e for e in entries if market_key in e]
+            if not group:
+                continue
 
-        if low_entries:
-            html += '<div style="margin-bottom:12px;"><div style="color:#4ade80;font-weight:700;font-size:0.9rem;margin-bottom:6px;">🟢 Baixo Risco (Prob. ≥ 65%) — Ordenado por probabilidade</div>'
-            html += "".join(low_entries) + '</div>'
-        if med_entries:
-            html += '<div style="margin-bottom:12px;"><div style="color:#fbbf24;font-weight:700;font-size:0.9rem;margin-bottom:6px;">🟡 Risco Médio (Prob. 50-64%) — Ordenado por probabilidade</div>'
-            html += "".join(med_entries) + '</div>'
-        if high_entries:
-            html += '<div style="margin-bottom:12px;"><div style="color:#f87171;font-weight:700;font-size:0.9rem;margin-bottom:6px;">🔴 Alto Risco (Prob. < 50%) — Odds Altas, ordenado por probabilidade</div>'
-            html += "".join(high_entries) + '</div>'
+            low  = sorted([e for e in group if '🟢' in e], key=_extract_prob, reverse=True)
+            med  = sorted([e for e in group if '🟡' in e], key=_extract_prob, reverse=True)
+            high = sorted([e for e in group if '🔴' in e], key=_extract_prob, reverse=True)
 
-        html += '</div>'
+            html += (
+                f'<div style="background:#1e293b;border-radius:10px;padding:14px;'
+                f'border:1px solid #334155;border-top:3px solid {market_color};">'
+                f'<div style="color:{market_color};font-weight:700;font-size:0.92rem;margin-bottom:2px;">{market_label}</div>'
+                f'<div style="color:#64748b;font-size:0.72rem;margin-bottom:10px;">{market_note} · Clique para detalhes</div>'
+            )
+
+            if low:
+                html += '<div style="margin-bottom:6px;"><span style="color:#4ade80;font-size:0.72rem;font-weight:700;">🟢 Baixo Risco (≥65%)</span>' + ''.join(low) + '</div>'
+            if med:
+                html += '<div style="margin-bottom:6px;"><span style="color:#fbbf24;font-size:0.72rem;font-weight:700;">🟡 Risco Médio (50–64%)</span>' + ''.join(med) + '</div>'
+            if high:
+                html += '<div style="margin-bottom:6px;"><span style="color:#f87171;font-size:0.72rem;font-weight:700;">🔴 Alto Risco (&lt;50%) — Odds Altas</span>' + ''.join(high) + '</div>'
+
+            html += '</div>'
+
+        html += '</div></div>'
 
     return html
 
