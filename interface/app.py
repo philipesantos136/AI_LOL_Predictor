@@ -7,13 +7,13 @@ import importlib
 # Importa módulos de scraping e gráficos
 try:
     from interface.scraper_betboom import scrape_match_odds
-    from interface.charts_insights import generate_charts
+    from interface.charts import generate_charts
 except ImportError as e:
     # Se o erro for que o módulo 'interface' não foi encontrado (execução direta),
     # tenta importar diretamente. Caso contrário (como falta de dependência), relança o erro.
     if "interface" in str(e):
         from scraper_betboom import scrape_match_odds
-        from charts_insights import generate_charts
+        from charts import generate_charts
     else:
         raise e
 
