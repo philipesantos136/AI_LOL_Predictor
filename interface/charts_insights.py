@@ -35,7 +35,6 @@ INSIGHTS_CSS = """
     padding: 16px;
     border: 1px solid #334155;
     transition: all 0.3s ease;
-    overflow: hidden;
 }
 .chart-card:hover {
     border-color: rgba(59, 130, 246, 0.5);
@@ -71,12 +70,15 @@ INSIGHTS_CSS = """
     transform: translateX(-50%);
     background: #0f172a;
     color: #e2e8f0;
-    padding: 6px 12px;
+    padding: 8px 12px;
     border-radius: 8px;
     font-size: 0.75rem;
     font-weight: 400;
-    white-space: nowrap;
-    z-index: 999;
+    white-space: normal;
+    width: 260px;
+    text-align: center;
+    line-height: 1.4;
+    z-index: 9999;
     border: 1px solid #475569;
     box-shadow: 0 4px 16px rgba(0,0,0,0.5);
     animation: fadeInUp 0.15s ease-out;
