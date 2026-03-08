@@ -484,3 +484,108 @@ def gen_baroes(s1, s2, t1, t2):
     return (fig_to_html(fig) + combo_html + total_html
             + explain("O <b>Barão Nashor</b> é o principal indicador do MLR. Seu buff de empurro de lanes permite cercar torres e inibidores. Times que controlam o Baron Pit ditam o ritmo do mid-late game."))
 
+
+# ============================================================================
+# Advanced Visualizations: Timeline, Radar & Vision
+# ============================================================================
+
+def gen_timeline_chart(s1, s2, t1, t2):
+    """Gráfico de linha do tempo de Gold, CS e XP Difference."""
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08, 
+                        subplot_titles=["Gold Difference", "CS Difference", "XP Difference"])
+    
+    x_vals = [10, 15, 20, 25]
+    
+    for row, metric in enumerate(["golddiff", "csdiff", "xpdiff"], 1):
+        for stats, team, color in [(s1, t1, "#60a5fa"), (s2, t2, "#f87171")]:
+            y_vals = [stats.get(f"{metric}at{m}", 0) for m in x_vals]
+            fig.add_trace(go.Scatter(x=x_vals, y=y_vals, mode="lines+markers",
+                                     name=team, line=dict(color=color, width=3),
+                                     marker=dict(size=8, symbol="circle"),
+                                     showlegend=(row == 1)),
+                          row=row, col=1)
+        # Linha Zero
+        fig.add_hline(y=0, line=dict(color="#64748b", width=1.5, dash="dot"), row=row, col=1)
+
+    layout = base_layout("📈 Evolução da Vantagem no Tempo (Timeline)", height=600)
+    layout["xaxis3"] = dict(title="Minutos de Jogo", tickvals=x_vals, gridcolor="rgba(51,65,85,0.5)")
+    for i in range(1, 4):
+        layout[f"yaxis{i}"] = dict(gridcolor="rgba(51,65,85,0.5)", zeroline=False)
+    fig.update_layout(**layout)
+
+    return (fig_to_html(fig) + 
+            explain("A curva de <b>Diferença (Diff)</b> mostra o ritmo da partida. Se a linha cruza o eixo zero em 15-20 min, reflete viradas sistemáticas. "
+                    "Dominar o <b>Early Game</b> (10-15m) no Ouro, CS e XP força o adversário ao desespero."))
+
+def gen_radar_dna(s1, s2, t1, t2):
+    """Radar (Spider) Chart mapeando o DNA do time."""
+    categories = ['Win Rate', 'EGR Score (Early)', 'MLR Score (Late)', 'Visão (VSPM)', 'Economia (EGPM)', 'Ação (KPM)']
+    
+    def calc_radar(stats):
+        wr = stats.get("win_rate", 0)
+        egr = (stats.get("fb_rate", 0) + stats.get("fd_rate", 0)) / 2
+        mlr = min((stats.get("avg_barons", 0) + stats.get("avg_inhibitors", 0) * 1.5 + stats.get("avg_towers", 0) / 4) * 20, 100)
+        vis = min(stats.get("visionscore", 0) / 3.5 * 100, 100) # Norm 3.5 VSPM
+        eco = min(stats.get("cspm", 0) / 35 * 100, 100) # Proxy norm
+        kpm = min(stats.get("avg_kpm", 0) / 1.0 * 100, 100) # Norm 1.0 kpm
+        return [wr, egr, mlr, vis, eco, kpm]
+
+    fig = go.Figure()
+    for stats, team, color in [(s1, t1, "rgba(59,130,246,0.5)"), (s2, t2, "rgba(239,68,68,0.5)")]:
+        r_vals = calc_radar(stats)
+        # Close the polygon
+        fig.add_trace(go.Scatterpolar(r=r_vals + [r_vals[0]], theta=categories + [categories[0]], 
+                                      fill='toself', name=team,
+                                      fillcolor=color, line=dict(color=color.replace('0.5', '1.0'), width=2)))
+
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0, 100], gridcolor="#334155", linecolor="#334155", tickfont=dict(color="#64748b")),
+            angularaxis=dict(gridcolor="#334155", linecolor="#334155", tickfont=dict(color="#e2e8f0", size=13)),
+            bgcolor="#0f172a"
+        ),
+        paper_bgcolor="#1e293b",
+        font=dict(family="Inter, sans-serif"),
+        title=dict(text="🕸️ Mapa de DNA (Identidade Tática)", font=dict(color="#e2e8f0", size=18, weight="bold"), x=0.5),
+        margin=dict(l=40, r=40, t=60, b=40),
+        height=450,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(color="#e2e8f0"))
+    )
+
+    return (fig_to_html(fig) + 
+            explain("O <b>Gráfico de Radar</b> é o padrão-ouro para ler o DNA dos times. Um time esticado em <i>EGR e Ação</i> busca jogos caóticos e curtos. Um dominando <i>MLR e Visão</i> joga pelas lutas de objetivos amplas."))
+
+def gen_vision_control(s1, s2, t1, t2):
+    """Gráfico de controle de visão."""
+    fig = go.Figure()
+    
+    metrics = [
+        ("Wards Colocadas", "wardsplaced"),
+        ("Wards Destruídas", "wardskilled"),
+        ("Control Wards", "controlwardsbought")
+    ]
+    x_labels = [m[0] for m in metrics]
+    
+    for stats, team, color in [(s1, t1, "#60a5fa"), (s2, t2, "#f87171")]:
+        y_vals = [stats.get(m[1], 0) for m in metrics]
+        fig.add_trace(go.Bar(name=team, x=x_labels, y=y_vals, marker_color=color))
+
+    layout = base_layout("👁️ Controle do Mapa (Visão)", height=350)
+    layout["barmode"] = "group"
+    layout["yaxis"]["title"] = "Média por Jogo"
+    fig.update_layout(**layout)
+    
+    vspmm1 = s1.get("visionscore", 0)
+    vspmm2 = s2.get("visionscore", 0)
+    
+    html = fig_to_html(fig)
+    html += f'<div style="text-align:center;padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;margin-top:10px;">'
+    html += f'<strong style="color:#cbd5e1;">🎯 Vision Score Total (Média):</strong><br>'
+    html += f'<span style="color:#60a5fa;font-size:1.1rem;font-weight:bold;">{t1}: {vspmm1:.1f}</span>'
+    html += f'<span style="color:#94a3b8;margin:0 15px;">vs</span>'
+    html += f'<span style="color:#f87171;font-size:1.1rem;font-weight:bold;">{t2}: {vspmm2:.1f}</span>'
+    html += f'</div>'
+
+    return (html + explain("A base do controle de macro no LoL é a <b>Visão</b>. Mais Wards Destruídas e Control Wards indicam foco em varrer a selva e preparar armadilhas em Barão/Dragão."))
+
+

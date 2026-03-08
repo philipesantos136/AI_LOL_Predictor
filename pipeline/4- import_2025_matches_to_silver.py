@@ -41,7 +41,15 @@ def popular_tabela_silver():
                 deaths, assists, teamkills, teamdeaths, firstblood, firstdragon,
                 firstherald, firstbaron, dragons, heralds, barons, gamelength,
                 kpm, ckpm, totalgold, earnedgold, goldspent, total_cs, minionkills,
-                damagetochampions, damagetakenperminute, towers, inhibitors
+                damagetochampions, damagetakenperminute, towers, inhibitors,
+                goldat10, goldat15, goldat20, goldat25,
+                golddiffat10, golddiffat15, golddiffat20, golddiffat25,
+                csat10, csat15, csat20, csat25,
+                csdiffat10, csdiffat15, csdiffat20, csdiffat25,
+                wardsplaced, wardskilled, controlwardsbought, visionscore,
+                cspm, earnedgoldshare,
+                xpat10, xpat15, xpat20, xpat25,
+                xpdiffat10, xpdiffat15, xpdiffat20, xpdiffat25
             )
             SELECT
                 gameid, participantid, patch, league, split, side, position, teamname, champion, result, kills,
@@ -49,7 +57,15 @@ def popular_tabela_silver():
                 firstherald, firstbaron, dragons, heralds, barons, gamelength,
                 "team kpm", ckpm, totalgold, earnedgold, goldspent, "total cs",
                 minionkills, damagetochampions, damagetakenperminute, towers,
-                inhibitors
+                inhibitors,
+                goldat10, goldat15, goldat20, goldat25,
+                golddiffat10, golddiffat15, golddiffat20, golddiffat25,
+                csat10, csat15, csat20, csat25,
+                csdiffat10, csdiffat15, csdiffat20, csdiffat25,
+                wardsplaced, wardskilled, controlwardsbought, visionscore,
+                cspm, earnedgoldshare,
+                xpat10, xpat15, xpat20, xpat25,
+                xpdiffat10, xpdiffat15, xpdiffat20, xpdiffat25
             FROM "{tabela_bronze}";
             ''')
             

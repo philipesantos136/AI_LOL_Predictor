@@ -23,8 +23,8 @@ def criar_tabela_silver():
             cursor.execute("PRAGMA table_info(match_data_silver)")
             colunas_existentes = [col[1] for col in cursor.fetchall()]
             
-            if colunas_existentes and "patch" not in colunas_existentes:
-                print("⚠️  Esquema antigo detectado (coluna 'patch' ausente). Recriando tabela Silver...")
+            if colunas_existentes and "goldat10" not in colunas_existentes:
+                print("⚠️  Esquema antigo detectado (colunas de timeline ausentes). Recriando tabela Silver...")
                 cursor.execute("DROP TABLE match_data_silver")
                 colunas_existentes = []
 
@@ -67,6 +67,36 @@ def criar_tabela_silver():
                     damagetakenperminute REAL,
                     towers INTEGER,
                     inhibitors INTEGER,
+                    goldat10 REAL,
+                    goldat15 REAL,
+                    goldat20 REAL,
+                    goldat25 REAL,
+                    golddiffat10 REAL,
+                    golddiffat15 REAL,
+                    golddiffat20 REAL,
+                    golddiffat25 REAL,
+                    csat10 REAL,
+                    csat15 REAL,
+                    csat20 REAL,
+                    csat25 REAL,
+                    csdiffat10 REAL,
+                    csdiffat15 REAL,
+                    csdiffat20 REAL,
+                    csdiffat25 REAL,
+                    wardsplaced INTEGER,
+                    wardskilled INTEGER,
+                    controlwardsbought INTEGER,
+                    visionscore REAL,
+                    cspm REAL,
+                    earnedgoldshare REAL,
+                    xpat10 REAL,
+                    xpat15 REAL,
+                    xpat20 REAL,
+                    xpat25 REAL,
+                    xpdiffat10 REAL,
+                    xpdiffat15 REAL,
+                    xpdiffat20 REAL,
+                    xpdiffat25 REAL,
                     UNIQUE(gameid, participantid)
                 );
             ''')

@@ -13,6 +13,7 @@ from .chart_generators import (
     gen_total_abates, gen_kills_por_time,
     gen_handicap, gen_duracao,
     gen_dragons, gen_torres, gen_baroes,
+    gen_timeline_chart, gen_radar_dna, gen_vision_control,
 )
 from .ev_finder import gen_betting_recommendations
 
@@ -67,6 +68,21 @@ def generate_charts(team1, team2, patches=None, odds_data=None):
     html += f'<div {SECTION}><div {TITLE3}>🧠 Meta-Modelos Estruturais (EGR e MLR)</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(450px,1fr));gap:20px;">'
     html += gen_first_objectives_egr(stats1, stats2, team1, team2)
     html += gen_mlr_proxy(stats1, stats2, team1, team2)
+    html += '</div></div>'
+
+    # Radar & Identity
+    html += f'<div {SECTION}><div {TITLE}>🕸️ Identidade Tática (Team DNA)</div><div style="display:grid;grid-template-columns:1fr;gap:20px;">'
+    html += f'<div {CARD}>{gen_radar_dna(stats1, stats2, team1, team2)}</div>'
+    html += '</div></div>'
+
+    # Timeline (Gold/CS/XP)
+    html += f'<div {SECTION}><div {TITLE3}>📈 Timeline de Vantagens (10 a 25 min)</div><div style="display:grid;grid-template-columns:1fr;gap:20px;">'
+    html += f'<div {CARD}>{gen_timeline_chart(stats1, stats2, team1, team2)}</div>'
+    html += '</div></div>'
+
+    # Visão e Controle de Mapa
+    html += f'<div {SECTION}><div {TITLE3}>👁️ Visão & Controle de Mapa</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(450px,1fr));gap:20px;">'
+    html += f'<div {CARD}>{gen_vision_control(stats1, stats2, team1, team2)}</div>'
     html += '</div></div>'
 
     # Economia, Dano e Sangria

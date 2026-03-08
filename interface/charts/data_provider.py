@@ -54,7 +54,15 @@ def get_team_stats(team_name, patches=None):
                 AVG(CASE WHEN firstherald=1 THEN 1.0 ELSE 0.0 END),
                 AVG(kpm), AVG(ckpm),
                 AVG(totalgold), AVG(earnedgold), AVG(goldspent),
-                AVG(total_cs), AVG(damagetochampions), AVG(damagetakenperminute)
+                AVG(total_cs), AVG(minionkills), AVG(damagetochampions), AVG(damagetakenperminute),
+                AVG(goldat10), AVG(goldat15), AVG(goldat20), AVG(goldat25),
+                AVG(golddiffat10), AVG(golddiffat15), AVG(golddiffat20), AVG(golddiffat25),
+                AVG(csat10), AVG(csat15), AVG(csat20), AVG(csat25),
+                AVG(csdiffat10), AVG(csdiffat15), AVG(csdiffat20), AVG(csdiffat25),
+                AVG(wardsplaced), AVG(wardskilled), AVG(controlwardsbought), AVG(visionscore),
+                AVG(cspm), AVG(earnedgoldshare),
+                AVG(xpat10), AVG(xpat15), AVG(xpat20), AVG(xpat25),
+                AVG(xpdiffat10), AVG(xpdiffat15), AVG(xpdiffat20), AVG(xpdiffat25)
             FROM match_data_silver WHERE {base_where}
         """, params)
 
@@ -74,7 +82,23 @@ def get_team_stats(team_name, patches=None):
             "fbaron_rate": (row[12] or 0) * 100, "fherald_rate": (row[13] or 0) * 100,
             "avg_kpm": row[14] or 0, "avg_ckpm": row[15] or 0,
             "avg_totalgold": row[16] or 0, "avg_earnedgold": row[17] or 0, "avg_goldspent": row[18] or 0,
-            "avg_cs": row[19] or 0, "avg_dmg_champs": row[20] or 0, "avg_dmg_taken_pm": row[21] or 0,
+            "avg_cs": row[19] or 0, "avg_minionkills": row[20] or 0, 
+            "avg_dmg_champs": row[21] or 0, "avg_dmg_taken_pm": row[22] or 0,
+            
+            # Timelines
+            "goldat10": row[23] or 0, "goldat15": row[24] or 0, "goldat20": row[25] or 0, "goldat25": row[26] or 0,
+            "golddiffat10": row[27] or 0, "golddiffat15": row[28] or 0, "golddiffat20": row[29] or 0, "golddiffat25": row[30] or 0,
+            "csat10": row[31] or 0, "csat15": row[32] or 0, "csat20": row[33] or 0, "csat25": row[34] or 0,
+            "csdiffat10": row[35] or 0, "csdiffat15": row[36] or 0, "csdiffat20": row[37] or 0, "csdiffat25": row[38] or 0,
+            
+            # Vision & Economy extra
+            "wardsplaced": row[39] or 0, "wardskilled": row[40] or 0, 
+            "controlwardsbought": row[41] or 0, "visionscore": row[42] or 0,
+            "cspm": row[43] or 0, "earnedgoldshare": row[44] or 0,
+            
+            # XP
+            "xpat10": row[45] or 0, "xpat15": row[46] or 0, "xpat20": row[47] or 0, "xpat25": row[48] or 0,
+            "xpdiffat10": row[49] or 0, "xpdiffat15": row[50] or 0, "xpdiffat20": row[51] or 0, "xpdiffat25": row[52] or 0,
         }
 
         # Históricos para distribuições
