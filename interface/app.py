@@ -203,7 +203,7 @@ def create_interface():
                     
                     dropdown_patches = gr.Dropdown(
                         choices=patches_originais, 
-                        value=["Todos"], 
+                        value=patches_originais[1:5] if len(patches_originais) > 1 else ["Todos"], 
                         multiselect=True, 
                         label="📅 Versão do Patch",
                         interactive=True
