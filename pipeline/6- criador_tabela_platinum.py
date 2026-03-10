@@ -6,7 +6,8 @@ def criar_tabela_platinum():
     Cria a estrutura da tabela champion_stats_platinum no banco de dados SQLite.
     Esta tabela representa a camada Platinum (dados de agregação para Machine Learning e Insights Avançados).
     """
-    db_dir = os.path.join("data", "db")
+    ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    db_dir = os.path.join(ROOT_DIR, "data", "db")
     os.makedirs(db_dir, exist_ok=True)
     db_file = os.path.join(db_dir, "lol_datamatches.db")
     

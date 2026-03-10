@@ -7,7 +7,8 @@ def popular_tabela_platinum():
     Calcula métricas como winrate, KDA e ouro por time/campeão,
     além de médias do 'WORLD' (Mundo) e agregações de patches.
     """
-    db_dir = os.path.join("data", "db")
+    ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    db_dir = os.path.join(ROOT_DIR, "data", "db")
     db_file = os.path.join(db_dir, "lol_datamatches.db")
     
     if not os.path.exists(db_file):

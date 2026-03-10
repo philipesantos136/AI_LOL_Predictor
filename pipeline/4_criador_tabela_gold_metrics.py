@@ -7,7 +7,8 @@ def criar_tabelas_gold():
     as tabelas gold_team_metrics e gold_player_metrics.
     Foco em indicadores preditivos para apostas em League of Legends.
     """
-    db_dir = os.path.join("data", "db")
+    ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    db_dir = os.path.join(ROOT_DIR, "data", "db")
     db_file = os.path.join(db_dir, "lol_datamatches.db")
 
     print("Iniciando criação das tabelas Gold...")
