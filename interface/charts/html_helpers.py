@@ -60,6 +60,7 @@ INSIGHTS_CSS = """
     content: attr(data-tip);
     position: absolute;
     bottom: 110%;
+    /* Keep it centered but constrain its width tightly and use viewport limits if needed */
     left: 50%;
     transform: translateX(-50%);
     background: #0f172a;
@@ -69,14 +70,36 @@ INSIGHTS_CSS = """
     font-size: 0.75rem;
     font-weight: 400;
     white-space: normal;
-    width: 260px;
-    text-align: center;
+    width: max-content;
+    max-width: min(260px, 80vw);
+    text-align: left;
     line-height: 1.4;
     z-index: 9999;
     border: 1px solid #475569;
     box-shadow: 0 4px 16px rgba(0,0,0,0.5);
     animation: fadeInUp 0.15s ease-out;
     pointer-events: none;
+}
+.stats-badge {
+    position: relative; /* ensure tooltip is positioned relative to badge */
+}
+/* If it's the last element or right-aligned, push the tooltip to the left */
+.stats-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    position: relative;
+    max-width: 100%;
+}
+.tooltip-right:hover::after {
+    left: auto;
+    right: 0;
+    transform: none;
+}
+.tooltip-left:hover::after {
+    left: 0;
+    right: auto;
+    transform: none;
 }
 .odd-badge {
     background: rgba(234,179,8,0.15);
@@ -129,6 +152,16 @@ INSIGHTS_CSS = """
     color: #cbd5e1;
     line-height: 1.6;
     animation: fadeInUp 0.2s ease-out;
+}
+.bets-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+.bet-grid-item {
+    flex: 1 1 calc(50% - 8px);
+    box-sizing: border-box;
 }
 </style>
 """
@@ -215,12 +248,14 @@ def stats_html(st, unit=""):
         return ""
     u = unit
     return (
-        f'<span class="stats-badge" style="background:rgba(59,130,246,0.15);color:#60a5fa;" data-tip="Média (μ): Valor central de todos os dados. Em LoL, indica a tendência de longo prazo do time.">μ={st["avg"]:.1f}{u}</span>'
-        f'<span class="stats-badge" style="background:rgba(168,85,247,0.15);color:#c084fc;" data-tip="Mediana: O valor do meio quando os dados são ordenados. Menos afetada por jogos extremos (stomps ou derrotas pesadas).">Med={st["med"]:.1f}{u}</span>'
+        f'<div class="stats-container">'
+        f'<span class="stats-badge tooltip-left" style="background:rgba(59,130,246,0.15);color:#60a5fa;" data-tip="Média (μ): Valor central de todos os dados. Em LoL, indica a tendência de longo prazo do time.">μ={st["avg"]:.1f}{u}</span>'
+        f'<span class="stats-badge tooltip-left" style="background:rgba(168,85,247,0.15);color:#c084fc;" data-tip="Mediana: O valor do meio quando os dados são ordenados. Menos afetada por jogos extremos (stomps ou derrotas pesadas).">Med={st["med"]:.1f}{u}</span>'
         f'<span class="stats-badge" style="background:rgba(34,197,94,0.15);color:#4ade80;" data-tip="Desvio Padrão (σ): Mede a consistência. σ baixo = time previsível, σ alto = resultados voláteis (bom para apostas de risco).">σ={st["std"]:.1f}</span>'
         f'<span class="stats-badge" style="background:rgba(234,179,8,0.12);color:#fbbf24;" data-tip="Min/Max: Os extremos históricos. Mostra o pior e o melhor desempenho do time nesta métrica.">Min={st["min"]:.0f} Max={st["max"]:.0f}</span>'
-        f'<span class="stats-badge" style="background:rgba(99,102,241,0.15);color:#818cf8;" data-tip="Moda: O valor que mais se repete. Em LoL, indica o resultado \'típico\' da equipe.">Moda={st["mode"]:.1f}</span>'
-        f'<span class="stats-badge" style="background:rgba(236,72,153,0.12);color:#f472b6;" data-tip="Percentis 25/75: 50% dos resultados caem entre P25 e P75. É a faixa \'normal\' de desempenho.">P25={st["p25"]:.1f} P75={st["p75"]:.1f}</span>'
+        f'<span class="stats-badge tooltip-right" style="background:rgba(99,102,241,0.15);color:#818cf8;" data-tip="Moda: O valor que mais se repete. Em LoL, indica o resultado \'típico\' da equipe.">Moda={st["mode"]:.1f}</span>'
+        f'<span class="stats-badge tooltip-right" style="background:rgba(236,72,153,0.12);color:#f472b6;" data-tip="Percentis 25/75: 50% dos resultados caem entre P25 e P75. É a faixa \'normal\' de desempenho.">P25={st["p25"]:.1f} P75={st["p75"]:.1f}</span>'
+        f'</div>'
     )
 
 
@@ -253,7 +288,7 @@ def bet_line(team, market, line, prob, data_points, explanation):
     odd = 100 / prob
     tier, label = risk_tier(prob)
     return (
-        f'<div class="bet-entry bet-{tier}">'
+        f'<div class="bet-entry bet-grid-item bet-{tier}">'
         f'<details>'
         f'<summary>{team} — {market} {line} @ <b>{odd:.2f}x</b> ({prob:.0f}%) [{label}]</summary>'
         f'<div class="bet-detail">'

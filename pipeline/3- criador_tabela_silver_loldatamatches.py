@@ -23,9 +23,9 @@ def criar_tabela_silver():
             cursor.execute("PRAGMA table_info(match_data_silver)")
             colunas_existentes = [col[1] for col in cursor.fetchall()]
             
-            if colunas_existentes and "goldat10" not in colunas_existentes:
-                print("⚠️  Esquema antigo detectado (colunas de timeline ausentes). Recriando tabela Silver...")
-                cursor.execute("DROP TABLE match_data_silver")
+            if colunas_existentes and ("goldat10" not in colunas_existentes or "playername" not in colunas_existentes):
+                print("⚠️  Esquema antigo detectado (colunas de timeline ou playername ausentes). Recriando tabela Silver...")
+                cursor.execute("DROP TABLE IF EXISTS match_data_silver")
                 colunas_existentes = []
 
             print("🏗️  Criando estrutura da tabela 'match_data_silver'...")
@@ -35,6 +35,7 @@ def criar_tabela_silver():
                 CREATE TABLE IF NOT EXISTS match_data_silver (
                     gameid TEXT,
                     participantid INTEGER,
+                    playername TEXT,
                     patch TEXT,
                     league TEXT,
                     split TEXT,

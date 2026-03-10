@@ -277,15 +277,15 @@ def gen_handicap(s1, s2, t1, t2):
         fig.add_trace(go.Bar(x=x_vals, y=y_vals, name=f"{team} (μ={st['avg']:+.1f})", marker_color=bar_col, marker_line_color=line_col, marker_line_width=1))
         pct_pos = sum(1 for v in data if v > 0) / len(data) * 100
         odds_html += f'<div style="margin-top:4px;"><span style="color:{line_col};font-weight:700;">{team}:</span> {stats_html(st)} {odd_badge(pct_pos)} <b>Handicap 0 (Positivo > 0 kills)</b></div>'
-
-        for hc_line in [-7.5, -5.5, -3.5, -1.5, 0, 1.5, 3.5, 5.5, 7.5]:
+        bets += '<div class="bets-grid">'
+        for hc_line in [-5.5, -4.5, -3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5]:
             prob = sum(1 for v in data if v > hc_line) / len(data) * 100
-            sign = "+" if hc_line >= 0 else ""
+            sign = "+" if hc_line > 0 else ""
             bets += bet_line(team, "Handicap", f"{sign}{hc_line:.1f} kills", prob, len(data),
                 f"Em {sum(1 for v in data if v > hc_line)} de {len(data)} jogos, {team} teve diff > {hc_line:+.1f}. "
                 f"Média de handicap: {st['avg']:+.1f}, Mediana: {st['med']:+.1f}, Desvio Padrão: {st['std']:.1f}. "
                 f"{'Linha conservadora abaixo da média — alta cobertura.' if hc_line < st['avg'] else 'Linha agressiva acima da média — precisa de domínio claro.'}")
-        bets += '<br>'
+        bets += '</div><br>'
     bets += '</div>'
 
     handicap_explain = (

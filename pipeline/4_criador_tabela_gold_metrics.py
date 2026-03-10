@@ -65,8 +65,8 @@ def criar_tabelas_gold():
                     -- Throw Rate / Comeback (Vitórias condicionadas a vantagem aos 15)
                     -- Definimos 'Throw' como ter >1000 de vantagem e perder.
                     -- Definimos 'Comeback' como ter < -1000 de desvantagem e ganhar.
-                    AVG(CASE WHEN golddiffat15 > 1000 AND result = '0' THEN 1 ELSE 0 END) as throw_rate,
-                    AVG(CASE WHEN golddiffat15 < -1000 AND result = '1' THEN 1 ELSE 0 END) as comeback_rate,
+                    SUM(CASE WHEN golddiffat15 > 1000 AND result = '0' THEN 1 ELSE 0 END) * 1.0 / NULLIF(SUM(CASE WHEN golddiffat15 > 1000 THEN 1 ELSE 0 END), 0) as throw_rate,
+                    SUM(CASE WHEN golddiffat15 < -1000 AND result = '1' THEN 1 ELSE 0 END) * 1.0 / NULLIF(SUM(CASE WHEN golddiffat15 < -1000 THEN 1 ELSE 0 END), 0) as comeback_rate,
                     
                     -- General Winrate
                     AVG(CAST(result AS INTEGER)) as win_rate
@@ -87,7 +87,8 @@ def criar_tabelas_gold():
             query_gold_player = '''
                 CREATE TABLE gold_player_metrics AS
                 SELECT 
-                    participantid as playername, -- A API as vezes salva o nome do jogador no participantid na tabela Silver
+                    playername,
+
                     teamname,
                     position,
                     COUNT(DISTINCT gameid) as games_played,
@@ -111,7 +112,7 @@ def criar_tabelas_gold():
                     AVG(CAST(result AS INTEGER)) as win_rate
                 FROM match_data_silver
                 WHERE position != 'team'
-                GROUP BY participantid, teamname, position
+                GROUP BY playername, teamname, position
                 HAVING COUNT(DISTINCT gameid) >= 3; -- Jogadores com amostra mínima
             '''
             cursor.execute(query_gold_player)

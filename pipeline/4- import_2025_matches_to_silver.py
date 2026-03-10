@@ -37,7 +37,7 @@ def popular_tabela_silver():
             
             cursor.execute(f'''
             INSERT OR REPLACE INTO match_data_silver (
-                gameid, participantid, patch, league, split, side, position, teamname, champion, result, kills,
+                gameid, participantid, playername, patch, league, split, side, position, teamname, champion, result, kills,
                 deaths, assists, teamkills, teamdeaths, firstblood, firstdragon,
                 firstherald, firstbaron, dragons, heralds, barons, gamelength,
                 kpm, ckpm, totalgold, earnedgold, goldspent, total_cs, minionkills,
@@ -52,7 +52,7 @@ def popular_tabela_silver():
                 xpdiffat10, xpdiffat15, xpdiffat20, xpdiffat25
             )
             SELECT
-                gameid, participantid, patch, league, split, side, position, teamname, champion, result, kills,
+                gameid, participantid, playername, patch, league, split, side, position, teamname, champion, result, kills,
                 deaths, assists, teamkills, teamdeaths, firstblood, firstdragon,
                 firstherald, firstbaron, dragons, heralds, barons, gamelength,
                 "team kpm", ckpm, totalgold, earnedgold, goldspent, "total cs",
