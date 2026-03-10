@@ -88,7 +88,7 @@ def _gen_handicap_entries(stats, team, kd):
         return []
     entries = []
     st_kd = calc_stats(kd)
-    for hc in [-5.5, -3.5, -1.5, 0, 1.5, 3.5, 5.5]:
+    for hc in [-5.5, -4.5, -3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5]:
         prob_hc, cnt = _rate_prob(kd, lambda v, h=hc: v > h)
         if prob_hc is not None and prob_hc > 5:
             sign = "+" if hc >= 0 else ""
