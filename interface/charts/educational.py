@@ -19,7 +19,13 @@ def gen_educational_sections():
                 <p style="color:#94a3b8;font-size:0.85rem;line-height:1.5;margin:0;">
                     Segundo o artigo <i>"What Are the Odds?"</i>, prever estatísticas não é sobre "certezas", mas sobre identificar valor.
                     A <b>Odd Ideal</b> é calculada matematicamente como <code style="background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:4px;">1 / (Probabilidade% / 100)</code> baseada no histórico.<br><br>
-                    Se a odd recomendada for <b>1.50</b> (66% de chance) e a casa de apostas estiver oferecendo <b>1.80</b>, há uma discrepância estatística (valor na aposta).
+                    Se a odd for <b>1.50</b> (66% chance) e a casa oferecer <b>1.80</b>, há uma discrepância estatística (+EV).
+                </p>
+                <br>
+                <h4 style="color:#c4b5fd;margin:0 0 10px 0;font-size:0.95rem;">✨ Projeção do Draft</h4>
+                <p style="color:#94a3b8;font-size:0.85rem;line-height:1.5;margin:0;">
+                    É um multiplicador dinâmico calculado ao isolar o desempenho histórico do Campeão escolhido (Platinum Layer) frente à média global de todos os campeões naquela função. 
+                    Por exemplo, se um time pega <i>Draven</i>, o algoritmo percebe que o <b style="color:#c4b5fd;">Multiplicador de First Blood</b> dele é <i>1.40x</i>. As projeções empurram as odds/quantidades originais para refletir a nova agressividade da composição.
                 </p>
             </div>
             <div>

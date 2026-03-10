@@ -4,7 +4,7 @@ Esta é a única função pública do pacote: generate_charts().
 """
 
 from .html_helpers import INSIGHTS_CSS
-from .data_provider import get_team_stats, get_gold_team_stats, get_gold_player_stats
+from .data_provider import get_team_stats, get_gold_team_stats, get_gold_player_stats, get_platinum_champion_stats, get_global_baseline_stats
 from .educational import gen_educational_sections
 from .chart_generators import (
     gen_winrate_chart, gen_recent_form,
@@ -14,12 +14,13 @@ from .chart_generators import (
     gen_handicap, gen_duracao,
     gen_dragons, gen_torres, gen_baroes,
     gen_timeline_chart, gen_radar_dna, gen_vision_control,
+    gen_timeline_chart, gen_radar_dna, gen_vision_control,
     gen_gold_team_summary, gen_gold_player_table
 )
 from .ev_finder import gen_betting_recommendations
 
 
-def generate_charts(team1, team2, patches=None, odds_data=None):
+def generate_charts(team1, team2, patches=None, odds_data=None, champs_t1=None, champs_t2=None):
     """
     API pública — gera o HTML completo do Advanced Analytics.
     
@@ -28,6 +29,8 @@ def generate_charts(team1, team2, patches=None, odds_data=None):
         team2: Nome do time 2
         patches: Lista de patches para filtrar (opcional)
         odds_data: Dados de odds externas (reservado para uso futuro)
+        champs_t1: Dict com os campeões selecionados para t1 (keys: Top, Jungle, Mid, ADC, Sup)
+        champs_t2: Dict com os campeões selecionados para t2 (keys: Top, Jungle, Mid, ADC, Sup)
     
     Returns:
         String HTML completa com todos os gráficos, análises e recomendações.
@@ -40,9 +43,64 @@ def generate_charts(team1, team2, patches=None, odds_data=None):
     gold_t2 = get_gold_team_stats(team2)
     gold_p1 = get_gold_player_stats(team1)
     gold_p2 = get_gold_player_stats(team2)
+    
+    # Busca dados da camada Platinum (Draft/Campeões)
+    plat1, plat2 = {}, {}
+    if champs_t1:
+        for role, champ in champs_t1.items():
+            if champ:
+                plat1[champ] = get_platinum_champion_stats(team1, champ)
+                
+    if champs_t2:
+        for role, champ in champs_t2.items():
+            if champ:
+                plat2[champ] = get_platinum_champion_stats(team2, champ)
 
     if not stats1 or not stats2:
         return f"<div style='text-align:center;padding:40px;color:#f87171;'><h3>⚠️ Dados insuficientes</h3></div>"
+
+    global_baseline = get_global_baseline_stats(patches)
+    
+    def calc_multipliers(plat_data):
+        if not plat_data or not global_baseline:
+            return None
+        factors = {"kills": [], "dragons": [], "towers": [], "barons": [], "duration": [], 
+                   "firstblood": [], "firstdragon": [], "firstherald": []}
+        
+        for champ, data in plat_data.items():
+            w_stats = data.get("world_stats")
+            if w_stats:
+                v = w_stats.get("avg_teamkills"); b = global_baseline.get("avg_teamkills")
+                if v and b: factors["kills"].append(v / b)
+
+                v = w_stats.get("firstblood_rate"); b = global_baseline.get("avg_team_firstblood")
+                if v and b: factors["firstblood"].append(v / b)
+                
+                v = w_stats.get("avg_team_firstdragon"); b = global_baseline.get("avg_team_firstdragon")
+                if v and b: factors["firstdragon"].append(v / b)
+                
+                v = w_stats.get("avg_team_firstherald"); b = global_baseline.get("avg_team_firstherald")
+                if v and b: factors["firstherald"].append(v / b)
+                
+                v = w_stats.get("avg_team_dragons"); b = global_baseline.get("avg_team_dragons")
+                if v and b: factors["dragons"].append(v / b)
+                
+                v = w_stats.get("avg_team_towers"); b = global_baseline.get("avg_team_towers")
+                if v and b: factors["towers"].append(v / b)
+                
+                v = w_stats.get("avg_team_barons"); b = global_baseline.get("avg_team_barons")
+                if v and b: factors["barons"].append(v / b)
+                
+                v = w_stats.get("avg_gamelength"); b = global_baseline.get("avg_gamelength")
+                if v and b: factors["duration"].append(v / b)
+                
+        multipliers = {}
+        for key, f_list in factors.items():
+            multipliers[key] = sum(f_list) / len(f_list) if f_list else 1.0
+        return multipliers
+
+    mult_t1 = calc_multipliers(plat1)
+    mult_t2 = calc_multipliers(plat2)
 
     patch_label = ", ".join(patches) if patches and "Todos" not in patches else "Todos os patches"
 
@@ -84,7 +142,7 @@ def generate_charts(team1, team2, patches=None, odds_data=None):
 
     # Timeline (Gold/CS/XP)
     html += f'<div {SECTION}><div {TITLE3}>📈 Timeline de Vantagens (10 a 25 min)</div><div style="display:grid;grid-template-columns:1fr;gap:20px;">'
-    html += f'<div {CARD}>{gen_timeline_chart(stats1, stats2, team1, team2)}</div>'
+    html += f'<div {CARD}>{gen_timeline_chart(stats1, stats2, team1, team2, mult_t1, mult_t2)}</div>'
     html += '</div></div>'
 
     # Visão e Controle de Mapa
@@ -106,22 +164,22 @@ def generate_charts(team1, team2, patches=None, odds_data=None):
 
     # Distribuições de Abates
     html += f'<div {SECTION}><div {TITLE2}>⚔️ Distribuições de Abates (Combate Extremo)</div><div style="display:grid;grid-template-columns:1fr;gap:20px;">'
-    html += f'<div {CARD}>{gen_total_abates(stats1, stats2, team1, team2)}</div>'
-    html += f'<div {CARD}>{gen_kills_por_time(stats1, stats2, team1, team2)}</div>'
-    html += f'<div {CARD}>{gen_handicap(stats1, stats2, team1, team2)}</div>'
+    html += f'<div {CARD}>{gen_total_abates(stats1, stats2, team1, team2, mult_t1, mult_t2)}</div>'
+    html += f'<div {CARD}>{gen_kills_por_time(stats1, stats2, team1, team2, mult_t1, mult_t2)}</div>'
+    html += f'<div {CARD}>{gen_handicap(stats1, stats2, team1, team2, mult_t1, mult_t2)}</div>'
     html += '</div></div>'
 
     # Distribuições de Objetivos (Dragões, Torres, Barões)
     TITLE4 = 'style="color:#f97316;font-size:1.1rem;font-weight:600;margin-bottom:12px;padding-left:12px;border-left:3px solid #f97316;"'
     html += f'<div {SECTION}><div {TITLE4}>🐉 Distribuições de Objetivos (Dragões, Torres, Barões)</div><div style="display:grid;grid-template-columns:1fr;gap:20px;">'
-    html += f'<div {CARD}>{gen_dragons(stats1, stats2, team1, team2)}</div>'
-    html += f'<div {CARD}>{gen_torres(stats1, stats2, team1, team2)}</div>'
-    html += f'<div {CARD}>{gen_baroes(stats1, stats2, team1, team2)}</div>'
+    html += f'<div {CARD}>{gen_dragons(stats1, stats2, team1, team2, mult_t1, mult_t2)}</div>'
+    html += f'<div {CARD}>{gen_torres(stats1, stats2, team1, team2, mult_t1, mult_t2)}</div>'
+    html += f'<div {CARD}>{gen_baroes(stats1, stats2, team1, team2, mult_t1, mult_t2)}</div>'
     html += '</div></div>'
 
     # Duração
     html += f'<div {SECTION}><div {TITLE2}>⏱ Duração do Jogo (AGT)</div><div style="display:grid;grid-template-columns:1fr;gap:20px;">'
-    html += f'<div {CARD}>{gen_duracao(stats1, stats2, team1, team2)}</div>'
+    html += f'<div {CARD}>{gen_duracao(stats1, stats2, team1, team2, mult_t1, mult_t2)}</div>'
     html += '</div></div>'
 
     # Integração da camada Gold Focus Betting
@@ -138,7 +196,7 @@ def generate_charts(team1, team2, patches=None, odds_data=None):
         <p style="margin:4px 0 0 0;color:#94a3b8;font-size:0.85rem;">Algoritmo de varredura buscando Edges Estatísticos baseados nos Modelos do Elixir</p>
     </div>
     '''
-    html += f'<div {SECTION}>{gen_betting_recommendations(stats1, stats2, team1, team2)}</div>'
+    html += f'<div {SECTION}>{gen_betting_recommendations(stats1, stats2, team1, team2, mult_t1, mult_t2)}</div>'
 
     # Footer
     html += f'<div style="text-align:center;color:#64748b;font-size:0.75rem;margin-top:20px;padding:12px;">Camada Silver Analytics | Desenvolvido com Metodologia do Oracle\'s Elixir</div></div>'

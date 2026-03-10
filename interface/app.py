@@ -37,6 +37,9 @@ popular_tabela_silver = mod4.popular_tabela_silver
 mod5 = importlib.import_module("5- ExecutaLLM")
 dsa_gera_analises = mod5.dsa_gera_analises
 
+mod_scrape_champs = importlib.import_module("scrape_champions")
+baixar_imagens_campeoes = mod_scrape_champs.scrape_champion_squares_ddragon
+
 from pathlib import Path
 
 def get_db_path():
@@ -81,6 +84,17 @@ def get_patches_disponiveis():
         print(f"❌ Erro ao buscar patches: {e}")
         return ["Todos"]
 
+def get_campeoes_disponiveis():
+    """Busca a lista de campeões na pasta data/champs."""
+    champs_dir = Path(__file__).parent.parent / "data" / "champs"
+    if not champs_dir.exists():
+        return ["Nenhum campeão encontrado"]
+    
+    # Lista arquivos .png, remove ramificações extras ou pontuações e extrai apenas o nome sem extensão
+    campeoes = [f.stem for f in champs_dir.glob("*.png")]
+    campeoes.sort()
+    return [""] + campeoes if campeoes else ["Nenhum campeão encontrado"]
+
 def executar_pipeline_completo():
     """Executa todas as etapas de ingestão e preparação de dados em sequência."""
     log = ""
@@ -88,6 +102,15 @@ def executar_pipeline_completo():
         log += "⏳ Iniciando Download do CSV (Google Drive)...\n"
         baixar_arquivo_mais_recente()
         log += "✅ Download Concluído!\n\n"
+        
+        log += "⏳ Verificando/Baixando Imagens dos Campeões (Data Dragon)...\n"
+        try:
+            champs_dir = os.path.join(os.path.dirname(__file__), "..", "data", "champs")
+            # a função scrape_champion_squares_ddragon já verifica se a imagem existe antes de baixar
+            baixar_imagens_campeoes(champs_dir)
+            log += "✅ Imagens Verificadas!\n\n"
+        except Exception as img_err:
+            log += f"⚠️ Erro no Download de Imagens (Ignorado para o fluxo): {img_err}\n\n"
         
         log += "⏳ Criando/Populando Tabela Bronze (SQLite)...\n"
         csv_to_sqlite()
@@ -100,6 +123,16 @@ def executar_pipeline_completo():
         log += "⏳ Inserindo Dados na Tabela Silver...\n"
         popular_tabela_silver()
         log += "✅ Silver Dados OK!\n\n"
+
+        log += "⏳ Criando/Populando Camada Platinum...\n"
+        try:
+            mod6 = importlib.import_module("6- criador_tabela_platinum")
+            mod6.criar_tabela_platinum()
+            mod7 = importlib.import_module("7- popular_tabela_platinum")
+            mod7.popular_tabela_platinum()
+            log += "✅ Platinum OK!\n\n"
+        except Exception as plat_err:
+            log += f"⚠️ Erro na Camada Platinum (ignorado para o fluxo principal): {plat_err}\n\n"
         
         log += "🎉 PARABÉNS! Pipeline concluído com sucesso. A base de dados está atualizada e pronta para predições."
         return log
@@ -108,15 +141,34 @@ def executar_pipeline_completo():
 
 
 
-def gerar_insights(time1, time2, patches):
+def gerar_insights(time1, time2, patches, 
+                   t1_top, t1_jg, t1_mid, t1_adc, t1_sup,
+                   t2_top, t2_jg, t2_mid, t2_adc, t2_sup):
     """Gera gráficos dinâmicos usando dados Silver (instantâneo)."""
     if not time1 or not time2 or time1 == "Rode o Pipeline Primeiro" or time2 == "Rode o Pipeline Primeiro":
         return "<div style='color:#f87171;padding:20px;text-align:center;'>⚠️ Selecione dois times válidos primeiro.</div>"
     if time1 == time2:
         return "<div style='color:#f87171;padding:20px;text-align:center;'>⚠️ Selecione times diferentes.</div>"
     
+    # Agrupa os campeões para passar para a função (ignora os vazios/desmarcados)
+    champs_t1 = {
+        "Top": t1_top if t1_top else None,
+        "Jungle": t1_jg if t1_jg else None,
+        "Mid": t1_mid if t1_mid else None,
+        "ADC": t1_adc if t1_adc else None,
+        "Sup": t1_sup if t1_sup else None
+    }
+    
+    champs_t2 = {
+        "Top": t2_top if t2_top else None,
+        "Jungle": t2_jg if t2_jg else None,
+        "Mid": t2_mid if t2_mid else None,
+        "ADC": t2_adc if t2_adc else None,
+        "Sup": t2_sup if t2_sup else None
+    }
+    
     try:
-        charts_html = generate_charts(time1, time2, patches=patches, odds_data=None)
+        charts_html = generate_charts(time1, time2, patches=patches, odds_data=None, champs_t1=champs_t1, champs_t2=champs_t2)
         return charts_html
     except Exception as e:
         return f"<div style='color:#f87171;padding:20px;text-align:center;'>❌ Erro ao gerar insights: {str(e)}</div>"
@@ -169,6 +221,24 @@ def create_interface():
         border-radius: 10px;
         padding: 20px;
     }
+    .champ-img-box {
+        width: 100%;
+        max-width: 120px;
+        height: 120px;
+        margin: 10px auto 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        background-color: #0f172a;
+        overflow: hidden;
+        border: 1px solid #334155;
+    }
+    .champ-img-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
     """
 
     with gr.Blocks(title="LoL e-Sports Predictor AI") as app:
@@ -211,6 +281,54 @@ def create_interface():
                     
                     btn_insights = gr.Button("📊 Gerar Insights", variant="primary")
 
+                with gr.Accordion("⚔️ Champions (Opcional)", open=False, elem_classes="container-boxed"):
+                    gr.Markdown("Selecione os campeões para cada rota. Você pode selecionar de apenas um time ou ambos. As estatísticas avançadas serão exibidas nos destaques.")
+                    campeoes = get_campeoes_disponiveis()
+                    
+                    gr.Markdown("### 🟦 Time 1 (Blue Side)")
+                    with gr.Row():
+                        with gr.Column(scale=1):
+                            t1_top = gr.Dropdown(choices=campeoes, value="", label="Top")
+                            img_t1_top = gr.HTML("<div class='champ-img-box'></div>")
+                            
+                        with gr.Column(scale=1):
+                            t1_jg = gr.Dropdown(choices=campeoes, value="", label="Jungle")
+                            img_t1_jg = gr.HTML("<div class='champ-img-box'></div>")
+                            
+                        with gr.Column(scale=1):
+                            t1_mid = gr.Dropdown(choices=campeoes, value="", label="Mid")
+                            img_t1_mid = gr.HTML("<div class='champ-img-box'></div>")
+                            
+                        with gr.Column(scale=1):
+                            t1_adc = gr.Dropdown(choices=campeoes, value="", label="ADC")
+                            img_t1_adc = gr.HTML("<div class='champ-img-box'></div>")
+                            
+                        with gr.Column(scale=1):
+                            t1_sup = gr.Dropdown(choices=campeoes, value="", label="Sup")
+                            img_t1_sup = gr.HTML("<div class='champ-img-box'></div>")
+                            
+                    gr.Markdown("### 🟥 Time 2 (Red Side)")
+                    with gr.Row():
+                        with gr.Column(scale=1):
+                            t2_top = gr.Dropdown(choices=campeoes, value="", label="Top")
+                            img_t2_top = gr.HTML("<div class='champ-img-box'></div>")
+                            
+                        with gr.Column(scale=1):
+                            t2_jg = gr.Dropdown(choices=campeoes, value="", label="Jungle")
+                            img_t2_jg = gr.HTML("<div class='champ-img-box'></div>")
+                            
+                        with gr.Column(scale=1):
+                            t2_mid = gr.Dropdown(choices=campeoes, value="", label="Mid")
+                            img_t2_mid = gr.HTML("<div class='champ-img-box'></div>")
+                            
+                        with gr.Column(scale=1):
+                            t2_adc = gr.Dropdown(choices=campeoes, value="", label="ADC")
+                            img_t2_adc = gr.HTML("<div class='champ-img-box'></div>")
+                            
+                        with gr.Column(scale=1):
+                            t2_sup = gr.Dropdown(choices=campeoes, value="", label="Sup")
+                            img_t2_sup = gr.HTML("<div class='champ-img-box'></div>")
+
                 gr.Markdown("### 📊 Análise Estatística Completa")
                 insights_html = gr.HTML(value="<div style='color:#94a3b8;text-align:center;padding:30px;'>Selecione dois times e clique em <b>📊 Gerar Insights</b> para análise estatística completa.</div>")
 
@@ -249,8 +367,44 @@ def create_interface():
             outputs=[group_predicao, group_pipeline, btn_menu_predicao, btn_menu_pipeline]
         )
 
+        def update_champ_img(champ_name):
+            if not champ_name:
+                return "<div class='champ-img-box'></div>"
+            # Get the path to 'data/champs/{champ_name}.png' relative to the browser (using file serving or base64)
+            # In Gradio we can return an absolute or relative filepath for components like gr.Image.
+            # However for gr.HTML, we must use base64 or serve the file. It's safer to use base64 or simple img tag if served.
+            # Alternatively, since we use HTML, we can just load the image locally using base64.
+            import base64
+            img_path = Path(__file__).parent.parent / "data" / "champs" / f"{champ_name}.png"
+            if img_path.exists():
+                with open(img_path, "rb") as image_file:
+                    encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+                return f"<div class='champ-img-box'><img src='data:image/png;base64,{encoded_string}' alt='{champ_name}'/></div>"
+            return "<div class='champ-img-box'></div>"
+
+        # Link dropdown changes to HTML visual updates
+        t1_top.change(fn=update_champ_img, inputs=t1_top, outputs=img_t1_top)
+        t1_jg.change(fn=update_champ_img, inputs=t1_jg, outputs=img_t1_jg)
+        t1_mid.change(fn=update_champ_img, inputs=t1_mid, outputs=img_t1_mid)
+        t1_adc.change(fn=update_champ_img, inputs=t1_adc, outputs=img_t1_adc)
+        t1_sup.change(fn=update_champ_img, inputs=t1_sup, outputs=img_t1_sup)
+        
+        t2_top.change(fn=update_champ_img, inputs=t2_top, outputs=img_t2_top)
+        t2_jg.change(fn=update_champ_img, inputs=t2_jg, outputs=img_t2_jg)
+        t2_mid.change(fn=update_champ_img, inputs=t2_mid, outputs=img_t2_mid)
+        t2_adc.change(fn=update_champ_img, inputs=t2_adc, outputs=img_t2_adc)
+        t2_sup.change(fn=update_champ_img, inputs=t2_sup, outputs=img_t2_sup)
+
         # --- LÓGICA DE FUNCIONALIDADE ---
-        btn_insights.click(fn=gerar_insights, inputs=[dropdown_t1, dropdown_t2, dropdown_patches], outputs=insights_html)
+        btn_insights.click(
+            fn=gerar_insights, 
+            inputs=[
+                dropdown_t1, dropdown_t2, dropdown_patches,
+                t1_top, t1_jg, t1_mid, t1_adc, t1_sup,
+                t2_top, t2_jg, t2_mid, t2_adc, t2_sup
+            ], 
+            outputs=insights_html
+        )
         btn_pipeline.click(fn=executar_pipeline_completo, inputs=[], outputs=console_saida)
 
     return app, css

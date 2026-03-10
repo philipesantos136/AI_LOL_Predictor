@@ -49,62 +49,88 @@ JOINT_MARKETS = [
 # Team Entry Generators
 # ============================================================================
 
-def _gen_winner_entries(stats, team, n, fb, fd, fh):
+def _gen_winner_entries(stats, team, n, fb, fd, fh, m_team):
     """Gera entradas para Vencedor (Moneyline)."""
+    # Simple proxy effect of early game modifiers on Winrate
+    m_fb = m_team.get("firstblood", 1.0) if m_team else 1.0
+    m_fd = m_team.get("firstdragon", 1.0) if m_team else 1.0
+    m_fh = m_team.get("firstherald", 1.0) if m_team else 1.0
+    avg_early_m = (m_fb + m_fd + m_fh) / 3 if m_fb and m_fd and m_fh else 1.0
+
     wr = stats["win_rate"]
+    adj_wr = min(wr * avg_early_m, 95)
+    
     egr_score = (fb + fd + fh) / 3
     mlr_indicators = (stats["avg_barons"] + stats["avg_inhibitors"] + stats["avg_towers"] / 5) / 3
-    combined_score = wr * 0.5 + egr_score * 0.3 + min(mlr_indicators * 20, 100) * 0.2
-    return [bet_line(team, "Vencedor (ML)", "Moneyline", wr, n,
-        f"Win Rate histórico: {wr:.1f}%. "
+    combined_score = adj_wr * 0.5 + egr_score * 0.3 + min(mlr_indicators * 20, 100) * 0.2
+    
+    adj_text = ""
+    if avg_early_m != 1.0:
+        adj_text = f" <span style='color:#c4b5fd;font-size:0.75rem;' title='Multiplicador Baseado no Draft Early Game: {avg_early_m:.2f}x'>✨ Draft ({combined_score:.0f}% proj)</span>"
+
+    return [bet_line(team, "Vencedor (ML)", f"Moneyline{adj_text}", combined_score, n,
+        f"Win Rate histórico: {wr:.1f}%. Projeção c/ Draft: {adj_wr:.1f}%. "
         f"EGR Proxy Score (FB%+FD%+HLD%)/3: {egr_score:.0f}%. "
         f"MLR Proxy (Barões+Inibs+Torres): {mlr_indicators:.2f}. "
-        f"Score Combinado (50% WR + 30% EGR + 20% MLR): {combined_score:.0f}%. "
-        f"Segundo o artigo 'What Are the Odds?', a probabilidade real de vitória "
-        f"é melhor estimada combinando múltiplas métricas do que usando Win Rate isolado. "
-        f"Se o time domina o Early (EGR alto) E fecha jogos (MLR alto), o WR tende a subestimar a força real.")]
+        f"Score Combinado: {combined_score:.0f}%.<br><br><b>💡 Conselho do Draft:</b> Sinergias escolhidas alteram a Força de Early Game em <b>{avg_early_m:.2f}x</b>. "
+        f"Se o time domina o Early E fecha jogos, as chances reais de vitória divergem do WR bruto.")]
 
 
-def _gen_over_kills_entries(stats, team, kills, avg_k, egpm_data, dpm_data):
+def _gen_over_kills_entries(stats, team, kills, avg_k, egpm_data, dpm_data, mult=1.0):
     """Gera entradas Over Kills por time."""
     entries = []
+    adj_kills = [(v * mult) for v in kills if v is not None] if kills else []
+    avg_adj = sum(adj_kills) / len(adj_kills) if adj_kills else avg_k
+    
     for line in [round((avg_k - 2) * 2) / 2, round(avg_k * 2) / 2, round((avg_k + 2) * 2) / 2]:
-        prob_o, cnt = _rate_prob(kills, lambda v, l=line: v > l)
+        prob_o, cnt = _rate_prob(adj_kills, lambda v, l=line: v > l)
+        
+        adj_text = ""
+        if mult != 1.0:
+            adj_text = f" <span style='color:#c4b5fd;font-size:0.75rem;' title='Multiplicador de Draft: {mult:.2f}x'>✨ Draft ({avg_adj:.1f} proj)</span>"
+
         if prob_o is not None and prob_o > 5:
             egpm_avg = sum(float_list(egpm_data)) / len(float_list(egpm_data)) if float_list(egpm_data) else 0
             dpm_avg = sum(float_list(dpm_data)) / len(float_list(dpm_data)) if float_list(dpm_data) else 0
-            entries.append(bet_line(team, "Over Kills", f"{line:.1f}", prob_o, cnt,
-                f"Em {sum(1 for v in kills if v is not None and v > line)} de {cnt} jogos, {team} fez > {line:.1f} kills. "
-                f"Média: {avg_k:.1f}, KPM médio: {stats['avg_kpm']:.2f}, CKPM: {stats['avg_ckpm']:.2f}. "
-                f"EGPM ({egpm_avg:.0f}/min) e DPM ({dpm_avg:.0f}/min) "
-                f"indicam {'pressão ofensiva alta' if stats['avg_kpm'] > 0.3 else 'estilo mais passivo'}. "
-                f"{'Alta CKPM sugere jogos sangrentos — favorável para Overs.' if stats['avg_ckpm'] > 0.7 else 'CKPM moderada/baixa — Overs agressivos são arriscados.'}"))
+            entries.append(bet_line(team, "Over Kills", f"{line:.1f}{adj_text}", prob_o, cnt,
+                f"Em {sum(1 for v in adj_kills if v > line)} simulações ajustadas (de {cnt} reais), a projeção passa de {line:.1f}. "
+                f"Multiplicador do draft: <b>{mult:.2f}x</b>. Média Histórica {avg_k:.1f} ➡️ <b>{avg_adj:.1f} proj</b>.<br><br>"
+                f"KPM: {stats['avg_kpm']:.2f}, CKPM: {stats['avg_ckpm']:.2f}. "
+                f"EGPM ({egpm_avg:.0f}/min) e DPM ({dpm_avg:.0f}/min)."))
     return entries
 
 
-def _gen_handicap_entries(stats, team, kd):
+def _gen_handicap_entries(stats, team, adj_kd, hist_kd, m_team, m_opp):
     """Gera entradas Handicap de Kills."""
-    if not kd:
+    if not adj_kd:
         return []
     entries = []
-    st_kd = calc_stats(kd)
+    st_kd = calc_stats(hist_kd)
     for hc in [-5.5, -4.5, -3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5]:
-        prob_hc, cnt = _rate_prob(kd, lambda v, h=hc: v > h)
+        prob_hc, cnt = _rate_prob(adj_kd, lambda v, h=hc: v > h)
+        
+        adj_text = ""
+        if m_team != 1.0 or m_opp != 1.0:
+            avg_adj = sum(adj_kd) / len(adj_kd) if adj_kd else st_kd['avg']
+            adj_text = f" <span style='color:#c4b5fd;font-size:0.75rem;' title='Draft Ajustado'>✨ Draft ({avg_adj:+.1f} proj)</span>"
+            
         if prob_hc is not None and prob_hc > 5:
             sign = "+" if hc >= 0 else ""
-            entries.append(bet_line(team, "Handicap", f"{sign}{hc:.1f} kills", prob_hc, cnt,
-                f"Em {sum(1 for v in kd if v is not None and v > hc)} de {cnt} jogos, {team} teve diff > {hc:+.1f}. "
-                f"Média de handicap: {st_kd['avg']:+.1f}, σ: {st_kd['std']:.1f}. "
-                f"O artigo 'Significant Statistics' mostra que a diferença de kills está diretamente "
-                f"ligada ao Gold Difference — cada kill vale ~300-450 Gold dependendo do shutdown. "
-                f"{'Linha conservadora (negativa) — protege contra jogos ruins.' if hc < 0 else 'Linha agressiva — precisa de domínio claro no Early+Mid Game.'}"))
+            entries.append(bet_line(team, "Handicap", f"{sign}{hc:.1f} kills{adj_text}", prob_hc, cnt,
+                f"Calculado usando as kills ajustadas pelo draft (Este time: {m_team:.2f}x, Inimigo: {m_opp:.2f}x). "
+                f"Diff Histórica Média: {st_kd['avg']:+.1f} ➡️ <b>Projeção c/ Draft: {sum(adj_kd)/len(adj_kd):+.1f}</b>.<br><br>"
+                f"{'Linha conservadora (negativa).' if hc < 0 else 'Linha agressiva — precisa de domínio.'}"))
     return entries
 
-def _gen_first_to_x_kills(stats, team, opp_stats, n):
+def _gen_first_to_x_kills(stats, team, opp_stats, n, m_team):
     """Proxy Model para First to 5, 10, 15 kills baseado no KPM e EGR."""
     entries = []
-    kpm_diff = stats['avg_kpm'] - opp_stats['avg_kpm']
-    fb = stats['fb_rate']
+    
+    m_fb = m_team.get("firstblood", 1.0) if m_team else 1.0
+    m_k = m_team.get("kills", 1.0) if m_team else 1.0
+    
+    kpm_diff = (stats['avg_kpm'] * m_k) - opp_stats['avg_kpm']
+    fb = stats['fb_rate'] * m_fb
     wr = stats["win_rate"]
     
     # Base formula (proxy): advantage shifts progressively with game length
@@ -114,113 +140,149 @@ def _gen_first_to_x_kills(stats, team, opp_stats, n):
 
     math_base = (
         "<br><br><b>🧮 Matemática do Proxy Model:</b><br>"
-        "Como a métrica exata não está no banco, usamos uma regressão baseada em:<br>"
-        f"• <b>FB% ({fb:.0f}%):</b> Taxa de First Blood (peso maior no 'First to 5').<br>"
-        f"• <b>KPM Diff ({kpm_diff:+.2f}):</b> Diferença de agressividade entre os times.<br>"
-        f"• <b>WR ({wr:.0f}%):</b> Probabilidade de vitória histórica (peso no 'First to 15').<br><br>"
+        "Usamos uma regressão baseada em:<br>"
+        f"• <b>FB% Ajustado ({fb:.0f}%):</b> Taxa (peso maior no 'First to 5', Mult Draft: {m_fb:.2f}x).<br>"
+        f"• <b>KPM Diff ({kpm_diff:+.2f}):</b> Diferença de agressividade entre times, após Draft.<br>"
+        f"• <b>WR ({wr:.0f}%):</b> Probabilidade de vitória (peso no 'First to 15').<br><br>"
     )
 
-    entries.append(bet_line(team, "Corrida Abates", "Primeiro a 5 Kills", prob_5, n,
+    adj_text = f" <span style='color:#c4b5fd;font-size:0.75rem;' title='Multiplicador do Draft KPM/FB: {m_k:.2f}x'>✨ Draft</span>" if (m_k != 1.0 or m_fb != 1.0) else ""
+
+    entries.append(bet_line(team, "Corrida Abates", f"Primeiro a 5 Kills{adj_text}", prob_5, n,
         f"Estimativa Proxy para os primeiros abates do jogo. {math_base}"
-        "<b>Fórmula:</b> (FB% × 0.6) + (KPM_Diff × 40) + 20. "
-        "Foca no domínio mecânico inicial e priority de lane."))
+        "<b>💡 Conselho do Draft:</b> Multiplicadores de kills e First Blood da composição influenciam fortemente a primeira fase da rota."))
     
-    entries.append(bet_line(team, "Corrida Abates", "Primeiro a 10 Kills", prob_10, n,
+    entries.append(bet_line(team, "Corrida Abates", f"Primeiro a 10 Kills{adj_text}", prob_10, n,
         f"Estimativa Proxy para a transição para o Mid Game. {math_base}"
-        "<b>Fórmula:</b> (FB% × 0.4) + (KPM_Diff × 60) + 30. "
-        "Equilibra o First Blood com a taxa de kills sustentada (KPM)."))
-        
-    entries.append(bet_line(team, "Corrida Abates", "Primeiro a 15 Kills", prob_15, n,
-        f"Estimativa Proxy para o domínio do mapa no Mid-Late Game. {math_base}"
-        "<b>Fórmula:</b> (WR% × 0.5) + (KPM_Diff × 80) + 25. "
-        "Foca na capacidade de fechar lutas e converter vantagens."))
+        "<b>💡 Conselho do Draft:</b> KPM da composição acelera essa corrida frente a oponentes passivos."))
     
+    entries.append(bet_line(team, "Corrida Abates", f"Primeiro a 15 Kills{adj_text}", prob_15, n,
+        f"Estimativa Proxy (Perto do End Game). {math_base}"))
+        
     return entries
 
 # ============================================================================
 # Joint Match Generators (Soma ou Combinação)
 # ============================================================================
 
-def _gen_joint_totals(arr1, arr2, market, lines_func, explain_text):
+def _gen_joint_totals(arr1, arr2, market, lines_func, explain_text, m1=1.0, m2=1.0):
     if not arr1 or not arr2: return []
     min_len = min(len(arr1), len(arr2))
-    joint_data = [arr1[i] + arr2[i] for i in range(min_len)]
-    st = calc_stats(joint_data)
-    avg = st['avg']
+    joint_base = [arr1[i] + arr2[i] for i in range(min_len)]
+    joint_adj = [(arr1[i]*m1) + (arr2[i]*m2) for i in range(min_len)]
+    st_base = calc_stats(joint_base)
+    avg_base = st_base['avg']
+    avg_adj = sum(joint_adj) / len(joint_adj) if joint_adj else avg_base
     
     entries = []
-    lines = lines_func(avg)
+    lines = lines_func(avg_base)
     for line in lines:
-        prob, cnt = _rate_prob(joint_data, lambda v, l=line: v > l)
-        if prob is not None and prob > 5:
-            entries.append(bet_line("Partida", market, f"Over {line}", prob, cnt,
-                f"Soma do histórico dos dois times ({cnt} pares combinados aleatoriamente). "
-                f"Média Combinada Estimada: {avg:.1f}. {explain_text}"))
+        prob_adj, cnt = _rate_prob(joint_adj, lambda v, l=line: v > l)
+        
+        adj_text = ""
+        if (m1 != 1.0 or m2 != 1.0):
+            adj_text = f" <span style='color:#c4b5fd;font-size:0.75rem;' title='Ajuste de Draft (T1: {m1:.2f}x, T2: {m2:.2f}x)'>✨ Draft ({avg_adj:.1f} proj)</span>"
+            
+        if prob_adj is not None and prob_adj > 5:
+            entries.append(bet_line("Partida", market, f"Over {line}{adj_text}", prob_adj, cnt,
+                f"Soma do histórico ajustado pelo impacto dos campeões (T1: {m1:.2f}x, T2: {m2:.2f}x). "
+                f"Média Histórica Pura: {avg_base:.1f} ➡️ <b>Projeção c/ Draft: {avg_adj:.1f}</b>.<br><br>{explain_text}"))
     return entries
 
 # ============================================================================
 # Main Generator
 # ============================================================================
 
-def gen_betting_recommendations(s1, s2, t1, t2):
+def gen_betting_recommendations(s1, s2, t1, t2, mult1=None, mult2=None):
     """Expected Value Finder completo — gera entradas organizadas por time → mercado → risco."""
     html = ""
     categories = []
 
+    k1_hist = [v for v in s1.get("kills_history", []) if v is not None]
+    k2_hist = [v for v in s2.get("kills_history", []) if v is not None]
+    m1_k = mult1.get("kills", 1.0) if mult1 else 1.0
+    m2_k = mult2.get("kills", 1.0) if mult2 else 1.0
+    
+    min_k = min(len(k1_hist), len(k2_hist))
+    adj_kd1 = [ (k1_hist[i]*m1_k) - (k2_hist[i]*m2_k) for i in range(min_k) ]
+    adj_kd2 = [ (k2_hist[i]*m2_k) - (k1_hist[i]*m1_k) for i in range(min_k) ]
+
     # 1. Team-Specific Markets
     for stats, opp_stats, team, tcolor in [(s1, s2, t1, "#60a5fa"), (s2, s1, t2, "#f87171")]:
         kills = stats.get("kills_history", [])
-        kd = stats.get("kill_diff_history", [])
+        m_team = mult1 if team == t1 else mult2
+        m_opp = mult2 if team == t1 else mult1
+        
+        hist_kd = stats.get("kill_diff_history", [])
+        team_adj_kd = adj_kd1 if team == t1 else adj_kd2
         n = stats["total_games"]
         
+        m_t_fb = m_team.get("firstblood", 1.0) if m_team else 1.0
+        m_t_fd = m_team.get("firstdragon", 1.0) if m_team else 1.0
+        
         entries = []
-        entries.extend(_gen_winner_entries(stats, team, n, stats["fb_rate"], stats["fd_rate"], stats["fherald_rate"]))
-        entries.extend(_gen_over_kills_entries(stats, team, kills, stats["avg_kills"], stats.get("earnedgold_pm_history", []), stats.get("dmg_pm_history", [])))
-        entries.extend(_gen_handicap_entries(stats, team, kd))
-        entries.extend(_gen_first_to_x_kills(stats, team, opp_stats, n))
+        entries.extend(_gen_winner_entries(stats, team, n, stats["fb_rate"], stats["fd_rate"], stats["fherald_rate"], m_team))
+        entries.extend(_gen_over_kills_entries(stats, team, kills, stats["avg_kills"], stats.get("earnedgold_pm_history", []), stats.get("dmg_pm_history", []), m_team.get("kills", 1.0) if m_team else 1.0))
+        entries.extend(_gen_handicap_entries(stats, team, team_adj_kd, hist_kd, m_team.get("kills", 1.0) if m_team else 1.0, m_opp.get("kills", 1.0) if m_opp else 1.0))
+        entries.extend(_gen_first_to_x_kills(stats, team, opp_stats, n, m_team))
 
-        entries.append(bet_line(team, "First Blood", "Sim", stats["fb_rate"], n, 
-            f"FB% histórico de {team}: {stats['fb_rate']:.0f}% em {n} jogos. O EGR (Early-Game Rating) é parcialmente determinado pelo First Blood."))
-        entries.append(bet_line(team, "First Dragon", "Sim", stats["fd_rate"], n, 
-            f"FD% de {team}: {stats['fd_rate']:.0f}% em {n} jogos. FD% > 55% combinada com FB% > 50% cria um EGR dominante."))
+        adj_fb_text = f" <span style='color:#c4b5fd;font-size:0.75rem;'>✨ Draft ({stats['fb_rate']*m_t_fb:.0f}%)</span>" if m_t_fb != 1.0 else ""
+        entries.append(bet_line(team, "First Blood", f"Sim{adj_fb_text}", min(stats["fb_rate"] * m_t_fb, 98), n, 
+            f"FB% histórico de {team}: {stats['fb_rate']:.0f}% em {n} jogos. Projeção c/ Draft: <b>{stats['fb_rate']*m_t_fb:.0f}%</b>.<br><br>"
+            f"<b>💡 Conselho do Draft:</b> Um Multiplicador de FB de {m_t_fb:.2f}x sinaliza um early game {'poderoso.' if m_t_fb >= 1 else 'defensivo.'}"))
+
+        adj_fd_text = f" <span style='color:#c4b5fd;font-size:0.75rem;'>✨ Draft ({stats['fd_rate']*m_t_fd:.0f}%)</span>" if m_t_fd != 1.0 else ""
+        entries.append(bet_line(team, "First Dragon", f"Sim{adj_fd_text}", min(stats["fd_rate"] * m_t_fd, 98), n, 
+            f"FD% de {team}: {stats['fd_rate']:.0f}% em {n} jogos. Projeção c/ Draft: <b>{stats['fd_rate']*m_t_fd:.0f}%</b>.<br><br>"
+            f"<b>💡 Conselho do Draft:</b> Multiplicador de {m_t_fd:.2f}x indica que a composição tem {'ferramentas absurdas para prioridade no Bot/Rio.' if m_t_fd >= 1 else 'dependência de escalar bot.'}"))
 
         entries = [e for e in entries if e]
         if entries:
             categories.append((team, tcolor, entries, TEAM_MARKETS))
 
     # 2. Joint / Match Markets (Soma dos dois)
+    m1_k = mult1.get("kills", 1.0) if mult1 else 1.0; m2_k = mult2.get("kills", 1.0) if mult2 else 1.0
+    m1_d = mult1.get("dragons", 1.0) if mult1 else 1.0; m2_d = mult2.get("dragons", 1.0) if mult2 else 1.0
+    m1_t = mult1.get("towers", 1.0) if mult1 else 1.0; m2_t = mult2.get("towers", 1.0) if mult2 else 1.0
+    m1_b = mult1.get("barons", 1.0) if mult1 else 1.0; m2_b = mult2.get("barons", 1.0) if mult2 else 1.0
+    m1_dur = mult1.get("duration", 1.0) if mult1 else 1.0; m2_dur = mult2.get("duration", 1.0) if mult2 else 1.0
+
     joint_entries = []
     
-    k1 = [v for v in s1.get("kills_history", []) if v is not None]
-    k2 = [v for v in s2.get("kills_history", []) if v is not None]
-    if k1 and k2:
-        joint_entries.extend(_gen_joint_totals(k1, k2, "Total Kills", lambda a: [round((a-5)*2)/2, round(a*2)/2, round((a+5)*2)/2], "Forte dependência do CKPM combinado (partidas sangrentas)."))
+    if k1_hist and k2_hist:
+        joint_entries.extend(_gen_joint_totals(k1_hist, k2_hist, "Total Kills", lambda a: [round((a-5)*2)/2, round(a*2)/2, round((a+5)*2)/2], "Forte dependência do CKPM combinado (partidas sangrentas).", m1_k, m2_k))
     
     d1 = [v for v in s1.get("dragons_history", []) if v is not None]
     d2 = [v for v in s2.get("dragons_history", []) if v is not None]
     if d1 and d2:
-        joint_entries.extend(_gen_joint_totals(d1, d2, "Total Dragões", lambda a: [3.5, 4.5, 5.5], "Reflete times que trocam objetivos (Soul games longos aumentam o limite para > 4.5)."))
+        joint_entries.extend(_gen_joint_totals(d1, d2, "Total Dragões", lambda a: [3.5, 4.5, 5.5], "Reflete times que trocam objetivos (Soul games longos aumentam o limite para > 4.5).", m1_d, m2_d))
     
     t1_h = [v for v in s1.get("towers_history", []) if v is not None]
     t2_h = [v for v in s2.get("towers_history", []) if v is not None]
     if t1_h and t2_h:
-        joint_entries.extend(_gen_joint_totals(t1_h, t2_h, "Total Torres", lambda a: [10.5, 12.5, 14.5], "Jogos mais longos e disputados geram quebras nas duas bases. Média de torres destruídas combinada reflete o ritmo de mid-game."))
+        joint_entries.extend(_gen_joint_totals(t1_h, t2_h, "Total Torres", lambda a: [10.5, 12.5, 14.5], "Jogos mais longos e disputados geram quebras nas duas bases. Média de torres destruídas combinada reflete o ritmo de mid-game.", m1_t, m2_t))
     
     b1 = [v for v in s1.get("barons_history", []) if v is not None]
     b2 = [v for v in s2.get("barons_history", []) if v is not None]
     if b1 and b2:
-        joint_entries.extend(_gen_joint_totals(b1, b2, "Total Barões", lambda a: [0.5, 1.5], "Partidas caóticas e longas = múltiplos Nashors roubados/trocados."))
+        joint_entries.extend(_gen_joint_totals(b1, b2, "Total Barões", lambda a: [0.5, 1.5], "Partidas caóticas e longas = múltiplos Nashors roubados/trocados.", m1_b, m2_b))
     
     # Duration combines probabilities (Union of histories)
     all_dur = [v for v in s1.get("duration_history", []) + s2.get("duration_history", []) if v]
     if all_dur:
+        m_avg_dur = (m1_dur + m2_dur) / 2
+        adj_all_dur = [v * m_avg_dur for v in all_dur]
         st_dur = calc_stats(all_dur)
+        adj_dur_avg = sum(adj_all_dur)/len(adj_all_dur)
         for dl in [28.5, 31.5, 34.5]:
-            prob_do, cnt = _rate_prob(all_dur, lambda v, l=dl: v > l)
+            prob_do, cnt = _rate_prob(adj_all_dur, lambda v, l=dl: v > l)
+            adj_text = ""
+            if m_avg_dur != 1.0:
+                adj_text = f" <span style='color:#c4b5fd;font-size:0.75rem;' title='Ajuste Médio Draft: {m_avg_dur:.2f}x'>✨ Draft ({adj_dur_avg:.1f} proj)</span>"
             if prob_do is not None and prob_do > 5:
-                joint_entries.append(bet_line(f"Partida", "Over Duração", f"{dl}min", prob_do, cnt,
-                    f"Dur. Média (Pool dos 2 times): {st_dur['avg']:.1f}min. "
-                    f"Apostas conjuntas calculadas baseadas na união das durações de todas as partidas."))
+                joint_entries.append(bet_line(f"Partida", "Over Duração", f"{dl}min{adj_text}", prob_do, cnt,
+                    f"Dur. Média Histórica pura: {st_dur['avg']:.1f}min ➡️ <b>Projeção c/ Draft: {adj_dur_avg:.1f}min</b>.<br><br>"
+                    f"Apostas conjuntas calculadas baseadas na união das durações projetadas de todas as partidas."))
 
     if joint_entries:
         categories.append((f"⚔️ {t1} vs {t2} (Estimativas de Jogo)", "#f59e0b", joint_entries, JOINT_MARKETS))

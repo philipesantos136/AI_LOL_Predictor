@@ -166,3 +166,68 @@ def get_gold_player_stats(team_name):
     except Exception as e:
         print(f"  ⚠️ Erro ao consultar Gold Player DB ({team_name}): {e}")
         return []
+
+def get_global_baseline_stats(patches=None):
+    """
+    Busca a média estrita do Mundial (World Average Baseline) 
+    sem filtro de campeão. Usado como denominador para criar fatores preditivos.
+    """
+    db_path = get_db_path()
+    patch_clause, patch_params = build_patch_clause(patches)
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        base_where = f"position='team'{patch_clause}"
+        query = f"""
+            SELECT 
+                AVG(teamkills) as avg_teamkills,
+                AVG(dragons) as avg_team_dragons,
+                AVG(firstblood) as avg_team_firstblood,
+                AVG(firstdragon) as avg_team_firstdragon,
+                AVG(firstherald) as avg_team_firstherald,
+                AVG(towers) as avg_team_towers,
+                AVG(barons) as avg_team_barons,
+                AVG(gamelength) as avg_gamelength
+            FROM match_data_silver
+            WHERE {base_where}
+        """
+        c.execute(query, patch_params)
+        row = c.fetchone()
+        conn.close()
+        
+        return dict(row) if row else None
+    except Exception as e:
+        print(f"  ⚠️ Erro ao consultar Baselines Globais: {e}")
+        return None
+
+def get_platinum_champion_stats(team_name, champion):
+    """
+    Busca as estatísticas na camada Platinum de um determinado campeão para um time específico,
+    além das estatísticas globais (Mundo) para o mesmo campeão como comparação.
+    Como o sample size por patch é pequeno, busca a agregação geral ('ALL').
+    """
+    db_path = get_db_path()
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        # Team stats with this champion
+        c.execute("SELECT * FROM champion_stats_platinum WHERE teamname = ? AND champion = ? AND patch = 'ALL'", (team_name, champion))
+        team_row = c.fetchone()
+        
+        # World stats with this champion
+        c.execute("SELECT * FROM champion_stats_platinum WHERE teamname = 'WORLD' AND champion = ? AND patch = 'ALL'", (champion,))
+        world_row = c.fetchone()
+        
+        conn.close()
+        
+        return {
+            "team_stats": dict(team_row) if team_row else None,
+            "world_stats": dict(world_row) if world_row else None
+        }
+    except Exception as e:
+        print(f"  ⚠️ Erro ao consultar Platinum DB ({team_name}, {champion}): {e}")
+        return {"team_stats": None, "world_stats": None}

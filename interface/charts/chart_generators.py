@@ -193,7 +193,7 @@ def gen_mlr_proxy(s1, s2, t1, t2):
 # Plotly Distribution Charts
 # ============================================================================
 
-def gen_total_abates(s1, s2, t1, t2):
+def gen_total_abates(s1, s2, t1, t2, mult1=None, mult2=None):
     """Distribuição do total de kills combinadas na partida."""
     k1 = int_list(s1.get("kills_history", []))
     k2 = int_list(s2.get("kills_history", []))
@@ -229,11 +229,34 @@ def gen_total_abates(s1, s2, t1, t2):
         bets += '<br>'
     bets += '</div>'
 
-    return (fig_to_html(fig) + f'<div style="margin-top:8px;">{stats_html(st)}</div>' + bets
+    proj_html = ""
+    if mult1 and mult2:
+        m1 = mult1.get("kills", 1.0)
+        m2 = mult2.get("kills", 1.0)
+        proj_avg1 = (sum(k1)/len(k1)) * m1 if k1 else 0
+        proj_avg2 = (sum(k2)/len(k2)) * m2 if k2 else 0
+        proj_total = proj_avg1 + proj_avg2
+        proj_html = f'''
+        <div style="margin-top:16px;padding:12px 16px;background:linear-gradient(90deg, rgba(139,92,246,0.1) 0%, rgba(139,92,246,0.2) 100%);border-left:4px solid #8b5cf6;border-radius:6px;display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:1.5rem;">✨</span>
+                <div>
+                    <div style="color:#c4b5fd;font-weight:700;font-size:0.95rem;">Projeção do Draft (Kills)</div>
+                    <div style="color:#94a3b8;font-size:0.8rem;">Ajuste baseado na intensidade de combate (KPM) da composição.</div>
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <div style="color:#64748b;font-size:0.8rem;text-decoration:line-through;">Média Base: {st["avg"]:.1f}</div>
+                <div style="color:#e2e8f0;font-size:1.2rem;font-weight:800;">Proj: <span style="color:#a78bfa;">{proj_total:.1f}</span></div>
+            </div>
+        </div>
+        '''
+
+    return (fig_to_html(fig) + f'<div style="margin-top:8px;">{stats_html(st)}</div>' + proj_html + bets
             + explain("A distribuição do <b>total de kills na partida</b> (soma). É guiada pela métrica global <b>CKPM</b> detalhada acima. Em jogos com times sanguinários, a cauda longa no gráfico encosta nos 40-50 abates."))
 
 
-def gen_kills_por_time(s1, s2, t1, t2):
+def gen_kills_por_time(s1, s2, t1, t2, mult1=None, mult2=None):
     """Distribuição de kills por time (subplots lado a lado)."""
     fig = make_subplots(rows=1, cols=2, subplot_titles=[f"{t1}", f"{t2}"], horizontal_spacing=0.1)
     stats_htmls = []
@@ -257,11 +280,34 @@ def gen_kills_por_time(s1, s2, t1, t2):
     layout["xaxis2"] = dict(title="Kills do Time", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
     layout["yaxis2"] = dict(title="Nº de Partidas", gridcolor="rgba(51,65,85,0.5)", zerolinecolor="#334155")
     fig.update_layout(**layout)
-    return (fig_to_html(fig) + "".join(stats_htmls)
+    
+    proj_html = ""
+    if mult1 and mult2:
+        raw1 = int_list(s1.get("kills_history", [])); avg1 = sum(raw1)/len(raw1) if raw1 else 0
+        raw2 = int_list(s2.get("kills_history", [])); avg2 = sum(raw2)/len(raw2) if raw2 else 0
+        m1 = mult1.get("kills", 1.0); m2 = mult2.get("kills", 1.0)
+        
+        proj_html += f'''
+        <div style="margin-top:16px;padding:12px 16px;background:linear-gradient(90deg, rgba(139,92,246,0.1) 0%, rgba(139,92,246,0.2) 100%);border-left:4px solid #8b5cf6;border-radius:6px;display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:1.5rem;">✨</span>
+                <div>
+                    <div style="color:#c4b5fd;font-weight:700;font-size:0.95rem;">Projeção do Draft (Kills p/ Time)</div>
+                    <div style="color:#94a3b8;font-size:0.8rem;">Como os campeões aceleram ou atrasam alvos individuais.</div>
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <div style="color:#e2e8f0;font-size:1.0rem;">{t1}: <span style="color:#60a5fa;text-decoration:line-through;font-size:0.8rem;">{avg1:.1f}</span> ➡️ <b style="color:#3b82f6;">{avg1*m1:.1f}</b></div>
+                <div style="color:#e2e8f0;font-size:1.0rem;">{t2}: <span style="color:#f87171;text-decoration:line-through;font-size:0.8rem;">{avg2:.1f}</span> ➡️ <b style="color:#ef4444;">{avg2*m2:.1f}</b></div>
+            </div>
+        </div>
+        '''
+
+    return (fig_to_html(fig) + "".join(stats_htmls) + proj_html
             + explain("A <b>Odd ideal</b> exibida refere-se à entrada <b>Over X.X kills</b> (arredondamento da média). Se o time puxar mais que a média histórica, a linha é coberta. Kills por time medem a pressão terminal, mas times com alta kill rate sem EGR alto podem estar apenas sendo engajados frequentemente."))
 
 
-def gen_handicap(s1, s2, t1, t2):
+def gen_handicap(s1, s2, t1, t2, mult1=None, mult2=None):
     """Gráfico de Handicap (kill diff) com entradas de aposta e explicação."""
     fig = go.Figure()
     odds_html = ""
@@ -307,11 +353,33 @@ def gen_handicap(s1, s2, t1, t2):
     layout["barmode"] = "overlay"
     layout["xaxis"]["title"] = "Diferença de Kills (positivo = dominou)"
     fig.update_layout(**layout)
-    return (fig_to_html(fig) + odds_html + handicap_explain + bets
+    
+    proj_html = ""
+    if mult1 and mult2:
+        raw1 = int_list(s1.get("kills_history", [])); avg1 = sum(raw1)/len(raw1) if raw1 else 0
+        raw2 = int_list(s2.get("kills_history", [])); avg2 = sum(raw2)/len(raw2) if raw2 else 0
+        m1 = mult1.get("kills", 1.0); m2 = mult2.get("kills", 1.0)
+        proj_diff = (avg1*m1) - (avg2*m2)
+        proj_html = f'''
+        <div style="margin-top:16px;padding:12px 16px;background:linear-gradient(90deg, rgba(139,92,246,0.1) 0%, rgba(139,92,246,0.2) 100%);border-left:4px solid #8b5cf6;border-radius:6px;display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:1.5rem;">✨</span>
+                <div>
+                    <div style="color:#c4b5fd;font-weight:700;font-size:0.95rem;">Projeção do Draft (Diferença de Kills)</div>
+                    <div style="color:#94a3b8;font-size:0.8rem;">Expectativa ajustada de Handicap Natural entre as duas composições.</div>
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <div style="color:#e2e8f0;font-size:1.2rem;font-weight:800;">Proj: <span style="color:#a78bfa;">{proj_diff:+.1f}</span></div>
+            </div>
+        </div>
+        '''
+
+    return (fig_to_html(fig) + odds_html + handicap_explain + proj_html + bets
             + explain("A <b>Odd ideal</b> mostrada acima refere-se à entrada <b>Handicap 0</b> (mais kills que mortes). Clique nas entradas para ver o detalhamento individual."))
 
 
-def gen_duracao(s1, s2, t1, t2):
+def gen_duracao(s1, s2, t1, t2, mult1=None, mult2=None):
     """Distribuição de duração do mapa com entradas Over/Under."""
     all_dur = [v for v in s1.get("duration_history", []) + s2.get("duration_history", []) if v]
     if not all_dur:
@@ -342,7 +410,31 @@ def gen_duracao(s1, s2, t1, t2):
         bets += '<br>'
     bets += '</div>'
 
-    return (fig_to_html(fig) + f'<div style="margin-top:8px;">{stats_html(st, "min")}</div>' + bets
+    proj_html = ""
+    if mult1 and mult2:
+        m1 = mult1.get("duration", 1.0); m2 = mult2.get("duration", 1.0)
+        d1 = [v for v in s1.get("duration_history", []) if v]
+        d2 = [v for v in s2.get("duration_history", []) if v]
+        proj_dur1 = (sum(d1)/len(d1)) * m1 if d1 else 0
+        proj_dur2 = (sum(d2)/len(d2)) * m2 if d2 else 0
+        proj_total = (proj_dur1 + proj_dur2) / 2
+        proj_html = f'''
+        <div style="margin-top:16px;padding:12px 16px;background:linear-gradient(90deg, rgba(139,92,246,0.1) 0%, rgba(139,92,246,0.2) 100%);border-left:4px solid #8b5cf6;border-radius:6px;display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:1.5rem;">✨</span>
+                <div>
+                    <div style="color:#c4b5fd;font-weight:700;font-size:0.95rem;">Projeção do Draft (Duração Inicial)</div>
+                    <div style="color:#94a3b8;font-size:0.8rem;">Puxado pelos perfis de scaling (Mid-Late vs Early Game).</div>
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <div style="color:#64748b;font-size:0.8rem;text-decoration:line-through;">Média Base: {st["avg"]:.1f}min</div>
+                <div style="color:#e2e8f0;font-size:1.2rem;font-weight:800;">Proj: <span style="color:#a78bfa;">{proj_total:.1f}min</span></div>
+            </div>
+        </div>
+        '''
+
+    return (fig_to_html(fig) + f'<div style="margin-top:8px;">{stats_html(st, "min")}</div>' + proj_html + bets
             + explain("A <b>Duração (AGT - Avg Game Time)</b> reflete se os times controlam o pace. Um time de EGR baixo e AGT alto joga na defensiva pelas torres e falha nas chamadas de Barão."))
 
 
@@ -350,7 +442,7 @@ def gen_duracao(s1, s2, t1, t2):
 # Objective Distribution Charts (Dragons, Torres, Barões)
 # ============================================================================
 
-def gen_dragons(s1, s2, t1, t2):
+def gen_dragons(s1, s2, t1, t2, mult1=None, mult2=None):
     """Distribuição de dragões por time (subplots lado a lado) + totais combinados."""
     fig = make_subplots(rows=1, cols=2, subplot_titles=[f"{t1}", f"{t2}"], horizontal_spacing=0.1)
     combo_html = ""
@@ -391,11 +483,33 @@ def gen_dragons(s1, s2, t1, t2):
         bets += '</div>'
         total_html = f'<div style="margin-top:8px;">{stats_html(st_t, " dragões (total)")}</div>' + bets
 
-    return (fig_to_html(fig) + combo_html + total_html
+    proj_html = ""
+    if mult1 and mult2:
+        raw1 = int_list(s1.get("dragons_history", [])); avg1 = sum(raw1)/len(raw1) if raw1 else 0
+        raw2 = int_list(s2.get("dragons_history", [])); avg2 = sum(raw2)/len(raw2) if raw2 else 0
+        m1 = mult1.get("dragons", 1.0); m2 = mult2.get("dragons", 1.0)
+        proj_total = (avg1*m1) + (avg2*m2)
+        proj_html = f'''
+        <div style="margin-top:16px;padding:12px 16px;background:linear-gradient(90deg, rgba(139,92,246,0.1) 0%, rgba(139,92,246,0.2) 100%);border-left:4px solid #8b5cf6;border-radius:6px;display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:1.5rem;">✨</span>
+                <div>
+                    <div style="color:#c4b5fd;font-weight:700;font-size:0.95rem;">Projeção do Draft (Dragões Totais)</div>
+                    <div style="color:#94a3b8;font-size:0.8rem;">Ajuste baseado na sinergia de objetivos/bot-side.</div>
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <div style="color:#64748b;font-size:0.8rem;text-decoration:line-through;">Média Base: {avg1+avg2:.1f}</div>
+                <div style="color:#e2e8f0;font-size:1.2rem;font-weight:800;">Proj: <span style="color:#a78bfa;">{proj_total:.1f}</span></div>
+            </div>
+        </div>
+        '''
+
+    return (fig_to_html(fig) + combo_html + total_html + proj_html
             + explain("O controle de <b>Dragões</b> é um proxy do domínio bot-side e da visão do rio. Times com FD% alto tendem a acumular 3-4 dragões de modo mais consisteente. O Dragon Soul (~4 dragões) é um gamechanger."))
 
 
-def gen_torres(s1, s2, t1, t2):
+def gen_torres(s1, s2, t1, t2, mult1=None, mult2=None):
     """Distribuição de torres destruídas por time (subplots lado a lado)."""
     fig = make_subplots(rows=1, cols=2, subplot_titles=[f"{t1}", f"{t2}"], horizontal_spacing=0.1)
     combo_html = ""
@@ -436,11 +550,33 @@ def gen_torres(s1, s2, t1, t2):
         bets += '</div>'
         total_html = f'<div style="margin-top:8px;">{stats_html(st_t, " torres (total)")}</div>' + bets
 
-    return (fig_to_html(fig) + combo_html + total_html
+    proj_html = ""
+    if mult1 and mult2:
+        raw1 = int_list(s1.get("towers_history", [])); avg1 = sum(raw1)/len(raw1) if raw1 else 0
+        raw2 = int_list(s2.get("towers_history", [])); avg2 = sum(raw2)/len(raw2) if raw2 else 0
+        m1 = mult1.get("towers", 1.0); m2 = mult2.get("towers", 1.0)
+        proj_total = (avg1*m1) + (avg2*m2)
+        proj_html = f'''
+        <div style="margin-top:16px;padding:12px 16px;background:linear-gradient(90deg, rgba(139,92,246,0.1) 0%, rgba(139,92,246,0.2) 100%);border-left:4px solid #8b5cf6;border-radius:6px;display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:1.5rem;">✨</span>
+                <div>
+                    <div style="color:#c4b5fd;font-weight:700;font-size:0.95rem;">Projeção do Draft (Torres Totais)</div>
+                    <div style="color:#94a3b8;font-size:0.8rem;">Ajuste baseado no poder de avanço e siege da composição.</div>
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <div style="color:#64748b;font-size:0.8rem;text-decoration:line-through;">Média Base: {avg1+avg2:.1f}</div>
+                <div style="color:#e2e8f0;font-size:1.2rem;font-weight:800;">Proj: <span style="color:#a78bfa;">{proj_total:.1f}</span></div>
+            </div>
+        </div>
+        '''
+
+    return (fig_to_html(fig) + combo_html + total_html + proj_html
             + explain("O <b>MLR (Mid/Late Rating)</b> mostra que torres destruídas indicam conversão de vantagem. Times que pegam Barão mas não derrubam torres são passivos e falham em <i>snowballar</i>."))
 
 
-def gen_baroes(s1, s2, t1, t2):
+def gen_baroes(s1, s2, t1, t2, mult1=None, mult2=None):
     """Distribuição de barões por time (subplots lado a lado)."""
     fig = make_subplots(rows=1, cols=2, subplot_titles=[f"{t1}", f"{t2}"], horizontal_spacing=0.1)
     combo_html = ""
@@ -481,7 +617,29 @@ def gen_baroes(s1, s2, t1, t2):
         bets += '</div>'
         total_html = f'<div style="margin-top:8px;">{stats_html(st_t, " barões (total)")}</div>' + bets
 
-    return (fig_to_html(fig) + combo_html + total_html
+    proj_html = ""
+    if mult1 and mult2:
+        raw1 = int_list(s1.get("barons_history", [])); avg1 = sum(raw1)/len(raw1) if raw1 else 0
+        raw2 = int_list(s2.get("barons_history", [])); avg2 = sum(raw2)/len(raw2) if raw2 else 0
+        m1 = mult1.get("barons", 1.0); m2 = mult2.get("barons", 1.0)
+        proj_total = (avg1*m1) + (avg2*m2)
+        proj_html = f'''
+        <div style="margin-top:16px;padding:12px 16px;background:linear-gradient(90deg, rgba(139,92,246,0.1) 0%, rgba(139,92,246,0.2) 100%);border-left:4px solid #8b5cf6;border-radius:6px;display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:1.5rem;">✨</span>
+                <div>
+                    <div style="color:#c4b5fd;font-weight:700;font-size:0.95rem;">Projeção do Draft (Barões Totais)</div>
+                    <div style="color:#94a3b8;font-size:0.8rem;">Ajustado pelo controle e speed de Nashor.</div>
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <div style="color:#64748b;font-size:0.8rem;text-decoration:line-through;">Média Base: {avg1+avg2:.1f}</div>
+                <div style="color:#e2e8f0;font-size:1.2rem;font-weight:800;">Proj: <span style="color:#a78bfa;">{proj_total:.1f}</span></div>
+            </div>
+        </div>
+        '''
+
+    return (fig_to_html(fig) + combo_html + total_html + proj_html
             + explain("O <b>Barão Nashor</b> é o principal indicador do MLR. Seu buff de empurro de lanes permite cercar torres e inibidores. Times que controlam o Baron Pit ditam o ritmo do mid-late game."))
 
 
@@ -489,32 +647,68 @@ def gen_baroes(s1, s2, t1, t2):
 # Advanced Visualizations: Timeline, Radar & Vision
 # ============================================================================
 
-def gen_timeline_chart(s1, s2, t1, t2):
-    """Gráfico de linha do tempo de Gold, CS e XP Difference."""
+def gen_timeline_chart(s1, s2, t1, t2, mult1=None, mult2=None):
+    """Gráfico de linha do tempo de Gold, CS e XP Difference com Projeção de Draft."""
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08, 
                         subplot_titles=["Gold Difference", "CS Difference", "XP Difference"])
     
     x_vals = [10, 15, 20, 25]
     
+    m1_adv = 1.0; m2_adv = 1.0
+    if mult1 and mult2:
+        m1_adv = (mult1.get("firstblood", 1.0) + mult1.get("firstdragon", 1.0) + mult1.get("kills", 1.0)) / 3
+        m2_adv = (mult2.get("firstblood", 1.0) + mult2.get("firstdragon", 1.0) + mult2.get("kills", 1.0)) / 3
+
     for row, metric in enumerate(["golddiff", "csdiff", "xpdiff"], 1):
-        for stats, team, color in [(s1, t1, "#60a5fa"), (s2, t2, "#f87171")]:
+        for stats, team, color in [(s1, t1, "#3b82f6"), (s2, t2, "#ef4444")]:
             y_vals = [stats.get(f"{metric}at{m}", 0) for m in x_vals]
             fig.add_trace(go.Scatter(x=x_vals, y=y_vals, mode="lines+markers",
                                      name=team, line=dict(color=color, width=3),
                                      marker=dict(size=8, symbol="circle"),
                                      showlegend=(row == 1)),
                           row=row, col=1)
+            
+            # Draft Projection Line
+            if mult1 and mult2:
+                proj_y = []
+                for val in y_vals:
+                    # If this is team 1, use m1_adv / m2_adv. If team 2, use m2_adv / m1_adv
+                    ratio = (m1_adv / m2_adv) if team == t1 else (m2_adv / m1_adv)
+                    
+                    if val > 0: proj_val = val * ratio
+                    else: proj_val = val / ratio if ratio > 0 else val
+                    proj_y.append(proj_val)
+                    
+                proj_color = "#60a5fa" if team == t1 else "#f87171"
+                fig.add_trace(go.Scatter(x=x_vals, y=proj_y, mode="lines",
+                                         name=f"✨ {team} (Proj)", 
+                                         line=dict(color=proj_color, width=2, dash="dot"),
+                                         showlegend=(row == 1)),
+                              row=row, col=1)
+
         # Linha Zero
-        fig.add_hline(y=0, line=dict(color="#64748b", width=1.5, dash="dot"), row=row, col=1)
+        fig.add_hline(y=0, line=dict(color="#64748b", width=1.5, dash="dash"), row=row, col=1)
 
     layout = base_layout("📈 Evolução da Vantagem no Tempo (Timeline)", height=600)
     layout["xaxis3"] = dict(title="Minutos de Jogo", tickvals=x_vals, gridcolor="rgba(51,65,85,0.5)")
     for i in range(1, 4):
         layout[f"yaxis{i}"] = dict(gridcolor="rgba(51,65,85,0.5)", zeroline=False)
     fig.update_layout(**layout)
+    
+    html = fig_to_html(fig)
+    if mult1 and mult2:
+        html += f'''
+        <div style="margin-top:16px;padding:12px 16px;background:linear-gradient(90deg, rgba(139,92,246,0.1) 0%, rgba(139,92,246,0.2) 100%);border-left:4px solid #8b5cf6;border-radius:6px;display:flex;align-items:center;">
+            <span style="font-size:1.5rem;margin-right:12px;">✨</span>
+            <div>
+                <div style="color:#c4b5fd;font-weight:700;font-size:0.95rem;">Projeção de Snowball (Draft)</div>
+                <div style="color:#94a3b8;font-size:0.8rem;">Diferença de aceleração Early Game: {t1} <b>{m1_adv:.2f}x</b> vs {t2} <b>{m2_adv:.2f}x</b>. Linhas pontilhadas (···) mostram a expectativa ajustada na timeline.</div>
+            </div>
+        </div>
+        '''
 
-    return (fig_to_html(fig) + 
-            explain("A curva de <b>Diferença (Diff)</b> mostra o ritmo da partida. Se a linha cruza o eixo zero em 15-20 min, reflete viradas sistemáticas. "
+    return (html + 
+            explain("A curva de <b>Diferença (Diff)</b> mostra o ritmo da partida. Se a linha pontilhada de projeção (✨) for mais alta que a histórica, o draft acelera a vantagem. "
                     "Dominar o <b>Early Game</b> (10-15m) no Ouro, CS e XP força o adversário ao desespero."))
 
 def gen_radar_dna(s1, s2, t1, t2):
@@ -694,3 +888,5 @@ def gen_gold_player_table(p1_list, p2_list, t1, t2):
     html += explain("Estas tabelas destacam propensões individuais (Player Props). <b>Dmg/Gold (Carry Potential)</b> aponta jogadores que carregam o jogo independentemente dos recursos alocados. <b>KP%</b> alto mostra dependência das lutas em grupo para abates.")
     html += '</div>'
     return html
+
+# [REMOVED: gen_champion_insights]
