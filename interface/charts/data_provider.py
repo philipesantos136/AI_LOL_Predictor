@@ -131,3 +131,38 @@ def get_team_stats(team_name, patches=None):
     except Exception as e:
         print(f"  ⚠️ Erro ao consultar DB (team={team_name}): {e}")
         return None
+
+def get_gold_team_stats(team_name):
+    """
+    Busca as métricas preditivas avançadas da camada Gold para um time.
+    """
+    db_path = get_db_path()
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM gold_team_metrics WHERE teamname = ?", (team_name,))
+        row = c.fetchone()
+        conn.close()
+        return dict(row) if row else None
+    except Exception as e:
+        print(f"  ⚠️ Erro ao consultar Gold Team DB ({team_name}): {e}")
+        return None
+
+def get_gold_player_stats(team_name):
+    """
+    Busca as métricas individuais dos jogadores de um time na camada Gold.
+    Retorna uma lista de dicionários.
+    """
+    db_path = get_db_path()
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM gold_player_metrics WHERE teamname = ?", (team_name,))
+        rows = c.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    except Exception as e:
+        print(f"  ⚠️ Erro ao consultar Gold Player DB ({team_name}): {e}")
+        return []

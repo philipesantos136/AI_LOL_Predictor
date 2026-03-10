@@ -589,3 +589,108 @@ def gen_vision_control(s1, s2, t1, t2):
     return (html + explain("A base do controle de macro no LoL é a <b>Visão</b>. Mais Wards Destruídas e Control Wards indicam foco em varrer a selva e preparar armadilhas em Barão/Dragão."))
 
 
+# ============================================================================
+# Gold Layer Metrics (Advanced Betting)
+# ============================================================================
+
+def gen_gold_team_summary(g1, g2, t1, t2):
+    """HTML para os novos índices da camada Gold (EGDI, Vision Efficiency, Throws)."""
+    if not g1 or not g2:
+        return ""
+        
+    html = '<div class="chart-card" style="padding:20px;">'
+    html += '<h3 style="color:#fbbf24;margin:0 0 16px 0;font-size:1.1rem;border-bottom:1px solid #78350f;padding-bottom:12px;">📈 Gold Layer Metrics (Team Level)</h3>'
+    
+    metrics = [
+        ("Early Game Dominance Index (EGDI)", "egdi_score", "Índice composto que mede vantagens de ouro, XP e tropas aos 15 minutos. Valores > 0 indicam times que amassam no início. Ótimo para prop bets de early game/first tower.", True),
+        ("Throw Rate (Entregas)", "throw_rate", "Chances de perder quando já está vencendo aos 15 min (>1k ouro) (%)", False),
+        ("Comeback Rate (Viradas)", "comeback_rate", "Chances de vencer quando já está perdendo aos 15 min (<1k ouro) (%)", False),
+        ("Vision Eff: Wards per Kill (WPK)", "wards_per_kill", "Wards gastas em média para conseguir 1 abate (menor é mais letal).", False),
+        ("Vision Eff: Wards per Baron (WPB)", "wards_per_baron", "Wards gastas em média ao redor da conquista de um barão.", False)
+    ]
+
+    for title, key, desc, is_index in metrics:
+        html += f'<div style="margin-bottom:16px;">'
+        html += f'<div style="color:#e2e8f0;font-weight:600;font-size:0.9rem;margin-bottom:6px;">{title}</div>'
+        
+        for g_stats, team, color in [(g1, t1, "#60a5fa"), (g2, t2, "#f87171")]:
+            val = g_stats.get(key, 0)
+            if val is None: val = 0
+            
+            # Format according to type
+            if "rate" in key:
+                val_str = f"{val * 100:.1f}%"
+            elif is_index:
+                val_str = f"{val:+.1f}" if val != 0 else "0.0"
+            else:
+                val_str = f"{val:.1f}"
+
+            html += f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'
+            html += f'<span style="color:{color};font-weight:700;min-width:120px;font-size:0.85rem;">{team}</span>'
+            html += f'<span style="color:#fbbf24;font-size:0.95rem;font-weight:bold;">{val_str}</span>'
+            html += '</div>'
+            
+        html += f'<div style="color:#94a3b8;font-size:0.75rem;border-left:2px solid #334155;padding-left:8px;margin-top:2px;"><i>{desc}</i></div>'
+        html += '</div>'
+
+    html += '</div>'
+    return html
+
+
+def gen_gold_player_table(p1_list, p2_list, t1, t2):
+    """Gera tabelas comparativas para Player Props da camada Gold."""
+    if not p1_list and not p2_list:
+        return ""
+        
+    html = '<div class="chart-card" style="padding:20px;">'
+    html += '<h3 style="color:#fbbf24;margin:0 0 16px 0;font-size:1.1rem;border-bottom:1px solid #78350f;padding-bottom:12px;">👤 Gold Layer Metrics (Player Props / Carry Potential)</h3>'
+
+    def render_team_table(p_list, team_name, color):
+        if not p_list:
+            return f'<p style="color:#94a3b8;font-size:0.85rem;">Sem dados individuais para {team_name}</p>'
+            
+        t_html = f'<div style="margin-bottom:20px;">'
+        t_html += f'<h4 style="color:{color};margin:0 0 10px 0;">{team_name}</h4>'
+        t_html += '''<table style="width:100%;border-collapse:collapse;font-size:0.8rem;text-align:center;">
+            <tr style="color:#cbd5e1;border-bottom:1px solid #334155;background:rgba(255,255,255,0.05);">
+                <th style="padding:6px;text-align:left;">Player</th>
+                <th>Role</th>
+                <th title="Kill/Death/Assist Ratio">KDA</th>
+                <th title="Dano causado por ouro de farm (eficiência)">Dmg/Gold</th>
+                <th title="% das kills do time que o jogador participa">KP%</th>
+                <th title="Farm por minuto">CSPM</th>
+            </tr>'''
+
+        # Ordenar por role (top, jng, mid, bot, sup) seria ideal, aqui vamos apenas renderizar o que temos
+        roles_order = {"top": 1, "jng": 2, "mid": 3, "bot": 4, "sup": 5}
+        p_sorted = sorted(p_list, key=lambda x: roles_order.get(str(x.get("position","")).lower(), 99))
+
+        for p in p_sorted:
+            name = p.get("playername", "Unknown")
+            role = p.get("position", "-")
+            kda = p.get("kda_ratio", 0) or 0
+            dmg_gold = p.get("damage_per_gold", 0) or 0
+            kp = p.get("kill_participation", 0) or 0
+            cspm = p.get("avg_cspm", 0) or 0
+            
+            kda_color = "#4ade80" if kda >= 4 else ("#facc15" if kda >= 2.5 else "#f87171")
+            
+            t_html += f'<tr style="color:#e2e8f0;border-bottom:1px solid rgba(51,65,85,0.3);">'
+            t_html += f'<td style="padding:6px;text-align:left;font-weight:600;">{name}</td>'
+            t_html += f'<td style="text-transform:uppercase;color:#94a3b8;font-size:0.7rem;">{role}</td>'
+            t_html += f'<td style="color:{kda_color};font-weight:bold;">{kda:.1f}</td>'
+            t_html += f'<td>{dmg_gold:.2f}</td>'
+            t_html += f'<td>{kp*100:.0f}%</td>'
+            t_html += f'<td>{cspm:.1f}</td>'
+            t_html += '</tr>'
+        t_html += '</table></div>'
+        return t_html
+
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:20px;">'
+    html += render_team_table(p1_list, t1, "#60a5fa")
+    html += render_team_table(p2_list, t2, "#f87171")
+    html += '</div>'
+    
+    html += explain("Estas tabelas destacam propensões individuais (Player Props). <b>Dmg/Gold (Carry Potential)</b> aponta jogadores que carregam o jogo independentemente dos recursos alocados. <b>KP%</b> alto mostra dependência das lutas em grupo para abates.")
+    html += '</div>'
+    return html

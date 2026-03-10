@@ -4,7 +4,7 @@ Esta é a única função pública do pacote: generate_charts().
 """
 
 from .html_helpers import INSIGHTS_CSS
-from .data_provider import get_team_stats
+from .data_provider import get_team_stats, get_gold_team_stats, get_gold_player_stats
 from .educational import gen_educational_sections
 from .chart_generators import (
     gen_winrate_chart, gen_recent_form,
@@ -14,6 +14,7 @@ from .chart_generators import (
     gen_handicap, gen_duracao,
     gen_dragons, gen_torres, gen_baroes,
     gen_timeline_chart, gen_radar_dna, gen_vision_control,
+    gen_gold_team_summary, gen_gold_player_table
 )
 from .ev_finder import gen_betting_recommendations
 
@@ -33,6 +34,12 @@ def generate_charts(team1, team2, patches=None, odds_data=None):
     """
     stats1 = get_team_stats(team1, patches)
     stats2 = get_team_stats(team2, patches)
+    
+    # Busca dados da camada Gold (apenas índices gerais, sem filtro de patch por enquanto)
+    gold_t1 = get_gold_team_stats(team1)
+    gold_t2 = get_gold_team_stats(team2)
+    gold_p1 = get_gold_player_stats(team1)
+    gold_p2 = get_gold_player_stats(team2)
 
     if not stats1 or not stats2:
         return f"<div style='text-align:center;padding:40px;color:#f87171;'><h3>⚠️ Dados insuficientes</h3></div>"
@@ -115,6 +122,13 @@ def generate_charts(team1, team2, patches=None, odds_data=None):
     # Duração
     html += f'<div {SECTION}><div {TITLE2}>⏱ Duração do Jogo (AGT)</div><div style="display:grid;grid-template-columns:1fr;gap:20px;">'
     html += f'<div {CARD}>{gen_duracao(stats1, stats2, team1, team2)}</div>'
+    html += '</div></div>'
+
+    # Integração da camada Gold Focus Betting
+    TITLE_GOLD = 'style="color:#fbbf24;font-size:1.3rem;font-weight:800;margin-top:40px;margin-bottom:16px;padding-left:14px;border-left:4px solid #f59e0b;text-transform:uppercase;"'
+    html += f'<div {SECTION}><div {TITLE_GOLD}>💎 The Gold Layer — Prop Bets & Indexes</div><div style="display:grid;grid-template-columns:1fr;gap:20px;">'
+    html += gen_gold_team_summary(gold_t1, gold_t2, team1, team2)
+    html += gen_gold_player_table(gold_p1, gold_p2, team1, team2)
     html += '</div></div>'
 
     # Expected Value Finder
