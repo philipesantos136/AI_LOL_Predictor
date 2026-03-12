@@ -290,8 +290,9 @@ def gen_mlr_proxy(s1, s2, t1, t2):
     html += explain("O modelo <b>MLR</b> mostra como o time fecha o jogo no Mid-Late Game. Ter Barões sem destruir Inibidores e Torres indica um time passivo que não consegue <i>snowballar</i> sua vantagem. Excelente para apostas no <b>Handicap de Torres</b>.")
     # Data-based comments 
     comments = []
-    mlr1 = min((s1.get("avg_barons", 0) + s1.get("avg_inhibitors", 0) * 1.5 + s1.get("avg_towers", 0) / 4) * 20, 100)
-    mlr2 = min((s2.get("avg_barons", 0) + s2.get("avg_inhibitors", 0) * 1.5 + s2.get("avg_towers", 0) / 4) * 20, 100)
+    # MLR formula aligned with EV Finder: (barons + inhibitors + towers/5) / 3 * 20
+    mlr1 = min((s1.get("avg_barons", 0) + s1.get("avg_inhibitors", 0) + s1.get("avg_towers", 0) / 5) / 3 * 20, 100)
+    mlr2 = min((s2.get("avg_barons", 0) + s2.get("avg_inhibitors", 0) + s2.get("avg_towers", 0) / 5) / 3 * 20, 100)
     egr1 = (s1.get("fb_rate", 0) + s1.get("fd_rate", 0) + s1.get("fherald_rate", 0)) / 3
     egr2 = (s2.get("fb_rate", 0) + s2.get("fd_rate", 0) + s2.get("fherald_rate", 0)) / 3
     for team, opp, mlr, mlr_opp, egr, egr_opp in [(t1, t2, mlr1, mlr2, egr1, egr2), (t2, t1, mlr2, mlr1, egr2, egr1)]:
@@ -1016,23 +1017,32 @@ def gen_radar_dna(s1, s2, t1, t2):
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(color="#e2e8f0"))
     )
 
-    # Data-based comments
+    # Data-based comments — use EV Finder-aligned formulas (3-component EGR, aligned MLR)
     comments = []
-    r1 = calc_radar(s1)
-    r2 = calc_radar(s2)
-    # r = [wr, egr, mlr, vis, eco, kpm]
-    # Identify team profiles
-    for team, r in [(t1, r1), (t2, r2)]:
-        if r[1] > 60 and r[5] > 60:  # EGR + KPM high
-            comments.append(f'⚔️ <b>{team} tem perfil AGRESSIVO</b> (EGR {r[1]:.0f}%, KPM {r[5]:.0f}%). Busca jogos caóticos e rápidos. Favoreça <b>Over em kills</b> e <b>Under em duração</b> quando este time joga.')
-        elif r[2] > 60 and r[3] > 60:  # MLR + Vision high
-            comments.append(f'🧠 <b>{team} tem perfil CONTROLADO</b> (MLR {r[2]:.0f}%, Visão {r[3]:.0f}%). Joga por objetivos e controle de mapa. Favoreça <b>Over em duração</b> e <b>Over em Barões</b>.')
-        elif r[4] > 70 and r[5] < 40:  # Economy high, KPM low
-            comments.append(f'💰 <b>{team} é um time FARM-HEAVY</b> (Economia {r[4]:.0f}%, Ação apenas {r[5]:.0f}%). Acumula recursos mas evita lutas. Jogos tendem a ser mais longos e com menos kills.')
-    # Profile clash
-    if r1[1] > 55 and r1[5] > 55 and r2[2] > 55 and r2[3] > 55:
+    # EGR: 3 components (fb + fd + fherald) / 3 — aligned with EV Finder egr_score
+    egr_1 = (s1.get("fb_rate", 0) + s1.get("fd_rate", 0) + s1.get("fherald_rate", 0)) / 3
+    egr_2 = (s2.get("fb_rate", 0) + s2.get("fd_rate", 0) + s2.get("fherald_rate", 0)) / 3
+    # MLR: aligned with EV Finder formula (barons + inhibitors + towers/5) / 3 * 20
+    mlr_1 = min((s1.get("avg_barons", 0) + s1.get("avg_inhibitors", 0) + s1.get("avg_towers", 0) / 5) / 3 * 20, 100)
+    mlr_2 = min((s2.get("avg_barons", 0) + s2.get("avg_inhibitors", 0) + s2.get("avg_towers", 0) / 5) / 3 * 20, 100)
+    vis_1 = min(s1.get("visionscore", 0) / 3.5 * 100, 100)
+    vis_2 = min(s2.get("visionscore", 0) / 3.5 * 100, 100)
+    kpm_1 = min(s1.get("avg_kpm", 0) / 1.0 * 100, 100)
+    kpm_2 = min(s2.get("avg_kpm", 0) / 1.0 * 100, 100)
+    eco_1 = min(s1.get("cspm", 0) / 35 * 100, 100)
+    eco_2 = min(s2.get("cspm", 0) / 35 * 100, 100)
+    # Identify team profiles using EV-aligned metrics
+    for team, egr_v, mlr_v, vis_v, kpm_v, eco_v in [(t1, egr_1, mlr_1, vis_1, kpm_1, eco_1), (t2, egr_2, mlr_2, vis_2, kpm_2, eco_2)]:
+        if egr_v > 60 and kpm_v > 60:
+            comments.append(f'⚔️ <b>{team} tem perfil AGRESSIVO</b> (EGR {egr_v:.0f}%, KPM {kpm_v:.0f}%). Busca jogos caóticos e rápidos. Favoreça <b>Over em kills</b> e <b>Under em duração</b> quando este time joga.')
+        elif mlr_v > 60 and vis_v > 60:
+            comments.append(f'🧠 <b>{team} tem perfil CONTROLADO</b> (MLR {mlr_v:.0f}%, Visão {vis_v:.0f}%). Joga por objetivos e controle de mapa. Favoreça <b>Over em duração</b> e <b>Over em Barões</b>.')
+        elif eco_v > 70 and kpm_v < 40:  # Economy high, KPM low
+            comments.append(f'💰 <b>{team} é um time FARM-HEAVY</b> (Economia {eco_v:.0f}%, Ação apenas {kpm_v:.0f}%). Acumula recursos mas evita lutas. Jogos tendem a ser mais longos e com menos kills.')
+    # Profile clash using EV-aligned EGR/MLR
+    if egr_1 > 55 and kpm_1 > 55 and mlr_2 > 55 and vis_2 > 55:
         comments.append(f'💥 <b>Duelo de estilos!</b> {t1} (agressivo/early) vs {t2} (controlado/late). A partida depende de quem impõe o ritmo. Se {t1} não dominar o early, {t2} tende a virar. Janela de aposta live nos 15min.')
-    elif r2[1] > 55 and r2[5] > 55 and r1[2] > 55 and r1[3] > 55:
+    elif egr_2 > 55 and kpm_2 > 55 and mlr_1 > 55 and vis_1 > 55:
         comments.append(f'💥 <b>Duelo de estilos!</b> {t2} (agressivo/early) vs {t1} (controlado/late). A partida depende de quem impõe o ritmo. Se {t2} não dominar o early, {t1} tende a virar. Janela de aposta live nos 15min.')
     return (fig_to_html(fig) + 
             explain("O <b>Gráfico de Radar</b> é o padrão-ouro para ler o DNA dos times. Um time esticado em <i>EGR e Ação</i> busca jogos caóticos e curtos. Um dominando <i>MLR e Visão</i> joga pelas lutas de objetivos amplas.")
