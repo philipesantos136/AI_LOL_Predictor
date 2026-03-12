@@ -163,6 +163,60 @@ INSIGHTS_CSS = """
     flex: 1 1 calc(50% - 8px);
     box-sizing: border-box;
 }
+@keyframes pulseGlow {
+    0%, 100% { border-color: rgba(34,197,94,0.4); box-shadow: 0 0 8px rgba(34,197,94,0.1); }
+    50% { border-color: rgba(234,179,8,0.6); box-shadow: 0 0 16px rgba(234,179,8,0.2); }
+}
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+.data-comment-box {
+    position: relative;
+    background: linear-gradient(135deg, rgba(5,46,22,0.6) 0%, rgba(30,41,59,0.9) 50%, rgba(60,28,10,0.4) 100%);
+    border: 1px solid rgba(34,197,94,0.3);
+    border-left: 4px solid #22c55e;
+    border-radius: 0 12px 12px 0;
+    padding: 16px 20px;
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: #e2e8f0;
+    line-height: 1.6;
+    animation: pulseGlow 3s ease-in-out infinite;
+    overflow: hidden;
+}
+.data-comment-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #4ade80, #fbbf24, transparent);
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
+}
+.data-comment-box b { color: #4ade80; }
+.data-comment-box .comment-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+    font-size: 0.9rem;
+    color: #4ade80;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.data-comment-box .comment-title .pulse-dot {
+    width: 8px; height: 8px;
+    background: #4ade80;
+    border-radius: 50%;
+    animation: pulseGlow 1.5s ease-in-out infinite;
+}
+.data-comment-box .insight-item {
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.data-comment-box .insight-item:last-child { border-bottom: none; }
 </style>
 """
 
@@ -270,6 +324,27 @@ def odd_badge(prob):
 def explain(text):
     """Gera caixa explicativa '📖 Como ler:' com bordas indigo."""
     return f'<div class="explain-box">📖 <b>Como ler:</b> {text}</div>'
+
+
+def data_comment(insights):
+    """Gera caixa animada '💡 Comentário Baseado em Dados' com insights dinâmicos.
+    
+    Args:
+        insights: string ou lista de strings com insights acionáveis.
+    """
+    if not insights:
+        return ""
+    if isinstance(insights, str):
+        insights = [insights]
+    items = "".join(f'<div class="insight-item">{i}</div>' for i in insights if i)
+    if not items:
+        return ""
+    return (
+        '<div class="data-comment-box">'
+        '<div class="comment-title"><span class="pulse-dot"></span>💡 Comentário Baseado em Dados</div>'
+        f'{items}'
+        '</div>'
+    )
 
 
 def risk_tier(prob):
