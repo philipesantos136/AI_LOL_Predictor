@@ -21,22 +21,22 @@ def gen_winrate_chart(s1, s2, t1, t2):
     """Gauge duplo de Win Rate."""
     fig = make_subplots(rows=1, cols=2, specs=[[{"type": "indicator"}, {"type": "indicator"}]])
     for col, (s, t, color, bar_color) in enumerate([
-        (s1, t1, "#60a5fa", "#3b82f6"), (s2, t2, "#f87171", "#ef4444")
+        (s1, t1, "#3b82f6", "#2563eb"), (s2, t2, "#ef4444", "#dc2626")
     ], 1):
         fig.add_trace(go.Indicator(
             mode="gauge+number+delta", value=s["win_rate"],
             number=dict(suffix="%", font=dict(size=36, color=color)),
-            gauge=dict(axis=dict(range=[0, 100]), bar=dict(color=bar_color),
-                       bgcolor="#1e293b", bordercolor="#334155",
-                       steps=[dict(range=[0, 40], color="rgba(239,68,68,0.15)"),
-                              dict(range=[40, 60], color="rgba(234,179,8,0.15)"),
-                              dict(range=[60, 100], color="rgba(34,197,94,0.15)")]),
-            delta=dict(reference=50, suffix="%"),
+            gauge=dict(axis=dict(range=[0, 100], tickcolor="#94a3b8"), bar=dict(color=bar_color),
+                       bgcolor="#0f172a", bordercolor="#334155",
+                       steps=[dict(range=[0, 40], color="rgba(239, 68, 68, 0.1)"),
+                              dict(range=[40, 60], color="rgba(234, 179, 8, 0.1)"),
+                              dict(range=[60, 100], color="rgba(34, 197, 94, 0.1)")]),
+            delta=dict(reference=50, suffix="%", font=dict(size=14)),
         ), row=1, col=col)
-    fig.update_layout(**base_layout("🏆 Win Rate", height=300))
+    fig.update_layout(**base_layout("🏆 Taxa de Vitória (Win Rate)", height=300))
     fig.update_layout(annotations=[
-        dict(text=t1, x=0.2, y=1.12, xref="paper", yref="paper", showarrow=False, font=dict(size=14, color="#60a5fa")),
-        dict(text=t2, x=0.8, y=1.12, xref="paper", yref="paper", showarrow=False, font=dict(size=14, color="#f87171")),
+        dict(text=t1, x=0.2, y=1.1, xref="paper", yref="paper", showarrow=False, font=dict(size=15, color="#3b82f6", weight="bold")),
+        dict(text=t2, x=0.8, y=1.1, xref="paper", yref="paper", showarrow=False, font=dict(size=15, color="#ef4444", weight="bold")),
     ])
     # Data-based comments
     wr1, wr2 = s1["win_rate"], s2["win_rate"]
@@ -59,20 +59,22 @@ def gen_winrate_chart(s1, s2, t1, t2):
 
 def gen_recent_form(s1, s2, t1, t2):
     """Forma recente (últimos 10 jogos) em bloquinhos W/L."""
-    html = '<div class="chart-card" style="padding:20px;">'
-    html += '<h3 style="color:#e2e8f0;margin:0 0 16px 0;font-size:1rem;">📈 Forma Recente (últimos 10 jogos)</h3>'
-    for team_name, stats, color in [(t1, s1, "#3b82f6"), (t2, s2, "#ef4444")]:
+    html = '<div class="chart-card">'
+    html += '<h3 style="color:#f8fafc;margin:0 0 20px 0;font-size:1.1rem;font-weight:700;">📈 Forma Recente (Últimos 10 Jogos)</h3>'
+    for team_name, stats, color, bg_color in [(t1, s1, "#3b82f6", "rgba(59, 130, 246, 0.1)"), (t2, s2, "#ef4444", "rgba(239, 68, 68, 0.1)")]:
         results = stats.get("recent_results", [])
         recent_wr = sum(1 for r in results if r == '1') / len(results) * 100 if results else 0
-        html += f'<div style="margin-bottom:12px;">'
-        html += f'<span style="color:{color};font-weight:700;">{team_name}</span>'
-        html += f'<span style="color:#94a3b8;margin-left:8px;font-size:0.85rem;">(WR recente: {recent_wr:.0f}%)</span>'
-        html += '<div style="display:flex;gap:4px;margin-top:6px;">'
+        html += f'<div style="margin-bottom:20px; padding: 12px; background: {bg_color}; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">'
+        html += f'<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">'
+        html += f'<span style="color:{color};font-weight:800;font-size:1rem;">{team_name}</span>'
+        html += f'<span style="color:#cbd5e1;font-size:0.85rem;font-weight:600;">Win Rate Recente: <b style="color:{color}">{recent_wr:.0f}%</b></span>'
+        html += '</div>'
+        html += '<div style="display:flex;gap:6px;">'
         for r in results:
             if r == '1':
-                html += '<div style="width:32px;height:32px;border-radius:6px;background:rgba(34,197,94,0.3);border:1px solid #22c55e;display:flex;align-items:center;justify-content:center;font-weight:700;color:#4ade80;font-size:0.8rem;">W</div>'
+                html += '<div style="width:34px;height:34px;border-radius:8px;background:#10b981;display:flex;align-items:center;justify-content:center;font-weight:800;color:white;font-size:0.85rem;box-shadow: 0 2px 4px rgba(0,0,0,0.2);">W</div>'
             else:
-                html += '<div style="width:32px;height:32px;border-radius:6px;background:rgba(239,68,68,0.2);border:1px solid #ef4444;display:flex;align-items:center;justify-content:center;font-weight:700;color:#f87171;font-size:0.8rem;">L</div>'
+                html += '<div style="width:34px;height:34px;border-radius:8px;background:#ef4444;display:flex;align-items:center;justify-content:center;font-weight:800;color:white;font-size:0.85rem;box-shadow: 0 2px 4px rgba(0,0,0,0.2);">L</div>'
         html += '</div></div>'
     html += explain("Sequências longas de vitórias indicam momento favorável emocionalmente (<i>Momentum</i>).")
     # Data-based comments
@@ -111,27 +113,29 @@ def gen_recent_form(s1, s2, t1, t2):
 
 def gen_bloodiness_pace(s1, s2, t1, t2):
     """Gráfico de Ritmo de Jogo: CKPM e KPM."""
-    html = '<div class="chart-card" style="padding:20px;">'
-    html += '<h3 style="color:#e2e8f0;margin:0 0 16px 0;font-size:1rem;">🩸 Pace & Bloodiness (CKPM e KPM)</h3>'
+    html = '<div class="chart-card">'
+    html += '<h3 style="color:#f8fafc;margin:0 0 20px 0;font-size:1.1rem;font-weight:700;">🩸 Ritmo de Jogo (Pace & Bloodiness)</h3>'
 
     for name, key, is_combined in [("CKPM (Combined Kills/Min)", "ckpm_history", True), ("KPM (Team Kills/Min)", "kpm_history", False)]:
-        html += f'<div style="margin-bottom:16px;">'
-        html += f'<div style="color:#e2e8f0;font-weight:600;font-size:0.9rem;margin-bottom:8px;">{name}</div>'
-        for stats, team, color in [(s1, t1, "#60a5fa" if not is_combined else "#c084fc"),
-                                   (s2, t2, "#f87171" if not is_combined else "#e879f9")]:
+        html += f'<div style="margin-bottom:24px;">'
+        html += f'<div style="color:#94a3b8;font-weight:700;font-size:0.8rem;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">{name}</div>'
+        for stats, team, color in [(s1, t1, "#3b82f6" if not is_combined else "#8b5cf6"),
+                                   (s2, t2, "#ef4444" if not is_combined else "#ec4899")]:
             data = float_list(stats.get(key, []))
             if not data:
                 continue
             avg_val = sum(data) / len(data)
-            max_scale = 1.0 if is_combined else 0.5
+            max_scale = 1.2 if is_combined else 0.6
             width_pct = min(100, (avg_val / max_scale) * 100)
-            html += f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">'
-            html += f'<span style="color:{color};font-weight:700;min-width:120px;font-size:0.85rem;">{team}</span>'
-            html += f'<div style="flex:1;background:#1e293b;border-radius:4px;height:20px;overflow:hidden;">'
-            html += f'<div style="width:{width_pct:.0f}%;height:100%;background:{color};border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:0.75rem;font-weight:700;color:white;">{avg_val:.2f} abates/min</div></div>'
+            html += f'<div style="margin-bottom:12px;">'
+            html += f'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:0.85rem;">'
+            html += f'<span style="color:{color};font-weight:700;">{team}</span>'
+            html += f'<span style="color:#f8fafc;font-weight:800;">{avg_val:.2f} <small style="font-weight:400;color:#64748b;">abates/min</small></span>'
+            html += '</div>'
+            html += f'<div style="background:#0f172a;border-radius:6px;height:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.05);">'
+            html += f'<div style="width:{width_pct:.0f}%;height:100%;background:linear-gradient(90deg, {color}88, {color});border-radius:6px;box-shadow: 0 0 10px {color}33;"></div></div>'
             html += '</div>'
         html += '</div>'
-
     html += explain("<b>CKPM</b> indica o ritmo global da partida. CKPM > 0.8 indicam jogos 'sangrentos', cheios de lutas (favorável para Overs de Kills). <b>KPM</b> mede a letalidade bruta de apenas um time.")
     # Data-based comments
     comments = []
@@ -160,56 +164,64 @@ def gen_bloodiness_pace(s1, s2, t1, t2):
     return html
 
 
-def gen_economy_cards(s1, s2, t1, t2):
-    """Métricas de Economia: EGPM e DPM."""
-    html = '<div class="chart-card" style="padding:20px;">'
-    html += '<h3 style="color:#e2e8f0;margin:0 0 16px 0;font-size:1rem;">💰 Economia & Dano (The Advanced Stats Problem)</h3>'
+def gen_economy_cards(s1, s2, t1, t2, g1=None, g2=None):
+    """Métricas de Economia: EGPM, DPM e Gold Layer (EGDI, Throw, Comeback)."""
+    html = '<div class="chart-card">'
+    html += '<h3 style="color:#f8fafc;margin:0 0 20px 0;font-size:1.1rem;font-weight:700;">💰 Economia & Dano (The Advanced Stats Problem)</h3>'
 
     metrics = [
-        ("EGPM (Earned Gold/Min)", "earnedgold_pm_history", "Ouro farmado/min (ignora ouro inicial), define o potencial de compra de itens. Alta EGPM = farm massivo ou farm de tropas."),
-        ("DPM (Damage/Min)", "dmg_pm_history", "Dano a campeões por minuto. Matar é importante, mas espalhar dano pavimenta as teamfights."),
+        ("EGPM (Earned Gold/Min)", "earnedgold_pm_history", "Ouro farmado/min (ignora ouro inicial), define o potencial de compra de itens. Alta EGPM = farm massivo."),
+        ("DPM (Damage/Min)", "dmg_pm_history", "Dano a campeões por minuto. Mede a eficiência bruta em teamfights."),
     ]
 
     for title, key, exp in metrics:
-        html += f'<div style="margin-bottom:16px;">'
-        html += f'<div style="color:#fbbf24;font-weight:600;font-size:0.9rem;margin-bottom:8px;">{title}</div>'
-        for stats, team, color in [(s1, t1, "#60a5fa"), (s2, t2, "#f87171")]:
+        html += f'<div style="margin-bottom:24px;">'
+        html += f'<div style="color:#fbbf24;font-weight:700;font-size:0.85rem;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">{title}</div>'
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
+        for stats, team, color in [(s1, t1, "#3b82f6"), (s2, t2, "#ef4444")]:
             data = float_list(stats.get(key, []))
-            if not data:
-                continue
+            if not data: continue
             st = calc_stats(data)
-            html += f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">'
-            html += f'<span style="color:{color};font-weight:700;min-width:120px;font-size:0.85rem;">{team}</span>'
-            html += f'<span style="color:#e2e8f0;font-size:0.9rem;">{st["avg"]:.0f}</span> '
-            html += f'<span style="color:#64748b;font-size:0.75rem;">(Max: {st["max"]:.0f} / Min: {st["min"]:.0f})</span>'
+            html += f'<div style="background:#0f172a;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.05);">'
+            html += f'<div style="color:{color};font-weight:800;font-size:0.8rem;margin-bottom:4px;">{team}</div>'
+            html += f'<div style="font-size:1.4rem;font-weight:900;color:#f8fafc;">{st["avg"]:.0f}</div> '
+            html += f'<div style="color:#64748b;font-size:0.7rem;font-weight:600;">MAX: {st["max"]:.0f} | MIN: {st["min"]:.0f}</div>'
             html += '</div>'
-        html += f'<div style="color:#94a3b8;font-size:0.75rem;border-left:2px solid #334155;padding-left:8px;margin-top:4px;"><i>{exp}</i></div>'
+        html += '</div>'
+        html += f'<div style="color:#64748b;font-size:0.75rem;margin-top:8px;font-style:italic;">{exp}</div>'
         html += '</div>'
 
-    html += explain("Segundo o artigo <i>LoL's Advanced Stats Problem</i>, olhar apenas para KDA é uma armadilha. A verdadeira pressão do jogo provém de <b>Ouro Ganho (EGPM)</b> e <b>Dano Gerado (DPM)</b>.")
-    # Data-based comments
+    if g1 and g2:
+        html += '<div style="margin-top:32px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.1);">'
+        html += '<h4 style="color:#fbbf24;font-size:0.95rem;margin-bottom:16px;text-transform:uppercase;">📈 Gold Layer Efficiency (Comebacks & Throws)</h4>'
+        g_metrics = [("Early Game Dominance Index (EGDI)", "egdi_score", True), ("Throw Rate (Entregas)", "throw_rate", False), ("Comeback Rate (Viradas)", "comeback_rate", False)]
+        for g_title, g_key, is_idx in g_metrics:
+            html += f'<div style="margin-bottom:16px;"><div style="color:#cbd5e1;font-weight:600;font-size:0.85rem;margin-bottom:8px;">{g_title}</div>'
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
+            for g_stats, team, color in [(g1, t1, "#3b82f6"), (g2, t2, "#ef4444")]:
+                val = g_stats.get(g_key, 0) or 0
+                val_str = f"{val*100:.1f}%" if not is_idx else f"{val:+.1f}"
+                html += f'<div style="background:#0f172a;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;">'
+                html += f'<span style="color:{color};font-size:0.75rem;font-weight:700;">{team}</span>'
+                html += f'<span style="color:#fbbf24;font-weight:800;font-size:0.95rem;">{val_str}</span></div>'
+            html += '</div></div>'
+        html += '</div>'
+
+    html += explain("Segundo o artigo <i>LoL's Advanced Stats Problem</i>, a verdadeira pressão do jogo provém de <b>Ouro Ganho (EGPM)</b> e <b>Dano Gerado (DPM)</b>.")
     comments = []
-    egpm1 = float_list(s1.get("earnedgold_pm_history", []))
-    egpm2 = float_list(s2.get("earnedgold_pm_history", []))
-    dpm1 = float_list(s1.get("dmg_pm_history", []))
-    dpm2 = float_list(s2.get("dmg_pm_history", []))
-    avg_egpm1 = sum(egpm1) / len(egpm1) if egpm1 else 0
-    avg_egpm2 = sum(egpm2) / len(egpm2) if egpm2 else 0
-    avg_dpm1 = sum(dpm1) / len(dpm1) if dpm1 else 0
-    avg_dpm2 = sum(dpm2) / len(dpm2) if dpm2 else 0
+    avg_egpm1 = sum(float_list(s1.get("earnedgold_pm_history", []))) / max(len(s1.get("earnedgold_pm_history", [])), 1)
+    avg_egpm2 = sum(float_list(s2.get("earnedgold_pm_history", []))) / max(len(s2.get("earnedgold_pm_history", [])), 1)
+    avg_dpm1 = sum(float_list(s1.get("dmg_pm_history", []))) / max(len(s1.get("dmg_pm_history", [])), 1)
+    avg_dpm2 = sum(float_list(s2.get("dmg_pm_history", []))) / max(len(s2.get("dmg_pm_history", [])), 1)
     for team, opp, e, d, eo, do_val in [(t1, t2, avg_egpm1, avg_dpm1, avg_egpm2, avg_dpm2), (t2, t1, avg_egpm2, avg_dpm2, avg_egpm1, avg_dpm1)]:
-        if e > 0 and d > 0:
-            if e > eo * 1.1 and d < do_val * 0.9:
-                comments.append(f'💰 <b>{team} farms muito mas causa pouco dano.</b> EGPM alto ({e:.0f}) mas DPM baixo ({d:.0f}) indica jogo passivo — o time acumula ouro sem converter em pressão. Pode não finalizar jogos rapidamente.')
-            elif e < eo * 0.9 and d > do_val * 1.1:
-                comments.append(f'⚔️ <b>{team} é agressivo com poucos recursos.</b> DPM alto ({d:.0f}) apesar de EGPM baixo ({e:.0f}) — time que luta muito cedo mas pode cair no late se não converter kills em ouro.')
-    if avg_egpm1 > 0 and avg_egpm2 > 0:
-        richer = t1 if avg_egpm1 > avg_egpm2 else t2
-        diff_pct = abs(avg_egpm1 - avg_egpm2) / min(avg_egpm1, avg_egpm2) * 100
-        if diff_pct > 10:
-            comments.append(f'📈 <b>{richer} acumula {diff_pct:.0f}% mais ouro/min.</b> Vantagem econômica consistente — mais itens = mais poder em teamfights. Favorável para apostas de ML e Handicap negativo.')
-    html += data_comment(comments)
-    html += '</div>'
+         if e > eo * 1.1 and d < do_val * 0.9: comments.append(f'💰 <b>{team} farms muito mas causa pouco dano.</b> Indica jogo passivo.')
+         elif e < eo * 0.9 and d > do_val * 1.1: comments.append(f'⚔️ <b>{team} é eficiente com poucos recursos.</b> Indica time letal.')
+    if g1 and g2:
+        for g_stats, team in [(g1, t1), (g2, t2)]:
+            th, cb = g_stats.get("throw_rate", 0) or 0, g_stats.get("comeback_rate", 0) or 0
+            if th > 0.3: comments.append(f'⚠️ <b>{team} tem Throw Rate alto ({th*100:.0f}%).</b> Desperdiça vantagens.')
+            if cb > 0.3: comments.append(f'🔄 <b>{team} é expert em viradas ({cb*100:.0f}%).</b> Bom para live betting.')
+    html += data_comment(comments) + '</div>'
     return html
 
 
@@ -219,100 +231,47 @@ def gen_economy_cards(s1, s2, t1, t2):
 
 def gen_first_objectives_egr(s1, s2, t1, t2):
     """Early Game Rating Proxy (First Blood, Dragon, Herald)."""
-    html = '<div class="chart-card" style="padding:20px;">'
-    html += '<h3 style="color:#e2e8f0;margin:0 0 16px 0;font-size:1rem;">⚡ Early-Game Rating (EGR) Proxy — Primeiros Objetivos</h3>'
-
-    fb1, fb2 = s1["fb_rate"], s2["fb_rate"]
-    fd1, fd2 = s1["fd_rate"], s2["fd_rate"]
-    fh1, fh2 = s1["fherald_rate"], s2["fherald_rate"]
-
+    html = '<div class="chart-card">'
+    html += '<h3 style="color:#f8fafc;margin:0 0 20px 0;font-size:1.1rem;font-weight:700;">⚡ Early-Game Rating (EGR) Proxy</h3>'
+    fb1, fb2, fd1, fd2, fh1, fh2 = s1["fb_rate"], s2["fb_rate"], s1["fd_rate"], s2["fd_rate"], s1["fherald_rate"], s2["fherald_rate"]
     categories = [("First Blood (FB%)", fb1, fb2), ("First Dragon (FD%)", fd1, fd2), ("First Herald (HLD%)", fh1, fh2)]
-
     for title, v1, v2 in categories:
-        html += f'<div style="margin-bottom:12px;">'
-        html += f'<div style="color:#cbd5e1;font-weight:600;font-size:0.85rem;margin-bottom:4px;">{title}</div>'
-        html += f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'
-        html += f'<span style="color:#60a5fa;font-weight:700;min-width:40px;text-align:right;font-size:0.8rem;">{v1:.0f}%</span>'
-        html += f'<div style="flex:1;background:#1e293b;border-radius:4px;height:12px;overflow:hidden;">'
-        html += f'<div style="width:{v1:.0f}%;height:100%;background:#3b82f6;border-radius:4px;"></div></div></div>'
-        html += f'<div style="display:flex;align-items:center;gap:8px;">'
-        html += f'<span style="color:#f87171;font-weight:700;min-width:40px;text-align:right;font-size:0.8rem;">{v2:.0f}%</span>'
-        html += f'<div style="flex:1;background:#1e293b;border-radius:4px;height:12px;overflow:hidden;">'
-        html += f'<div style="width:{v2:.0f}%;height:100%;background:#ef4444;border-radius:4px;"></div></div></div>'
-        html += '</div>'
-
-    html += explain("O modelo de <b>EGR</b> do Oracle's Elixir demonstra que o time que conquista esses prêmios iniciais cria uma vantagem de ouro aos 15 minutos que se converte numa <b>Probabilidade de Vitória (Odds)</b> gigantesca. Observe a discrepância nas barras.")
-    # Data-based comments
+        html += f'<div style="margin-bottom:20px;"><div style="color:#94a3b8;font-weight:700;font-size:0.75rem;margin-bottom:10px;text-transform:uppercase;">{title}</div>'
+        html += f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">'
+        html += f'<div style="flex:1;background:#0f172a;border-radius:100px;height:14px;overflow:hidden;border:1px solid rgba(255,255,255,0.05);display:flex;justify-content:flex-end;">'
+        html += f'<div style="width:{v1:.0f}%;height:100%;background:linear-gradient(90deg, #3b82f6, #60a5fa);border-radius:100px;"></div></div>'
+        html += f'<span style="color:#3b82f6;font-weight:900;min-width:45px;text-align:center;font-size:0.9rem;">{v1:.0f}%</span><span style="color:#f87171;font-weight:900;min-width:45px;text-align:center;font-size:0.9rem;">{v2:.0f}%</span>'
+        html += f'<div style="flex:1;background:#0f172a;border-radius:100px;height:14px;overflow:hidden;border:1px solid rgba(255,255,255,0.05);">'
+        html += f'<div style="width:{v2:.0f}%;height:100%;background:linear-gradient(90deg, #f87171, #ef4444);border-radius:100px;"></div></div></div></div>'
+    html += explain("O modelo de <b>EGR</b> demonstra que o time que conquista esses prêmios iniciais cria snowball de ouro.")
     comments = []
-    egr1 = (fb1 + fd1 + fh1) / 3
-    egr2 = (fb2 + fd2 + fh2) / 3
-    for team, opp, egr, egr_opp, fb, fd, fh in [(t1, t2, egr1, egr2, fb1, fd1, fh1), (t2, t1, egr2, egr1, fb2, fd2, fh2)]:
-        if egr < 40:
-            comments.append(f'⚠️ <b>{team} tem EGR baixo ({egr:.0f}%).</b> Isso significa que, até os 15 minutos, costuma começar atrás (FB% {fb:.0f}%, FD% {fd:.0f}%, FH% {fh:.0f}%). Se o <b>MLR for alto</b>, este time é um <b>candidato a virada</b> — considere esperar 10-15 minutos no jogo ao vivo. As odds tendem a subir quando o time perde o early game, criando uma <b>janela de oportunidade para apostar live</b> com odds melhores.')
-        elif egr > 60:
-            comments.append(f'⚡ <b>{team} domina o Early Game (EGR {egr:.0f}%).</b> Vantagem nos primeiros objetivos (FB% {fb:.0f}%, FD% {fd:.0f}%, FH% {fh:.0f}%) gera snowball de ouro. Odds pré-jogo são justas — mas considere <b>First Blood</b> e <b>First Dragon</b> como prop bets de valor.')
-    if egr1 < 40 and egr2 < 40:
-        comments.append(f'🧊 <b>Ambos os times são fracos no early game.</b> Partida tende a ser lenta e controlada nos primeiros 15 min. Favoreça <b>Under em First Blood até 5min</b> e <b>Over em duração</b>.')
-    if abs(egr1 - egr2) > 25:
-        dom = t1 if egr1 > egr2 else t2
-        sub = t2 if egr1 > egr2 else t1
-        comments.append(f'📊 <b>Diferença de {abs(egr1-egr2):.0f}% no EGR.</b> {dom} domina os objetivos iniciais contra {sub}. Apostas de First Blood e First Dragon fortemente favorecem {dom}.')
-    html += data_comment(comments)
-    html += '</div>'
-    return html
+    e1, e2 = (fb1 + fd1 + fh1) / 3, (fb2 + fd2 + fh2) / 3
+    for team, e_val in [(t1, e1), (t2, e2)]:
+        if e_val > 60: comments.append(f'⚡ <b>{team} tem domínio early game ({e_val:.0f}% EGR).</b> Favorito a FB/FD.')
+        elif e_val < 40: comments.append(f'⚠️ <b>{team} tem EGR baixo ({e_val:.0f}%).</b> Costuma começar atrás.')
+    return html + data_comment(comments) + '</div>'
 
 
 def gen_mlr_proxy(s1, s2, t1, t2):
     """Mid/Late Rating Proxy (Barons, Inhibitors, Towers)."""
-    html = '<div class="chart-card" style="padding:20px;">'
-    html += '<h3 style="color:#e2e8f0;margin:0 0 16px 0;font-size:1rem;">🏰 Mid/Late Rating (MLR) Proxy — Controle de Mapa</h3>'
-
-    html += '''<table style="width:100%;border-collapse:collapse;font-size:0.85rem;text-align:center;">
-        <tr style="color:#94a3b8;border-bottom:1px solid #334155;">
-            <th style="padding:8px;text-align:left;">Time</th>
-            <th>First Baron (FBN%)</th>
-            <th>Média Barões</th>
-            <th>Média Inibidores</th>
-            <th>Média Torres</th>
-        </tr>'''
-
-    for stats, team, color in [(s1, t1, "#60a5fa"), (s2, t2, "#f87171")]:
-        html += f'<tr style="color:#e2e8f0;border-bottom:1px solid rgba(51,65,85,0.5);">'
-        html += f'<td style="padding:8px;text-align:left;color:{color};font-weight:700;">{team}</td>'
-        html += f'<td>{stats["fbaron_rate"]:.0f}%</td>'
-        html += f'<td>{stats["avg_barons"]:.1f}</td>'
-        html += f'<td>{stats["avg_inhibitors"]:.2f}</td>'
-        html += f'<td>{stats["avg_towers"]:.1f}</td>'
-        html += '</tr>'
-
-    html += '</table>'
-    html += '<div style="margin-top:16px;"></div>'
-    html += explain("O modelo <b>MLR</b> mostra como o time fecha o jogo no Mid-Late Game. Ter Barões sem destruir Inibidores e Torres indica um time passivo que não consegue <i>snowballar</i> sua vantagem. Excelente para apostas no <b>Handicap de Torres</b>.")
-    # Data-based comments 
+    html = '<div class="chart-card"><h3 style="color:#f8fafc;margin:0 0 20px 0;font-size:1.1rem;font-weight:700;">🏰 Mid/Late Rating (MLR) Proxy</h3>'
+    html += '''<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.85rem;text-align:center;">
+        <thead style="background:rgba(255,255,255,0.03);"><tr style="color:#94a3b8;border-bottom:1px solid #334155;">
+        <th style="padding:12px;text-align:left;">Time</th><th>FBN%</th><th>Barões (AVG)</th><th>Inibidores (AVG)</th><th>Torres (AVG)</th></tr></thead><tbody>'''
+    for stats, team, color in [(s1, t1, "#3b82f6"), (s2, t2, "#ef4444")]:
+        html += f'<tr style="color:#f8fafc;border-bottom:1px solid rgba(51,65,85,0.2);"><td style="padding:16px 12px;text-align:left;color:{color};font-weight:800;">{team}</td>'
+        html += f'<td style="font-weight:700;">{stats["fbaron_rate"]:.0f}%</td><td>{stats["avg_barons"]:.1f}</td><td>{stats["avg_inhibitors"]:.1f}</td><td style="font-weight:800;color:#facc15;">{stats["avg_towers"]:.1f}</td></tr>'
+    html += '</tbody></table></div><div style="margin-top:16px;"></div>'
+    html += explain("O modelo <b>MLR</b> mostra como o time fecha o jogo no Mid-Late Game.")
     comments = []
-    # MLR formula aligned with EV Finder: (barons + inhibitors + towers/5) / 3 * 20
     mlr1 = min((s1.get("avg_barons", 0) + s1.get("avg_inhibitors", 0) + s1.get("avg_towers", 0) / 5) / 3 * 20, 100)
     mlr2 = min((s2.get("avg_barons", 0) + s2.get("avg_inhibitors", 0) + s2.get("avg_towers", 0) / 5) / 3 * 20, 100)
     egr1 = (s1.get("fb_rate", 0) + s1.get("fd_rate", 0) + s1.get("fherald_rate", 0)) / 3
     egr2 = (s2.get("fb_rate", 0) + s2.get("fd_rate", 0) + s2.get("fherald_rate", 0)) / 3
-    for team, opp, mlr, mlr_opp, egr, egr_opp in [(t1, t2, mlr1, mlr2, egr1, egr2), (t2, t1, mlr2, mlr1, egr2, egr1)]:
-        if mlr > 60 and egr < 40:
-            comments.append(f'🔄 <b>{team} é um time de virada!</b> EGR fraco ({egr:.0f}%) mas MLR forte ({mlr:.0f}). Esse perfil indica que o time começa atrás mas tem <b>alta capacidade de recuperar ouro perdido</b> no mid/late. 💡 <b>Dica de aposta live:</b> Se as odds pré-jogo não forem boas o suficiente, espere os <b>10-15 minutos</b> do jogo — quando {team} provavelmente estará atrás, as odds vão <b>subir significativamente</b>. Baseado no MLR alto (bom controle de Barão, torres e inibidores), esse é o momento ideal para entrar na aposta.')
-        elif mlr > 60 and egr > 60:
-            comments.append(f'👑 <b>{team} é completo:</b> forte no early (EGR {egr:.0f}%) E no late (MLR {mlr:.0f}). Time difícil de bater — favorito sólido em ML.')
-        elif mlr < 40 and egr > 60:
-            comments.append(f'⚡ <b>{team} é early-game only (EGR {egr:.0f}%, MLR {mlr:.0f}).</b> Se não fechar cedo, tende a perder controle. Cuidado com apostas de ML — considere <b>Under em duração</b> se apostar neste time.')
-    if s1.get("avg_barons", 0) > 0 and s1.get("avg_towers", 0) > 0:
-        baron_tower_ratio1 = s1.get("avg_towers", 0) / max(s1.get("avg_barons", 0), 0.1)
-        baron_tower_ratio2 = s2.get("avg_towers", 0) / max(s2.get("avg_barons", 0), 0.1)
-        if baron_tower_ratio1 > baron_tower_ratio2 * 1.3:
-            comments.append(f'🏰 <b>{t1} converte Barões em Torres melhor que {t2}.</b> Cada Barão de {t1} resulta em ~{baron_tower_ratio1:.1f} torres vs {baron_tower_ratio2:.1f} de {t2}. Excelente para <b>Handicap de Torres</b>.')
-        elif baron_tower_ratio2 > baron_tower_ratio1 * 1.3:
-            comments.append(f'🏰 <b>{t2} converte Barões em Torres melhor que {t1}.</b> Cada Barão de {t2} resulta em ~{baron_tower_ratio2:.1f} torres vs {baron_tower_ratio1:.1f} de {t1}. Excelente para <b>Handicap de Torres</b>.')
-    html += data_comment(comments)
-    html += '</div>'
-    return html
-
+    for team, opp, mlr, egr in [(t1, t2, mlr1, egr1), (t2, t1, mlr2, egr2)]:
+        if mlr > 60 and egr < 40: comments.append(f'🔄 <b>{team} é um time de virada!</b> EGR fraco ({egr:.0f}%) mas MLR forte ({mlr:.0f}).')
+        elif mlr > 60 and egr > 60: comments.append(f'👑 <b>{team} é completo:</b> forte no early e no late.')
+    return html + data_comment(comments) + '</div>'
 
 # ============================================================================
 # Plotly Distribution Charts
@@ -332,8 +291,8 @@ def gen_total_abates(s1, s2, t1, t2, mult1=None, mult2=None):
     y_vals = [counts[v] for v in x_vals]
 
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=x_vals, y=y_vals, marker_color="#a78bfa", marker_line_color="#c4b5fd", marker_line_width=1, text=[str(c) for c in y_vals], textposition="outside"))
-    fig.add_vline(x=st["avg"], line=dict(color="#a78bfa", width=2.5, dash="dash"))
+    fig.add_trace(go.Bar(x=x_vals, y=y_vals, marker_color="#8b5cf6", marker_line_color="#a78bfa", marker_line_width=1, text=[str(c) for c in y_vals], textposition="outside"))
+    fig.add_vline(x=st["avg"], line=dict(color="#8b5cf6", width=2.5, dash="dash"))
     layout = base_layout(f"⚔️ Total de Abates na Partida — {t1} vs {t2}", height=380)
     layout["xaxis"]["title"] = "Total de Kills no Jogo"
     layout["yaxis"]["title"] = "Nº de Jogos"
@@ -574,7 +533,7 @@ def gen_duracao(s1, s2, t1, t2, mult1=None, mult2=None):
         data = [v for v in stats.get("duration_history", []) if v]
         if data:
             fig.add_trace(go.Histogram(x=data, name=team, marker_color=color, opacity=0.7, xbins=dict(size=2)))
-    fig.add_vline(x=st["avg"], line=dict(color="#22c55e", width=2.5, dash="dash"))
+    fig.add_vline(x=st["avg"], line=dict(color="#10b981", width=2.5, dash="dash"))
     layout = base_layout("⏱️ Duração do Mapa (Pace Control)", height=380)
     layout["barmode"] = "overlay"
     layout["xaxis"]["title"] = "Duração (minutos)"
@@ -650,7 +609,7 @@ def gen_dragons(s1, s2, t1, t2, mult1=None, mult2=None):
     """Distribuição de dragões por time (subplots lado a lado) + totais combinados."""
     fig = make_subplots(rows=1, cols=2, subplot_titles=[f"{t1}", f"{t2}"], horizontal_spacing=0.1)
     combo_html = ""
-    for col, (stats, team, bar_c, line_c) in enumerate([(s1, t1, "#f97316", "#fb923c"), (s2, t2, "#c2410c", "#ea580c")], 1):
+    for col, (stats, team, bar_c, line_c) in enumerate([(s1, t1, "#f97316", "#fb923c"), (s2, t2, "#ef4444", "#f87171")], 1):
         raw = int_list(stats.get("dragons_history", []))
         if not raw:
             continue
@@ -734,7 +693,7 @@ def gen_torres(s1, s2, t1, t2, mult1=None, mult2=None):
     """Distribuição de torres destruídas por time (subplots lado a lado)."""
     fig = make_subplots(rows=1, cols=2, subplot_titles=[f"{t1}", f"{t2}"], horizontal_spacing=0.1)
     combo_html = ""
-    for col, (stats, team, bar_c, line_c) in enumerate([(s1, t1, "#eab308", "#fbbf24"), (s2, t2, "#a16207", "#ca8a04")], 1):
+    for col, (stats, team, bar_c, line_c) in enumerate([(s1, t1, "#eab308", "#facc15"), (s2, t2, "#ef4444", "#f87171")], 1):
         raw = int_list(stats.get("towers_history", []))
         if not raw:
             continue
@@ -818,7 +777,7 @@ def gen_baroes(s1, s2, t1, t2, mult1=None, mult2=None):
     """Distribuição de barões por time (subplots lado a lado)."""
     fig = make_subplots(rows=1, cols=2, subplot_titles=[f"{t1}", f"{t2}"], horizontal_spacing=0.1)
     combo_html = ""
-    for col, (stats, team, bar_c, line_c) in enumerate([(s1, t1, "#22c55e", "#4ade80"), (s2, t2, "#15803d", "#16a34a")], 1):
+    for col, (stats, team, bar_c, line_c) in enumerate([(s1, t1, "#10b981", "#34d399"), (s2, t2, "#ef4444", "#f87171")], 1):
         raw = int_list(stats.get("barons_history", []))
         if not raw:
             continue
@@ -996,26 +955,20 @@ def gen_radar_dna(s1, s2, t1, t2):
         return [wr, egr, mlr, vis, eco, kpm]
 
     fig = go.Figure()
-    for stats, team, color in [(s1, t1, "rgba(59,130,246,0.5)"), (s2, t2, "rgba(239,68,68,0.5)")]:
+    for stats, team, color in [(s1, t1, "rgba(59,130,246,0.3)"), (s2, t2, "rgba(239,68,68,0.3)")]:
         r_vals = calc_radar(stats)
-        # Close the polygon
-        fig.add_trace(go.Scatterpolar(r=r_vals + [r_vals[0]], theta=categories + [categories[0]], 
-                                      fill='toself', name=team,
-                                      fillcolor=color, line=dict(color=color.replace('0.5', '1.0'), width=2)))
-
-    fig.update_layout(
-        polar=dict(
-            radialaxis=dict(visible=True, range=[0, 100], gridcolor="#334155", linecolor="#334155", tickfont=dict(color="#64748b")),
-            angularaxis=dict(gridcolor="#334155", linecolor="#334155", tickfont=dict(color="#e2e8f0", size=13)),
-            bgcolor="#0f172a"
-        ),
-        paper_bgcolor="#1e293b",
-        font=dict(family="Inter, sans-serif"),
-        title=dict(text="🕸️ Mapa de DNA (Identidade Tática)", font=dict(color="#e2e8f0", size=18, weight="bold"), x=0.5),
-        margin=dict(l=40, r=40, t=60, b=40),
-        height=450,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(color="#e2e8f0"))
+        fig.add_trace(go.Scatterpolar(
+            r=r_vals, theta=categories, fill='toself', name=team,
+            marker=dict(color=color.replace("0.3", "1")), line=dict(width=2)
+        ))
+    
+    layout = base_layout("🧬 DNA do Time (Radar de Atributos)", height=500)
+    layout["polar"] = dict(
+        radialaxis=dict(visible=True, range=[0, 100], gridcolor="#334155", tickfont=dict(size=10, color="#94a3b8")),
+        angularaxis=dict(gridcolor="#334155", tickfont=dict(size=11, color="#f8fafc")),
+        bgcolor="rgba(0,0,0,0)"
     )
+    fig.update_layout(**layout)
 
     # Data-based comments — use EV Finder-aligned formulas (3-component EGR, aligned MLR)
     comments = []

@@ -1,0 +1,342 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import gsap from 'gsap';
+
+  let teams: string[] = $state([]);
+  let patches: string[] = $state([]);
+  let champions: string[] = $state([]);
+
+  let time1 = $state('');
+  let time2 = $state('');
+  let selectedPatches: string[] = $state([]);
+
+  let t1_champs = $state({ top: '', jg: '', mid: '', adc: '', sup: '' });
+  let t2_champs = $state({ top: '', jg: '', mid: '', adc: '', sup: '' });
+
+  let t1_logo = $state("");
+  let t2_logo = $state("");
+
+  let insightsHtml = $state('');
+  let loading = $state(false);
+  let errorMsg = $state('');
+
+  // Search/Dropdown state
+  let q1 = $state('');
+  let q2 = $state('');
+  let showList1 = $state(false);
+  let showList2 = $state(false);
+
+  let filtered1 = $derived(teams.filter(t => t.toLowerCase().includes(q1.toLowerCase())));
+  let filtered2 = $derived(teams.filter(t => t.toLowerCase().includes(q2.toLowerCase())));
+
+  function selectTeam1(t: string) {
+    time1 = t;
+    q1 = t;
+    showList1 = false;
+  }
+
+  function selectTeam2(t: string) {
+    time2 = t;
+    q2 = t;
+    showList2 = false;
+  }
+
+  onMount(async () => {
+    gsap.from('.stagger-fade', { opacity: 0, y: 15, duration: 0.5, stagger: 0.1 });
+    
+    try {
+        const [tRes, pRes, cRes] = await Promise.all([
+        fetch('http://localhost:8000/api/analytics/teams').then(r => r.json()),
+        fetch('http://localhost:8000/api/analytics/patches').then(r => r.json()),
+        fetch('http://localhost:8000/api/analytics/champions').then(r => r.json())
+        ]);
+
+        teams = tRes.teams || [];
+        patches = pRes.patches || [];
+        champions = cRes.champions || [];
+
+        if (patches.length > 0) {
+          // Filtrar "Todos" da seleção padrão (Last 4 patches reais)
+          selectedPatches = patches.filter(p => p !== "Todos").slice(0, 4);
+        }
+    } catch (e) {
+        console.error("Erro ao carregar options:", e);
+    }
+  });
+
+  function togglePatch(p: string) {
+    if (selectedPatches.includes(p)) {
+      selectedPatches = selectedPatches.filter(patch => patch !== p);
+    } else {
+      selectedPatches = [...selectedPatches, p];
+    }
+  }
+
+  // Fetch logos when teams change
+  $effect(() => {
+    if (time1 && time1 !== "Rode o Pipeline Primeiro" && time1 !== "Erro ao carregar times") {
+      fetch(`http://localhost:8000/api/analytics/team_logo/${encodeURIComponent(time1)}`)
+        .then(r => r.json())
+        .then(data => t1_logo = data.url ? `http://localhost:8000${data.url}` : "");
+    } else {
+      t1_logo = "";
+    }
+  });
+
+  $effect(() => {
+    if (time2 && time2 !== "Rode o Pipeline Primeiro" && time2 !== "Erro ao carregar times") {
+      fetch(`http://localhost:8000/api/analytics/team_logo/${encodeURIComponent(time2)}`)
+        .then(r => r.json())
+        .then(data => t2_logo = data.url ? `http://localhost:8000${data.url}` : "");
+    } else {
+      t2_logo = "";
+    }
+  });
+
+  async function generateInsights() {
+    errorMsg = '';
+    insightsHtml = '';
+    
+    if (!time1 || !time2) {
+      errorMsg = 'Selecione os dois times vermelhos e amarelos.';
+      return;
+    }
+    if (time1 === time2) {
+      errorMsg = 'Selecione times diferentes.';
+      return;
+    }
+
+    loading = true;
+    try {
+      const payload = {
+        time1: time1,
+        time2: time2,
+        patches: selectedPatches.length > 0 ? selectedPatches : ["Todos"],
+        t1_top: t1_champs.top,
+        t1_jg: t1_champs.jg,
+        t1_mid: t1_champs.mid,
+        t1_adc: t1_champs.adc,
+        t1_sup: t1_champs.sup,
+        t2_top: t2_champs.top,
+        t2_jg: t2_champs.jg,
+        t2_mid: t2_champs.mid,
+        t2_adc: t2_champs.adc,
+        t2_sup: t2_champs.sup
+      };
+
+      const res = await fetch('http://localhost:8000/api/analytics/insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Erro ao gerar insights HTTP Error');
+      }
+
+      const data = await res.json();
+      insightsHtml = data.html;
+      
+    } catch (e: any) {
+      errorMsg = e.message;
+    } finally {
+      loading = false;
+    }
+  }
+</script>
+
+<div class="p-8 pb-32 max-w-7xl mx-auto">
+  <div class="mb-10 text-center stagger-fade">
+    <h1 class="text-3xl font-extrabold text-[#90CDF4] tracking-tight">📊 Advanced Analytics</h1>
+    <p class="text-slate-400 mt-2">Cruzamento nativo The Oracle's Elixir x Riot Games</p>
+  </div>
+
+  <div class="bg-[#1e293b] p-6 rounded-2xl border border-[#334155] mb-8 stagger-fade shadow-xl">
+    
+    <!-- Teams Selection -->
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <!-- Time 1 Selection -->
+        <div class="flex flex-col gap-2 relative">
+          <label class="flex items-center gap-2 text-sm font-semibold text-[#90CDF4]">
+            <span class="h-3 w-3 rounded-sm bg-blue-500"></span>
+            Time 1 (Blue Side)
+          </label>
+          <div class="flex items-center gap-3">
+             <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-[#1E293B] p-1 shadow-inner">
+              {#if t1_logo}
+                <img src={t1_logo} alt="Logo T1" class="h-10 w-10 object-contain" />
+              {:else}
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Blue</span>
+              {/if}
+            </div>
+            <div class="relative w-full">
+              <input 
+                type="text"
+                placeholder="Busque o time (ex: love)..."
+                bind:value={q1}
+                onfocus={() => showList1 = true}
+                onblur={() => setTimeout(() => showList1 = false, 200)}
+                class="h-12 w-full rounded-lg border border-slate-700 bg-[#0f172a] px-4 text-white focus:border-blue-500 focus:outline-none transition-colors"
+              />
+              {#if showList1 && filtered1.length > 0}
+                <div class="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-700 bg-[#1e293b] shadow-2xl scrollbar-thin scrollbar-thumb-slate-600">
+                  {#each filtered1 as t}
+                    <button 
+                      type="button"
+                      class="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-blue-600 hover:text-white transition-colors border-b border-slate-800 last:border-0"
+                      onclick={() => selectTeam1(t)}
+                    >
+                      {t}
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          </div>
+        </div>
+
+        <!-- Time 2 Selection -->
+        <div class="flex flex-col gap-2 relative">
+          <label class="flex items-center gap-2 text-sm font-semibold text-[#F56565]">
+            <span class="h-3 w-3 rounded-sm bg-red-500"></span>
+            Time 2 (Red Side)
+          </label>
+          <div class="flex items-center gap-3">
+            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-[#1E293B] p-1 shadow-inner">
+              {#if t2_logo}
+                <img src={t2_logo} alt="Logo T2" class="h-10 w-10 object-contain" />
+              {:else}
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Red</span>
+              {/if}
+            </div>
+            <div class="relative w-full">
+              <input 
+                type="text"
+                placeholder="Busque o time (ex: T1)..."
+                bind:value={q2}
+                onfocus={() => showList2 = true}
+                onblur={() => setTimeout(() => showList2 = false, 200)}
+                class="h-12 w-full rounded-lg border border-slate-700 bg-[#0f172a] px-4 text-white focus:border-red-500 focus:outline-none transition-colors"
+              />
+              {#if showList2 && filtered2.length > 0}
+                <div class="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-700 bg-[#1e293b] shadow-2xl scrollbar-thin scrollbar-thumb-slate-600">
+                  {#each filtered2 as t}
+                    <button 
+                      type="button"
+                      class="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-red-600 hover:text-white transition-colors border-b border-slate-800 last:border-0"
+                      onclick={() => selectTeam2(t)}
+                    >
+                      {t}
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          </div>
+        </div>
+      </div>
+
+    <!-- Patches -->
+    <div class="mb-6">
+      <label class="block text-sm font-semibold text-slate-300 mb-2">📅 Versões Filtradas (Por Padrão: Últimos 4)</label>
+      <div class="flex flex-wrap gap-2">
+        {#each patches as p}
+          <button 
+            class="px-3 py-1.5 rounded-full text-sm font-medium border transition-colors {selectedPatches.includes(p) ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-[#0f172a] border-[#334155] text-slate-400 hover:text-slate-200 hover:border-slate-500'}"
+            onclick={() => togglePatch(p)}
+          >
+            {p}
+          </button>
+        {/each}
+      </div>
+    </div>
+
+    <!-- Advanced Champions -->
+    <details class="mb-8 border border-[#334155] rounded-lg overflow-hidden group">
+      <summary class="bg-[#0f172a] p-4 font-semibold text-slate-300 cursor-pointer hover:bg-[#152033] transition-colors select-none">
+        ⚔️ Adicionar Predição Específica de Draft de Campeões (Opcional)
+      </summary>
+      <div class="p-6 bg-[#172132] space-y-8 border-t border-[#334155]">
+        <div>
+           <h3 class="text-blue-400 font-bold mb-4 uppercase text-sm tracking-wider flex items-center gap-2">
+              <span class="w-3 h-3 bg-blue-500 rounded-full inline-block"></span> 🟦 Blue Side Draft
+           </h3>
+           <div class="grid grid-cols-2 lg:grid-cols-5 gap-6">
+             {#each ['top', 'jg', 'mid', 'adc', 'sup'] as role}
+               <div class="flex flex-col items-center bg-[#0a101a] p-3 rounded-xl border border-[#1e40af] border-opacity-30">
+                 <label class="block text-xs font-bold text-blue-300 uppercase tracking-widest mb-3">{role}</label>
+                 <!-- Image Preview -->
+                 <div class="w-16 h-16 bg-[#0f172a] border border-[#1e293b] rounded-lg overflow-hidden flex items-center justify-center mb-3 shadow-inner">
+                   <!-- @ts-ignore -->
+                   {#if t1_champs[role]}
+                     <!-- @ts-ignore -->
+                     <img src={`http://localhost:8000/champs/${t1_champs[role]}.png`} alt={t1_champs[role]} class="w-full h-full object-cover" />
+                   {:else}
+                     <span class="text-xl text-slate-700 font-bold opacity-50">?</span>
+                   {/if}
+                 </div>
+                 <!-- @ts-ignore -->
+                 <select bind:value={t1_champs[role]} class="w-full bg-[#1e293b] text-xs border border-[#334155] rounded p-2 text-white outline-none focus:ring-1 focus:ring-blue-500 transition-colors">
+                   <option value="">Nenhum</option>
+                   {#each champions as c} 
+                     {#if c} <option value={c}>{c}</option> {/if}
+                   {/each}
+                 </select>
+               </div>
+             {/each}
+           </div>
+        </div>
+        <div>
+           <h3 class="text-red-400 font-bold mb-4 uppercase text-sm tracking-wider flex items-center gap-2">
+             <span class="w-3 h-3 bg-red-500 rounded-full inline-block"></span> 🟥 Red Side Draft
+           </h3>
+           <div class="grid grid-cols-2 lg:grid-cols-5 gap-6">
+             {#each ['top', 'jg', 'mid', 'adc', 'sup'] as role}
+               <div class="flex flex-col items-center bg-[#0a101a] p-3 rounded-xl border border-[#991b1b] border-opacity-30">
+                 <label class="block text-xs font-bold text-red-300 uppercase tracking-widest mb-3">{role}</label>
+                 <!-- Image Preview -->
+                 <div class="w-16 h-16 bg-[#0f172a] border border-[#1e293b] rounded-lg overflow-hidden flex items-center justify-center mb-3 shadow-inner">
+                   <!-- @ts-ignore -->
+                   {#if t2_champs[role]}
+                     <!-- @ts-ignore -->
+                     <img src={`http://localhost:8000/champs/${t2_champs[role]}.png`} alt={t2_champs[role]} class="w-full h-full object-cover" />
+                   {:else}
+                     <span class="text-xl text-slate-700 font-bold opacity-50">?</span>
+                   {/if}
+                 </div>
+                 <!-- @ts-ignore -->
+                 <select bind:value={t2_champs[role]} class="w-full bg-[#1e293b] text-xs border border-[#334155] rounded p-2 text-white outline-none focus:ring-1 focus:ring-red-500 transition-colors">
+                   <option value="">Nenhum</option>
+                   {#each champions as c} 
+                     {#if c} <option value={c}>{c}</option> {/if}
+                   {/each}
+                 </select>
+               </div>
+             {/each}
+           </div>
+        </div>
+      </div>
+    </details>
+
+    <div class="text-center">
+      {#if errorMsg}
+        <p class="text-red-400 mb-4 font-medium animate-pulse">{errorMsg}</p>
+      {/if}
+      <button 
+        onclick={generateInsights} 
+        disabled={loading}
+        class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:shadow-none text-white font-bold py-3 px-10 rounded-xl transition-all shadow-lg shadow-blue-900/50 hover:-translate-y-1 active:scale-95"
+      >
+        {loading ? '🔮 Processando Modelos Neurais...' : '📊 Gerar Insights de Apostas e Predição'}
+      </button>
+    </div>
+  </div>
+
+  <!-- Renderização Direta dos Gráficos (HTML injection do Plotly/Bokeh gerado pelo Python) -->
+  {#if insightsHtml}
+    <div class="bg-[#0f172a] text-slate-200 p-8 rounded-2xl stagger-fade overflow-y-auto mb-10 shadow-2xl border border-[#334155]">
+      {@html insightsHtml}
+    </div>
+  {/if}
+</div>

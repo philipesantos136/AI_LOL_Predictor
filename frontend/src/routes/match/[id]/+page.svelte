@@ -4,8 +4,8 @@
   import gsap from 'gsap';
 
   let matchId = $page.params.id;
-  let matchData: any = null;
-  let loading = true;
+  let matchData: any = $state(null);
+  let loading = $state(true);
 
   async function fetchDetails() {
     try {

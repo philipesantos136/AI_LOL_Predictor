@@ -3,9 +3,9 @@
   import gsap from 'gsap';
   import MatchCard from '$lib/components/MatchCard.svelte';
 
-  let liveGames: any[] = [];
-  let pandascoreFixtures: any[] = [];
-  let loading = true;
+  let liveGames: any[] = $state([]);
+  let pandascoreFixtures: any[] = $state([]);
+  let loading = $state(true);
   let titleElement: HTMLElement;
   let subtitleElement: HTMLElement;
 
