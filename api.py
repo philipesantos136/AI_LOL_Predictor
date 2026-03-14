@@ -3,12 +3,19 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import sqlite3
 from pathlib import Path
 
 import interface.live_service as live_service
 from interface.charts import generate_charts
+from interface.health_monitor import HealthMonitor
+
+from interface.live_service import HEADERS as LIVE_HEADERS
+
+GETLIVE_URL = "https://esports-api.lolesports.com/persisted/gw/getLive?hl=pt-BR"
+
+health_monitor = HealthMonitor(check_url=GETLIVE_URL, headers=LIVE_HEADERS)
 
 app = FastAPI(title="AI LoL Predictor API", version="1.0")
 
@@ -31,10 +38,44 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def startup_event():
+    """Inicia o HealthMonitor no startup da aplicação."""
+    health_monitor.start()
+
+
 @app.get("/api/health")
 def health_check():
-    """Simple health check endpoint."""
-    return {"status": "ok", "message": "AI LoL Predictor API is running."}
+    """Retorna o status de saúde da API do LoL Esports via HealthMonitor."""
+    status = health_monitor.get_status()
+    response: Dict[str, Any] = {
+        "is_healthy": status.is_healthy,
+        "last_check": status.last_check.isoformat(),
+        "consecutive_failures": status.consecutive_failures,
+    }
+    if status.last_error is not None:
+        response["last_error"] = status.last_error
+    if status.response_time_ms is not None:
+        response["response_time_ms"] = status.response_time_ms
+    return response
+
+@app.get("/api/metrics")
+def get_metrics():
+    """Retorna métricas do sistema."""
+    from interface.live_service import _cache_layer, _retry_system
+
+    cache_stats = _cache_layer.get_stats()
+    retry_stats = _retry_system.get_stats()
+    health_status = health_monitor.get_status()
+
+    return {
+        "cache": cache_stats,
+        "retry": retry_stats,
+        "health": {
+            "is_healthy": health_status.is_healthy,
+            "consecutive_failures": health_status.consecutive_failures,
+        }
+    }
 
 @app.get("/api/live/games", response_model=List[Dict[str, Any]])
 def get_live_games():
@@ -47,6 +88,22 @@ def get_live_games():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/live/match/{match_id}", response_model=Dict[str, Any])
+def get_match_by_id(match_id: str):
+    """
+    Returns data for a specific match by match_id or game_id.
+    Searches live games, today's schedule, and getEventDetails (including completed matches).
+    """
+    try:
+        data = live_service.get_match_data_by_id(match_id)
+        if not data:
+            raise HTTPException(status_code=404, detail="Partida não encontrada")
+        return data
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/live/today", response_model=List[Dict[str, Any]])
 def get_today_games():
     """
@@ -55,17 +112,6 @@ def get_today_games():
     try:
         today_games = live_service.get_schedule_today()
         return today_games
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/live/pandascore", response_model=List[Dict[str, Any]])
-def get_pandascore_fixtures():
-    """
-    Returns the Pandascore fixtures for today (free tier).
-    """
-    try:
-        fixtures = live_service.get_pandascore_fixtures()
-        return fixtures
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -119,51 +165,13 @@ def get_champions():
 
 @app.get("/api/analytics/team_logo/{team_name}")
 def get_team_logo_endpoint(team_name: str):
-    import os
-    import requests
-    from interface.live_service import PANDASCORE_TOKEN
-    
-    # Check local cache first
+    # Check local cache only — logos are served from data/logos/
     logo_filename = f"{team_name.replace(' ', '_')}.png"
     logo_path = Path(__file__).parent / "data" / "logos" / logo_filename
     
     if logo_path.exists():
         return {"url": f"/logos/{logo_filename}"}
-        
-    # Fetch from PandaScore
-    if not PANDASCORE_TOKEN:
-        return {"url": None}
-        
-    try:
-        headers = {"Authorization": f"Bearer {PANDASCORE_TOKEN}", "Accept": "application/json"}
-        url = f"https://api.pandascore.co/lol/teams?search[name]={team_name}"
-        r = requests.get(url, headers=headers, timeout=10)
-        r.raise_for_status()
-        teams = r.json()
-        
-        logo_url = None
-        if teams:
-            # Try exact match first
-            for t in teams:
-                if t.get("name").lower() == team_name.lower():
-                    logo_url = t.get("image_url")
-                    break
-            if not logo_url:
-                logo_url = teams[0].get("image_url")
-                
-        if logo_url:
-            # Download and cache
-            img_r = requests.get(logo_url, stream=True)
-            if img_r.status_code == 200:
-                with open(logo_path, "wb") as f:
-                    for chunk in img_r.iter_content(1024):
-                        f.write(chunk)
-                return {"url": f"/logos/{logo_filename}"}
-                
-        return {"url": None}
-    except Exception as e:
-        print(f"Error fetching logo for {team_name}: {e}")
-        return {"url": None}
+    return {"url": None}
 
 @app.post("/api/analytics/insights")
 def generate_insights_api(req: InsightRequest):

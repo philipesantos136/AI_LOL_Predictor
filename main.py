@@ -22,15 +22,25 @@ def run_servers():
     
     # 2. Inicia o Frontend SvelteKit (via npm)
     frontend_dir = os.path.join(os.getcwd(), "frontend")
-    
-    # No Windows, o shell=True é geralmente necessário para comandos npm
-    npm_cmd = "npm.cmd" if os.name == "nt" else "npm"
-    
+
+    # Garante que o diretório do Node.js está no PATH do processo filho
+    node_dir = r"C:\Program Files\nodejs"
+    env = os.environ.copy()
+    if os.name == "nt" and node_dir not in env.get("PATH", ""):
+        env["PATH"] = node_dir + os.pathsep + env.get("PATH", "")
+
+    if os.name == "nt":
+        npm_cmd = '"C:\\Program Files\\nodejs\\npm.cmd" run dev'
+    else:
+        npm_cmd = "npm run dev"
+
     frontend_process = subprocess.Popen(
-        [npm_cmd, "run", "dev"],
+        npm_cmd,
         cwd=frontend_dir,
         stdout=sys.stdout,
-        stderr=sys.stderr
+        stderr=sys.stderr,
+        shell=True,
+        env=env
     )
     
     print("\n✅ Aplicação rodando!")

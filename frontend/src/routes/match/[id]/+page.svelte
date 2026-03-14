@@ -9,10 +9,16 @@
 
   async function fetchDetails() {
     try {
-      const res = await fetch(`http://localhost:8000/api/live/games`);
-      const games = await res.json();
-      // Encontra a partida específica
-      matchData = games.find((g: any) => g.game_id === matchId || g.match_id === matchId);
+      // Tenta buscar a partida diretamente pelo ID (inclui partidas finalizadas)
+      const res = await fetch(`http://localhost:8000/api/live/match/${matchId}`);
+      if (res.ok) {
+        matchData = await res.json();
+      } else {
+        // Fallback: busca na lista de jogos ao vivo
+        const gamesRes = await fetch(`http://localhost:8000/api/live/games`);
+        const games = await gamesRes.json();
+        matchData = games.find((g: any) => g.game_id === matchId || g.match_id === matchId) ?? null;
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -24,7 +30,11 @@
     fetchDetails();
     gsap.from('.fade-in', { opacity: 0, y: 15, duration: 0.6, stagger: 0.1 });
     
-    const interval = setInterval(fetchDetails, 10000);
+    const interval = setInterval(() => {
+      // Não faz polling se a partida já terminou
+      if (matchData?.state === 'completed') return;
+      fetchDetails();
+    }, 10000);
     return () => clearInterval(interval);
   });
 </script>
@@ -56,10 +66,15 @@
       <!-- Azul -->
       <div class="flex flex-col items-center">
         <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-blue-200">
-          {matchData.team_blue.name}
+          {matchData.team_blue?.name || matchData.team_blue?.code || 'Time Azul'}
         </h2>
-        <div class="text-4xl font-black mt-2 text-blue-300">{matchData.blue_kills ?? '-'} Kills</div>
-        <div class="text-sm font-medium mt-1 text-slate-400">💰 {matchData.blue_gold ? (matchData.blue_gold/1000).toFixed(1) + 'k' : '-'}</div>
+        {#if matchData.state === 'completed'}
+          <div class="text-5xl font-black mt-3 text-blue-300">{matchData.blue_wins ?? 0}</div>
+          <div class="text-xs text-slate-500 mt-1">vitórias</div>
+        {:else}
+          <div class="text-4xl font-black mt-2 text-blue-300">{matchData.blue_kills ?? '-'} Kills</div>
+          <div class="text-sm font-medium mt-1 text-slate-400">💰 {matchData.blue_gold ? (matchData.blue_gold/1000).toFixed(1) + 'k' : '-'}</div>
+        {/if}
       </div>
 
       <div class="text-5xl font-black text-slate-600 px-10">VS</div>
@@ -67,10 +82,15 @@
       <!-- Vermelho -->
       <div class="flex flex-col items-center">
         <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-400 to-red-200">
-          {matchData.team_red.name}
+          {matchData.team_red?.name || matchData.team_red?.code || 'Time Vermelho'}
         </h2>
-        <div class="text-4xl font-black mt-2 text-red-300">{matchData.red_kills ?? '-'} Kills</div>
-        <div class="text-sm font-medium mt-1 text-slate-400">💰 {matchData.red_gold ? (matchData.red_gold/1000).toFixed(1) + 'k' : '-'}</div>
+        {#if matchData.state === 'completed'}
+          <div class="text-5xl font-black mt-3 text-red-300">{matchData.red_wins ?? 0}</div>
+          <div class="text-xs text-slate-500 mt-1">vitórias</div>
+        {:else}
+          <div class="text-4xl font-black mt-2 text-red-300">{matchData.red_kills ?? '-'} Kills</div>
+          <div class="text-sm font-medium mt-1 text-slate-400">💰 {matchData.red_gold ? (matchData.red_gold/1000).toFixed(1) + 'k' : '-'}</div>
+        {/if}
       </div>
 
     </div>

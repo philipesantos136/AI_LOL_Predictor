@@ -4,23 +4,21 @@
   import MatchCard from '$lib/components/MatchCard.svelte';
 
   let liveGames: any[] = $state([]);
-  let pandascoreFixtures: any[] = $state([]);
+  let todayGames: any[] = $state([]);
   let loading = $state(true);
   let titleElement: HTMLElement;
   let subtitleElement: HTMLElement;
 
   async function fetchMatches() {
     try {
-      // Fetch live matches
       const liveRes = await fetch('http://localhost:8000/api/live/games');
       if (liveRes.ok) {
         liveGames = await liveRes.json();
       }
 
-      // Fetch pandascore fixtures (today scheduled)
-      const psRes = await fetch('http://localhost:8000/api/live/pandascore');
-      if (psRes.ok) {
-        pandascoreFixtures = await psRes.json();
+      const todayRes = await fetch('http://localhost:8000/api/live/today');
+      if (todayRes.ok) {
+        todayGames = await todayRes.json();
       }
     } catch (e) {
       console.error("Error fetching games:", e);
@@ -56,7 +54,7 @@
     </p>
   </div>
 
-  {#if loading && liveGames.length === 0 && pandascoreFixtures.length === 0}
+  {#if loading && liveGames.length === 0 && todayGames.length === 0}
     <div class="flex h-64 items-center justify-center">
       <div class="text-lg font-medium text-[#64748b] animate-pulse">Carregando partidas...</div>
     </div>
@@ -84,16 +82,15 @@
     <!-- Divider -->
     <hr class="my-10 border-[#334155]" />
 
-    <!-- JOGOS DO DIA (Pandascore fallback / Today scheduled) -->
+    <!-- JOGOS DO DIA (Riot API schedule) -->
     <div>
       <h2 class="mb-6 text-center text-lg font-bold tracking-widest text-[#cbd5e1] uppercase">
-        Todos os Jogos do Dia (<span class="text-blue-400">{pandascoreFixtures.length}</span>)
+        Todos os Jogos do Dia (<span class="text-blue-400">{todayGames.length}</span>)
       </h2>
       
-      {#if pandascoreFixtures.length > 0}
+      {#if todayGames.length > 0}
         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {#each pandascoreFixtures as match}
-            <!-- Se já não estiver na lista de ao vivo, desenha aqui -->
+          {#each todayGames as match}
             {#if !liveGames.some(l => l.match_id === match.match_id)}
               <MatchCard {match} isLive={false} />
             {/if}
