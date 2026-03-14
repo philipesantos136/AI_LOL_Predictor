@@ -246,13 +246,13 @@ def base_layout(title="", height=400):
             gridcolor="rgba(148, 163, 184, 0.1)", 
             zerolinecolor="rgba(148, 163, 184, 0.2)",
             tickfont=dict(size=11, color="#94a3b8"),
-            titlefont=dict(size=12, color="#94a3b8")
+            title=dict(font=dict(size=12, color="#94a3b8"))
         ),
         yaxis=dict(
             gridcolor="rgba(148, 163, 184, 0.1)", 
             zerolinecolor="rgba(148, 163, 184, 0.2)",
             tickfont=dict(size=11, color="#94a3b8"),
-            titlefont=dict(size=12, color="#94a3b8")
+            title=dict(font=dict(size=12, color="#94a3b8"))
         ),
         legend=dict(
             bgcolor="rgba(15, 23, 42, 0.8)",
