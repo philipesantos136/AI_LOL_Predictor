@@ -1153,16 +1153,29 @@ def _fetch_match_from_event_details(s: dict) -> dict | None:
     match_state = match_data.get("state", s.get("state", "unknown"))
 
     # Escolhe o game ativo: inProgress, ou próximo após completed
-    # gameId = matchId + game.number (convenção da Riot, igual ao Aureon)
+    game_id = "unknown"
     game_number = 1
+    
+    current_game = None
     for g in games:
         if g.get("state") == "inProgress":
-            game_number = g.get("number", 1)
+            current_game = g
             break
-    else:
-        comp = sum(1 for g in games if g.get("state") == "completed")
-        game_number = min(comp + 1, len(games)) if games else 1
-    game_id = str(int(match_id) + game_number) if match_id else "unknown"
+    
+    if not current_game:
+        # Se nenhum em progresso, pega o próximo após os completados
+        comp_count = sum(1 for g in games if g.get("state") == "completed")
+        idx = min(comp_count, len(games) - 1) if games else 0
+        if games:
+            current_game = games[idx]
+            
+    if current_game:
+        game_id = current_game.get("id", "unknown")
+        game_number = current_game.get("number", 1)
+    
+    # Fallback heurístico caso o ID não tenha vindo no objeto game
+    if game_id == "unknown" and match_id:
+        game_id = str(int(match_id) + game_number)
 
     # Detecta se a série está finalizada pelos games (mais confiável que o campo state)
     strategy = match_data.get("strategy", {})
@@ -1197,11 +1210,19 @@ def _fetch_match_from_event_details(s: dict) -> dict | None:
         "strategy": strategy,
     }
 
-    # Só tenta buscar telemetria se a partida está em andamento
-    if is_completed or is_unstarted:
-        return game_info
-
-    return _enrich_match_with_window(game_info)
+    # --- MODIFICAÇÃO CRÍTICA: SEMPRE tenta enriquecer com telemetria ---
+    # Motivo: O feed getEventDetails (persisted) costuma atrasar em relação ao livestatsv1.
+    # Mesmo se o estado for 'unstarted', a partida já pode estar 'in_game' no real-time.
+    # Mesmo se for 'completed', queremos as estatísticas finais.
+    enriched = _enrich_match_with_window(game_info)
+    
+    # Se conseguimos dados em tempo real, confiamos mais no estado do frame
+    if enriched.get("game_state") in ("in_game", "paused"):
+        enriched["state"] = "inProgress"
+    elif enriched.get("game_state") == "finished":
+        enriched["state"] = "completed"
+        
+    return enriched
 
 
 def _enrich_match_with_window(game_info: dict) -> dict:
