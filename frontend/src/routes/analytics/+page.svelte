@@ -1,6 +1,22 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import gsap from 'gsap';
+  import type { AnalyticsResponse } from '$lib/types/analytics';
+  import ResultsHeader from '../../components/analytics/ResultsHeader.svelte';
+  import EducationalSection from '../../components/analytics/EducationalSection.svelte';
+  import EGRSection from '../../components/analytics/EGRSection.svelte';
+  import MLRSection from '../../components/analytics/MLRSection.svelte';
+  import RadarSection from '../../components/analytics/RadarSection.svelte';
+  import TimelineSection from '../../components/analytics/TimelineSection.svelte';
+  import VisionSection from '../../components/analytics/VisionSection.svelte';
+  import EconomySection from '../../components/analytics/EconomySection.svelte';
+  import PaceSection from '../../components/analytics/PaceSection.svelte';
+  import WinRateSection from '../../components/analytics/WinRateSection.svelte';
+  import RecentFormSection from '../../components/analytics/RecentFormSection.svelte';
+  import KillsSection from '../../components/analytics/KillsSection.svelte';
+  import ObjectivesSection from '../../components/analytics/ObjectivesSection.svelte';
+  import DurationSection from '../../components/analytics/DurationSection.svelte';
+  import EVFinderSection from '../../components/analytics/EVFinderSection.svelte';
 
   let teams: string[] = $state([]);
   let patches: string[] = $state([]);
@@ -16,7 +32,7 @@
   let t1_logo = $state("");
   let t2_logo = $state("");
 
-  let insightsHtml = $state('');
+  let analyticsData: AnalyticsResponse | null = $state(null);
   let loading = $state(false);
   let errorMsg = $state('');
 
@@ -95,7 +111,7 @@
 
   async function generateInsights() {
     errorMsg = '';
-    insightsHtml = '';
+    analyticsData = null;
     
     if (!time1 || !time2) {
       errorMsg = 'Selecione os dois times vermelhos e amarelos.';
@@ -135,8 +151,11 @@
         throw new Error(err.detail || 'Erro ao gerar insights HTTP Error');
       }
 
-      const data = await res.json();
-      insightsHtml = data.html;
+      analyticsData = await res.json() as AnalyticsResponse;
+
+      // Animate result sections after data loads
+      await tick();
+      gsap.from('.analytics-section', { opacity: 0, y: 20, duration: 0.6, stagger: 0.08, ease: 'power2.out' });
       
     } catch (e: any) {
       errorMsg = e.message;
@@ -333,10 +352,98 @@
     </div>
   </div>
 
-  <!-- Renderização Direta dos Gráficos (HTML injection do Plotly/Bokeh gerado pelo Python) -->
-  {#if insightsHtml}
-    <div class="bg-[#0f172a] text-slate-200 p-8 rounded-2xl stagger-fade overflow-y-auto mb-10 shadow-2xl border border-[#334155]">
-      {@html insightsHtml}
+  {#if analyticsData}
+    <div class="results-panel flex flex-col gap-6 mt-4">
+      
+      <div class="analytics-section">
+        <ResultsHeader
+          team1={analyticsData.meta.team1}
+          team2={analyticsData.meta.team2}
+          patchLabel={analyticsData.meta.patch_label}
+          gamesT1={analyticsData.meta.games_t1}
+          gamesT2={analyticsData.meta.games_t2}
+        />
+      </div>
+
+      <div class="analytics-section">
+        <EducationalSection />
+      </div>
+
+      <div class="analytics-section">
+        <EGRSection data={analyticsData.egr} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+      </div>
+
+      <div class="analytics-section">
+        <MLRSection data={analyticsData.mlr} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+      </div>
+
+      <div class="analytics-section">
+        <RadarSection data={analyticsData.radar} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+      </div>
+
+      <div class="analytics-section">
+        <TimelineSection data={analyticsData.timeline} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+      </div>
+
+      <div class="analytics-section">
+        <VisionSection data={analyticsData.vision} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+      </div>
+
+      <div class="analytics-section">
+        <EconomySection data={analyticsData.economy} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+      </div>
+
+      <div class="analytics-section">
+        <PaceSection data={analyticsData.pace} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+      </div>
+
+      <div class="analytics-section">
+        <WinRateSection data={analyticsData.winrate} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+      </div>
+
+      <div class="analytics-section">
+        <RecentFormSection data={analyticsData.recent_form} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+      </div>
+
+      <div class="analytics-section">
+        {#if analyticsData.kills_total && analyticsData.kills_per_team && analyticsData.handicap}
+          <KillsSection
+            killsTotal={analyticsData.kills_total}
+            killsPerTeam={analyticsData.kills_per_team}
+            handicap={analyticsData.handicap}
+            team1={analyticsData.meta.team1}
+            team2={analyticsData.meta.team2}
+          />
+        {/if}
+      </div>
+
+      <div class="analytics-section">
+        {#if analyticsData.dragons && analyticsData.towers && analyticsData.barons}
+          <ObjectivesSection
+            dragons={analyticsData.dragons}
+            towers={analyticsData.towers}
+            barons={analyticsData.barons}
+            team1={analyticsData.meta.team1}
+            team2={analyticsData.meta.team2}
+          />
+        {/if}
+      </div>
+
+      <div class="analytics-section">
+        {#if analyticsData.duration}
+          <DurationSection data={analyticsData.duration} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+        {/if}
+      </div>
+
+      <div class="analytics-section">
+        {#if analyticsData.ev_finder}
+          <EVFinderSection data={analyticsData.ev_finder} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+        {/if}
+      </div>
+
+      <footer class="text-center text-slate-500 text-sm py-8 border-t border-slate-800 mt-4">
+        Camada Silver Analytics | Desenvolvido com Metodologia do Oracle's Elixir
+      </footer>
     </div>
   {/if}
 </div>
