@@ -1272,34 +1272,68 @@ def _enrich_match_with_window(game_info: dict) -> dict:
 
     blue_frame = frame.get("blueTeam", {})
     red_frame = frame.get("redTeam", {})
-    blue_meta = (metadata.get("blueTeamMetadata") or {}).get("participantMetadata", [])
-    red_meta = (metadata.get("redTeamMetadata") or {}).get("participantMetadata", [])
     blue_parts = blue_frame.get("participants", [])
     red_parts = red_frame.get("participants", [])
+    
+    # ─── Buscar Detalhes de Itens (Real-time) ───
+    ts = frame.get("rfc460Timestamp")
+    details_data = get_game_details(game_id, timestamp=ts)
+    detail_blue = (details_data.get("blueTeam") or {}).get("participants", []) if details_data else []
+    detail_red  = (details_data.get("redTeam") or {}).get("participants", []) if details_data else []
 
-    def build_champs(parts, meta):
+    metadata = data.get("gameMetadata") or {}
+    blue_meta = (metadata.get("blueTeamMetadata") or {}).get("participantMetadata", [])
+    red_meta = (metadata.get("redTeamMetadata") or {}).get("participantMetadata", [])
+
+    def build_champs(parts, meta, details, opp_parts):
         champs = []
         for i, p in enumerate(parts):
             m = meta[i] if i < len(meta) else {}
+            d = details[i] if i < len(details) else {}
+            
+            # Cálculo de Ouro +/- vs oponente direto na mesma posição
+            opp_p = opp_parts[i] if i < len(opp_parts) else {}
+            gold_diff = p.get("totalGold", 0) - opp_p.get("totalGold", 0)
+            
+            # Lista de IDs de Itens (0-6)
+            items = [d.get(f"item{j}", 0) for j in range(7)]
+
             champs.append({
                 "champion": m.get("championId", ""),
                 "summonerName": m.get("summonerName", m.get("esportsPlayerId", "")),
                 "role": m.get("role", ""),
+                "level": p.get("level", 1),
                 "kills": p.get("kills", 0),
                 "deaths": p.get("deaths", 0),
                 "assists": p.get("assists", 0),
                 "cs": p.get("creepScore", 0),
                 "gold": p.get("totalGold", 0),
+                "goldDiff": gold_diff,
+                "currentHealth": p.get("currentHealth", 0),
+                "maxHealth": p.get("maxHealth", 1),
+                "items": items
             })
         return champs
 
-    result["blue_kills"] = blue_frame.get("totalKills", 0)
-    result["red_kills"] = red_frame.get("totalKills", 0)
-    result["blue_gold"] = blue_frame.get("totalGold", 0)
-    result["red_gold"] = red_frame.get("totalGold", 0)
-    result["blue_champs"] = build_champs(blue_parts, blue_meta)
-    result["red_champs"] = build_champs(red_parts, red_meta)
-    result["game_state"] = frame.get("gameState", "")
+    # Stats Gerais do Time
+    result.update({
+        "blue_kills":      blue_frame.get("totalKills", 0),
+        "red_kills":       red_frame.get("totalKills", 0),
+        "blue_gold":       blue_frame.get("totalGold", 0),
+        "red_gold":        red_frame.get("totalGold", 0),
+        "blue_towers":     blue_frame.get("towers", 0),
+        "red_towers":      red_frame.get("towers", 0),
+        "blue_barons":     blue_frame.get("barons", 0),
+        "red_barons":      red_frame.get("barons", 0),
+        "blue_inhibitors": blue_frame.get("inhibitors", 0),
+        "red_inhibitors":  red_frame.get("inhibitors", 0),
+        "blue_dragons":    blue_frame.get("dragons", []),
+        "red_dragons":     red_frame.get("dragons", []),
+        "blue_champs":     build_champs(blue_parts, blue_meta, detail_blue, red_parts),
+        "red_champs":      build_champs(red_parts, red_meta, detail_red, blue_parts),
+        "game_state":      frame.get("gameState", "inProgress"),
+        "frame_timestamp": ts
+    })
 
     return result
 
