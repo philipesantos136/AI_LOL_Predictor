@@ -15,7 +15,6 @@ from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 
 load_dotenv("c:/Projetos/AI_LOL_Predictor/.env")
-PANDASCORE_TOKEN = os.environ.get("PANDASCORE_TOKEN")
 
 # ─── Constantes da API ────────────────────────────────────────────────────────
 API_URL_PERSISTED = "https://esports-api.lolesports.com/persisted/gw"
@@ -25,6 +24,44 @@ CHAMPIONS_URL     = "https://ddragon.leagueoflegends.com/cdn/14.5.1/img/champion
 ITEMS_URL         = "https://ddragon.leagueoflegends.com/cdn/14.5.1/img/item/"
 
 HEADERS = {"x-api-key": API_KEY}
+
+# ─── Imports de componentes de infraestrutura ────────────────────────────────
+from interface.retry_system import RetrySystem, RetryConfig
+from interface.cache_layer import CacheLayer
+import logging
+
+
+class _ContextFilter(logging.Filter):
+    """Injeta campos match_id e game_id com valores padrão quando não fornecidos."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not hasattr(record, "match_id"):
+            record.match_id = "-"
+        if not hasattr(record, "game_id"):
+            record.game_id = "-"
+        return True
+
+
+# ─── Configuração de logging estruturado ──────────────────────────────────────
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - [%(match_id)s/%(game_id)s] - %(message)s'
+)
+# Adiciona o filtro no root handler para que todos os loggers (uvicorn, urllib3, etc.)
+# tenham os campos match_id e game_id injetados antes da formatação
+_context_filter = _ContextFilter()
+for _handler in logging.root.handlers:
+    _handler.addFilter(_context_filter)
+
+logger = logging.getLogger(__name__)
+logger.addFilter(_context_filter)
+
+# ─── Inicialização de componentes globais ────────────────────────────────────
+# Sistema de retry com backoff exponencial para requisições HTTP
+_retry_system = RetrySystem(logger=logger)
+
+# Cache em memória thread-safe com TTL de 5 segundos
+_cache_layer = CacheLayer(logger=logger)
 
 
 # ─── Helpers de tempo ─────────────────────────────────────────────────────────
@@ -43,62 +80,6 @@ def get_iso_date_multiple_of_10() -> str:
 
 
 # ─── Funções de acesso à API ──────────────────────────────────────────────────
-def get_pandascore_fixtures() -> list:
-    """Busca as partidas do dia atual na PandaScore."""
-    if not PANDASCORE_TOKEN:
-        print("[live_service] PandaScore Token não configurado.")
-        return []
-        
-    try:
-        today_str = datetime.utcnow().strftime("%Y-%m-%d")
-        headers = {"Authorization": f"Bearer {PANDASCORE_TOKEN}", "Accept": "application/json"}
-        r = requests.get(f"https://api.pandascore.co/lol/matches?filter[begin_at]={today_str}", headers=headers, timeout=10)
-        r.raise_for_status()
-        matches = r.json()
-        
-        fixtures = []
-        for m in matches:
-            # Ignorar TBD ou partidas sem 2 times definidos
-            opponents = m.get("opponents", [])
-            if len(opponents) != 2:
-                continue
-                
-            t1 = opponents[0].get("opponent", {})
-            t2 = opponents[1].get("opponent", {})
-            
-            # Se for nulo por algum motivo
-            if not t1 or not t2: continue
-            
-            state = m.get("status")
-            if state == "running":
-                state = "inProgress"
-            elif state == "finished":
-                state = "completed"
-            elif state in ["not_started", "canceled", "postponed"]:
-                state = "unstarted"
-                
-            fixtures.append({
-                "match_id": m.get("id"),
-                "state": state,
-                "league": m.get("league", {}).get("name", "Unknown"),
-                "team_blue": {
-                    "code": t1.get("acronym") or t1.get("name")[:3].upper(),
-                    "name": t1.get("name"),
-                    "image": t1.get("image_url")
-                },
-                "team_red": {
-                    "code": t2.get("acronym") or t2.get("name")[:3].upper(),
-                    "name": t2.get("name"),
-                    "image": t2.get("image_url")
-                },
-                "source": "pandascore"
-            })
-            
-        return fixtures
-    except Exception as e:
-        print(f"[live_service] Erro ao buscar PandaScore fixtures: {e}")
-        return []
-
 def get_live_games() -> list:
     """Retorna lista de jogos em andamento com metadados dos times."""
     try:
@@ -185,17 +166,16 @@ def get_live_games() -> list:
 
             if len(teams) < 2: continue
 
-            game_id = "unknown"
             game_number = 1
             for g in games:
                 if g.get("state") == "inProgress":
-                    game_id = g.get("id")
                     game_number = g.get("number", 1)
                     break
-            if game_id == "unknown":
-                game_id = games[0].get("id") if games else "unknown"
+            else:
                 comp = sum(1 for g in games if g.get("state") == "completed")
                 game_number = min(comp + 1, len(games)) if games else 1
+            # gameId = matchId + game.number (convenção da Riot, igual ao Aureon)
+            game_id = str(int(match_id) + game_number) if match_id else "unknown"
 
             result.append({
                 "match_id":    match_id,
@@ -233,6 +213,11 @@ def get_live_games() -> list:
                     if t1_wins >= win_threshold or t2_wins >= win_threshold:
                         continue
 
+                    logger.info(
+                        f"Fallback de schedule acionado para match_id={s['match_id']} "
+                        f"(start_time={s['start_time']})",
+                        extra={"match_id": s["match_id"], "game_id": "-"}
+                    )
                     result.append({
                         "match_id":    s["match_id"],
                         "game_id":     "unknown",
@@ -257,7 +242,7 @@ def get_live_games() -> list:
 
         return result
     except Exception as e:
-        print(f"[live_service] Erro ao buscar partidas ao vivo: {e}")
+        logger.error(f"Erro ao buscar partidas ao vivo: {e}", exc_info=True)
         return []
 
 def get_schedule_today() -> list:
@@ -312,72 +297,110 @@ def get_schedule_today() -> list:
             
         return result
     except Exception as e:
-        print(f"[live_service] Erro ao buscar schedule de hoje: {e}")
+        logger.error(f"Erro ao buscar schedule de hoje: {e}", exc_info=True)
         return []
 
 
 def get_game_window(game_id: str):
-    """Retorna o último frame de window (stats de time e jogadores)."""
+    """Retorna o último frame de window (stats de time e jogadores) com cache e retry."""
+    _ctx = {"game_id": game_id}
+    # 1. Check cache first
+    cache_key = f"window_{game_id}"
+    cached = _cache_layer.get(cache_key)
+    if cached is not None:
+        logger.debug(f"Cache hit para window {game_id}", extra=_ctx)
+        return cached
+    
+    # 2. Cache miss - fetch with retry
+    logger.debug(f"Cache miss para window {game_id}, buscando da API", extra=_ctx)
+    
     try:
         date = get_iso_date_multiple_of_10()
-        r = requests.get(
-            f"{API_URL_LIVE}/window/{game_id}",
+        
+        # Use RetrySystem.fetch_with_retry
+        data = _retry_system.fetch_with_retry(
+            url=f"{API_URL_LIVE}/window/{game_id}",
             params={"hl": "pt-BR", "startingTime": date, "_": _get_cache_buster()},
             headers=HEADERS,
             timeout=10,
+            retry_without_param="startingTime"  # Remove startingTime on 400 error
         )
         
-        # Se falhou com timestamp, tenta sem ele
-        if r.status_code == 400:
-            print(f"[live_service] 400 no window com timestamp, tentando sem...")
-            r = requests.get(
-                f"{API_URL_LIVE}/window/{game_id}",
-                params={"hl": "pt-BR", "_": _get_cache_buster()},
-                headers=HEADERS,
-                timeout=10,
-            )
-            
-        r.raise_for_status()
-        data = r.json()
+        if not data:
+            logger.warning(f"Falha ao buscar window {game_id} após todas as tentativas", extra=_ctx)
+            return None
+        
+        # 3. Process response
         frames = data.get("frames", [])
         if not frames:
+            logger.debug(f"Nenhum frame disponível para window {game_id}", extra=_ctx)
             return None
-        return {"frame": frames[-1], "metadata": data.get("gameMetadata")}
+        
+        result = {"frame": frames[-1], "metadata": data.get("gameMetadata")}
+        
+        # 4. Store in cache (only if game_id != "unknown" and data is not None)
+        if game_id != "unknown" and result is not None:
+            _cache_layer.set(cache_key, result, ttl_seconds=5)
+            logger.debug(f"Window {game_id} armazenado em cache com TTL de 5s", extra=_ctx)
+        
+        return result
+        
     except Exception as e:
-        print(f"[live_service] Erro ao buscar window {game_id}: {e}")
+        logger.error(f"Erro inesperado ao buscar window {game_id}: {e}", exc_info=True, extra=_ctx)
         return None
 
 
 def get_game_details(game_id: str, timestamp: str = None):
-    """Retorna o último frame de details (items dos jogadores)."""
+    """Retorna o último frame de details (items dos jogadores) com cache e retry."""
+    _ctx = {"game_id": game_id}
+    # 1. Check cache first
+    cache_key = f"details_{game_id}"
+    if timestamp:
+        cache_key += f"_{timestamp}"
+    
+    cached = _cache_layer.get(cache_key)
+    if cached is not None:
+        logger.debug(f"Cache hit para details {game_id}", extra=_ctx)
+        return cached
+    
+    # 2. Cache miss - fetch with retry
+    logger.debug(f"Cache miss para details {game_id}, buscando da API", extra=_ctx)
+    
     try:
         params = {"hl": "pt-BR", "_": _get_cache_buster()}
         if timestamp:
             params["startingTime"] = timestamp
-            
-        r = requests.get(
-            f"{API_URL_LIVE}/details/{game_id}",
+        
+        # Use RetrySystem.fetch_with_retry
+        data = _retry_system.fetch_with_retry(
+            url=f"{API_URL_LIVE}/details/{game_id}",
             params=params,
             headers=HEADERS,
             timeout=10,
+            retry_without_param="startingTime"  # Remove startingTime on 400 error
         )
         
-        # Se falhou com timestamp, tenta sem ele para pegar o último frame disponível
-        if r.status_code == 400 and timestamp:
-            print(f"[live_service] 400 no details com timestamp, tentando sem...")
-            r = requests.get(
-                f"{API_URL_LIVE}/details/{game_id}",
-                params={"hl": "pt-BR", "_": _get_cache_buster()},
-                headers=HEADERS,
-                timeout=10,
-            )
-            
-        r.raise_for_status()
-        data = r.json()
+        if not data:
+            logger.warning(f"Falha ao buscar details {game_id} após todas as tentativas", extra=_ctx)
+            return None
+        
+        # 3. Process response
         frames = data.get("frames", [])
-        return frames[-1] if frames else None
+        if not frames:
+            logger.debug(f"Nenhum frame disponível para details {game_id}", extra=_ctx)
+            return None
+        
+        result = frames[-1]
+        
+        # 4. Store in cache (only if game_id != "unknown" and result is not None)
+        if game_id != "unknown" and result is not None:
+            _cache_layer.set(cache_key, result, ttl_seconds=5)
+            logger.debug(f"Details {game_id} armazenado em cache com TTL de 5s", extra=_ctx)
+        
+        return result
+        
     except Exception as e:
-        print(f"[live_service] Erro ao buscar details {game_id}: {e}")
+        logger.error(f"Erro inesperado ao buscar details {game_id}: {e}", exc_info=True, extra=_ctx)
         return None
 
 
@@ -991,7 +1014,8 @@ def _render_scheduled_live_match(s: dict) -> str:
         }
         return render_live_match(mock_game)
     except Exception as e:
-        print(f"[live_service] Erro ao buscar detalhes da partida agendada {match_id}: {e}")
+        logger.error(f"Erro ao buscar detalhes da partida agendada {match_id}: {e}", exc_info=True,
+                     extra={"match_id": match_id})
         return (
             '<div style="color:#f87171;text-align:center;padding:40px;">'
             '⚠️ Erro ao puxar dados ao vivo desta partida agendada. A partida pode não ter iniciado.'
@@ -999,16 +1023,15 @@ def _render_scheduled_live_match(s: dict) -> str:
         )
 
 # ─── Helpers para o app.py ────────────────────────────────────────────────────
-def render_live_by_choice(choice: str, live_cache: list, today_cache: list = None, ps_matches: list = None) -> str:
+def render_live_by_choice(choice: str, live_cache: list, today_cache: list = None) -> str:
     """Dado o label selecionado, devolve o HTML da partida correspondente ou do dashboard."""
     if not choice or choice == "🌐 Visão Geral (Dashboard)":
-        return render_live_dashboard(live_cache, today_cache or [], ps_matches)
+        return render_live_dashboard(live_cache, today_cache or [])
         
-    # Extrai as siglas do choice: "Liga: T1 vs T2 (Agendado)" -> b_code="T1", r_code="T2"
     import re
     m = re.search(r':\s*(.+?)\s*vs\s*(.+?)\s*\(', choice)
     if not m:
-        return render_live_dashboard(live_cache, today_cache or [], ps_matches)
+        return render_live_dashboard(live_cache, today_cache or [])
         
     b_target = m.group(1).strip()
     r_target = m.group(2).strip()
@@ -1029,17 +1052,292 @@ def render_live_by_choice(choice: str, live_cache: list, today_cache: list = Non
         if (b == b_target and r == r_target) or (b == r_target and r == b_target):
             return _render_scheduled_live_match(s)
             
-    # 3. Tenta achar na lista do PandaScore (Fixtures fallback)
-    for p in (ps_matches or []):
-        b = p.get("team_blue", {}).get("code", "?")
-        r = p.get("team_red", {}).get("code", "?")
-        if (b == b_target and r == r_target) or (b == r_target and r == b_target):
-            # Exibe mensagem informativa pois a Riot não trackeou formalmente esse jogo para telemetria lado a lado
-            return (
-                '<div style="color:#f87171;text-align:center;padding:40px;">'
-                f'⚠️ A partida <b>{b_target} vs {r_target}</b> foi listada, mas a telemetria detalhada (API LoL Esports) não está disponível ou a transmissão não começou.<br><br>Aguarde o status In-Game.'
-                '</div>'
+    # Fallback final
+    return render_live_dashboard(live_cache, today_cache or [])
+
+
+# ─── Gerenciamento de Estado de Partidas ─────────────────────────────────────
+
+def is_match_finished(game_data: dict) -> bool:
+    """
+    Verifica se uma partida terminou baseado nos dados do frame.
+
+    Detecta finalizacao por tres criterios:
+    1. gameState == "finished" no frame atual
+    2. Todos os games da serie com estado "completed"
+    3. Um time atingiu o numero de vitorias necessario (2 em BO3, 3 em BO5)
+
+    Args:
+        game_data: Dicionario com dados do frame (retorno de get_game_window)
+                   ou dados de match (com campo "games" e "teams")
+
+    Returns:
+        True se a partida terminou, False caso contrario
+    """
+    if not game_data:
+        return False
+
+    # Criterio 1: gameState == "finished" no frame
+    frame = game_data.get("frame", {})
+    if frame.get("gameState") == "finished":
+        return True
+
+    # Criterio 2: Todos os games com estado "completed"
+    games = game_data.get("games", [])
+    if games and all(g.get("state") == "completed" for g in games):
+        return True
+
+    # Criterio 3: Um time atingiu vitorias necessarias
+    strategy = game_data.get("strategy", {})
+    series_count = strategy.get("count", 3)
+    win_threshold = 2 if series_count == 3 else (3 if series_count == 5 else 1)
+
+    teams = game_data.get("teams", [])
+    if teams and any(
+        t.get("result", {}).get("gameWins", 0) >= win_threshold
+        for t in teams
+    ):
+        return True
+
+    return False
+def get_match_data_by_id(match_id: str) -> dict | None:
+    """
+    Busca dados completos de uma partida pelo match_id usando getEventDetails.
+    Funciona para partidas ao vivo, agendadas e finalizadas.
+    """
+    # Sempre passa por _fetch_match_from_event_details para ter state correto
+    # Primeiro tenta enriquecer com dados do schedule (times, liga)
+    try:
+        today = get_schedule_today()
+        for s in today:
+            if s.get("match_id") == match_id:
+                return _fetch_match_from_event_details(s)
+    except Exception:
+        pass
+
+    # Fallback: busca direto no getEventDetails sem dados do schedule
+    try:
+        dummy = {"match_id": match_id, "league": "", "team_blue": {}, "team_red": {}}
+        return _fetch_match_from_event_details(dummy)
+    except Exception:
+        return None
+
+
+def _fetch_match_from_event_details(s: dict) -> dict | None:
+    """Busca dados de uma partida via getEventDetails e enriquece com window data."""
+    match_id = s.get("match_id")
+    if not match_id:
+        return None
+
+    r = requests.get(
+        f"{API_URL_PERSISTED}/getEventDetails",
+        params={"hl": "pt-BR", "id": match_id},
+        headers=HEADERS,
+        timeout=10,
+    )
+    r.raise_for_status()
+    data = r.json().get("data", {}).get("event", {})
+    match_data = data.get("match", {})
+    games = match_data.get("games", [])
+    teams = match_data.get("teams", [])
+    league_name = s.get("league") or data.get("league", {}).get("name", "")
+
+    # Se não há games, o match_id provavelmente não é da Riot API
+    if not games and not teams:
+        return None
+
+    # Resolve times do evento se não vieram no schedule
+    team_blue = s.get("team_blue") or (teams[0] if len(teams) > 0 else {})
+    team_red = s.get("team_red") or (teams[1] if len(teams) > 1 else {})
+
+    match_state = match_data.get("state", s.get("state", "unknown"))
+
+    # Escolhe o game ativo: inProgress, ou próximo após completed
+    # gameId = matchId + game.number (convenção da Riot, igual ao Aureon)
+    game_number = 1
+    for g in games:
+        if g.get("state") == "inProgress":
+            game_number = g.get("number", 1)
+            break
+    else:
+        comp = sum(1 for g in games if g.get("state") == "completed")
+        game_number = min(comp + 1, len(games)) if games else 1
+    game_id = str(int(match_id) + game_number) if match_id else "unknown"
+
+    # Detecta se a série está finalizada pelos games (mais confiável que o campo state)
+    strategy = match_data.get("strategy", {})
+    series_count = strategy.get("count", 3)
+    win_threshold = (series_count // 2) + 1  # BO3→2, BO5→3, BO1→1
+    blue_wins = team_blue.get("result", {}).get("gameWins", 0) if isinstance(team_blue, dict) else 0
+    red_wins = team_red.get("result", {}).get("gameWins", 0) if isinstance(team_red, dict) else 0
+
+    is_unstarted = games and all(g.get("state") == "unstarted" for g in games)
+
+    is_completed = (
+        match_state == "completed"
+        or (games and all(g.get("state") == "completed" for g in games))
+        or blue_wins >= win_threshold
+        or red_wins >= win_threshold
+    )
+    if is_completed:
+        match_state = "completed"
+    elif is_unstarted:
+        match_state = "unstarted"
+
+    game_info = {
+        "match_id": match_id,
+        "game_id": game_id,
+        "game_number": game_number,
+        "league": league_name,
+        "team_blue": team_blue,
+        "team_red": team_red,
+        "state": match_state,
+        "blue_wins": blue_wins,
+        "red_wins": red_wins,
+        "strategy": strategy,
+    }
+
+    # Só tenta buscar telemetria se a partida está em andamento
+    if is_completed or is_unstarted:
+        return game_info
+
+    return _enrich_match_with_window(game_info)
+
+
+def _enrich_match_with_window(game_info: dict) -> dict:
+    """Adiciona dados de telemetria (kills, gold, campeões) ao dict da partida."""
+    game_id = game_info.get("game_id", "unknown")
+    result = dict(game_info)
+
+    if game_id == "unknown":
+        return result
+
+    # Para partidas finalizadas, não passa startingTime — a API retorna o último frame disponível
+    # Para partidas ao vivo, usa o timestamp atual arredondado
+    is_completed = game_info.get("state") == "completed"
+
+    if is_completed:
+        # Busca direto sem startingTime nem cache_buster
+        try:
+            response = requests.get(
+                f"{API_URL_LIVE}/window/{game_id}",
+                params={"hl": "pt-BR"},
+                headers=HEADERS,
+                timeout=10,
             )
-            
-    # Fallback final se não bater
-    return render_live_dashboard(live_cache, today_cache or [], ps_matches)
+            if response.status_code != 200:
+                return result
+            data = response.json()
+        except Exception:
+            return result
+    else:
+        data = _retry_system.fetch_with_retry(
+            url=f"{API_URL_LIVE}/window/{game_id}",
+            params={"hl": "pt-BR", "startingTime": get_iso_date_multiple_of_10(), "_": _get_cache_buster()},
+            headers=HEADERS,
+            timeout=10,
+            retry_without_param="startingTime"
+        )
+
+    if not data:
+        return result
+
+    frames = data.get("frames", [])
+    if not frames:
+        return result
+
+    frame = frames[-1]
+    metadata = data.get("gameMetadata") or {}
+
+    blue_frame = frame.get("blueTeam", {})
+    red_frame = frame.get("redTeam", {})
+    blue_meta = (metadata.get("blueTeamMetadata") or {}).get("participantMetadata", [])
+    red_meta = (metadata.get("redTeamMetadata") or {}).get("participantMetadata", [])
+    blue_parts = blue_frame.get("participants", [])
+    red_parts = red_frame.get("participants", [])
+
+    def build_champs(parts, meta):
+        champs = []
+        for i, p in enumerate(parts):
+            m = meta[i] if i < len(meta) else {}
+            champs.append({
+                "champion": m.get("championId", ""),
+                "summonerName": m.get("summonerName", m.get("esportsPlayerId", "")),
+                "role": m.get("role", ""),
+                "kills": p.get("kills", 0),
+                "deaths": p.get("deaths", 0),
+                "assists": p.get("assists", 0),
+                "cs": p.get("creepScore", 0),
+                "gold": p.get("totalGold", 0),
+            })
+        return champs
+
+    result["blue_kills"] = blue_frame.get("totalKills", 0)
+    result["red_kills"] = red_frame.get("totalKills", 0)
+    result["blue_gold"] = blue_frame.get("totalGold", 0)
+    result["red_gold"] = red_frame.get("totalGold", 0)
+    result["blue_champs"] = build_champs(blue_parts, blue_meta)
+    result["red_champs"] = build_champs(red_parts, red_meta)
+    result["game_state"] = frame.get("gameState", "")
+
+    return result
+
+
+def create_polling_service(game_id: str, match_id: str):
+    """
+    Cria um PollingService para um game especifico com verificacao de estado.
+
+    O callback do polling:
+    1. Verifica o estado atual da partida
+    2. Para o polling se a partida finalizou
+    3. Limpa o cache das chaves window_* e details_* quando finaliza
+
+    Args:
+        game_id: ID do game a ser monitorado
+        match_id: ID da serie/match
+
+    Returns:
+        PollingService configurado (nao iniciado)
+    """
+    from interface.polling_service import PollingService
+
+    _ctx = {"game_id": game_id, "match_id": match_id}
+
+    # Referencia mutavel para o servico (preenchida apos criacao)
+    service_ref = [None]
+
+    def _polling_callback():
+        """Callback que verifica estado e para polling quando partida finaliza."""
+        # Busca dados atuais do game
+        window_data = get_game_window(game_id)
+
+        if window_data is None:
+            logger.debug(
+                f"Polling: sem dados para game {game_id}",
+                extra=_ctx
+            )
+            return
+
+        # Verifica se a partida terminou
+        if is_match_finished(window_data):
+            logger.info(
+                f"Partida {game_id} finalizada detectada pelo polling. Limpando cache e parando.",
+                extra=_ctx
+            )
+
+            # Limpa cache das chaves relacionadas ao game
+            _cache_layer.delete(f"window_{game_id}")
+            _cache_layer.delete(f"details_{game_id}")
+
+            # Para o polling
+            svc = service_ref[0]
+            if svc is not None:
+                svc.stop()
+
+    service = PollingService(
+        fetch_callback=_polling_callback,
+        interval_seconds=10,
+        logger=logger,
+    )
+    service_ref[0] = service
+    return service
