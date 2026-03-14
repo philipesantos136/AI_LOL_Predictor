@@ -7,8 +7,8 @@
   let matchData: any = $state(null);
   let loading = $state(true);
 
-  const CHAMPIONS_URL = "https://ddragon.leagueoflegends.com/cdn/15.5.1/img/champion/";
-  const ITEMS_URL     = "https://ddragon.leagueoflegends.com/cdn/15.5.1/img/item/";
+  const CHAMPIONS_URL = "https://ddragon.leagueoflegends.com/cdn/16.5.1/img/champion/";
+  const ITEMS_URL     = "https://ddragon.leagueoflegends.com/cdn/16.5.1/img/item/";
 
   async function fetchDetails() {
     try {
@@ -34,7 +34,7 @@
     const interval = setInterval(() => {
       if (matchData?.state === 'completed') return;
       fetchDetails();
-    }, 10000);
+    }, 500);
     return () => clearInterval(interval);
   });
 
@@ -62,9 +62,55 @@
     cloud: "Nuvens", elder: "Ancião", chemtech: "Quimtec", hextech: "Hextec"
   };
 
-  function handleImageError(e: Event) {
-    (e.currentTarget as HTMLImageElement).style.display = 'none';
+  const CHAMP_MAPPING: Record<string, string> = {
+    "Dr. Mundo": "DrMundo",
+    "Kha'Zix": "Khazix",
+    "Lee Sin": "LeeSin",
+    "Wukong": "MonkeyKing",
+    "LeBlanc": "Leblanc",
+    "Nunu & Willump": "Nunu",
+    "Renata Glasc": "Renata",
+    "Bel'Veth": "Belveth",
+    "Vel'Koz": "Velkoz",
+    "Cho'Gath": "Chogath",
+    "Kai'Sa": "Kaisa",
+    "Le Sin": "LeeSin"
+  };
+
+  function getChampImg(id: string) {
+    if (!id) return "https://ddragon.leagueoflegends.com/cdn/16.5.1/img/profileicon/29.png";
+    const mapped = CHAMP_MAPPING[id] || id;
+    const sanitized = mapped.replace(/'| |\.|\&/g, '');
+    return `${CHAMPIONS_URL}${sanitized}.png`;
   }
+
+  function handleImageError(e: Event) {
+    const target = e.currentTarget as HTMLImageElement;
+    if (!target) return;
+    if (target.src.includes('/champion/')) {
+      target.onerror = null;
+      target.src = "https://ddragon.leagueoflegends.com/cdn/16.5.1/img/profileicon/29.png";
+    } else {
+      target.style.display = 'none';
+    }
+  }
+
+  import { tweened } from 'svelte/motion';
+  import { sineOut } from 'svelte/easing';
+
+  const bGold = tweened(0, { duration: 500, easing: sineOut });
+  const rGold = tweened(0, { duration: 500, easing: sineOut });
+  const bKills = tweened(0, { duration: 300, easing: sineOut });
+  const rKills = tweened(0, { duration: 300, easing: sineOut });
+
+  $effect(() => {
+    if (matchData) {
+      bGold.set(matchData.blue_gold || 0);
+      rGold.set(matchData.red_gold || 0);
+      bKills.set(matchData.blue_kills || 0);
+      rKills.set(matchData.red_kills || 0);
+    }
+  });
 
   let pcts = $derived(matchData ? getGoldPct(matchData.blue_gold ?? 0, matchData.red_gold ?? 0) : { blue: 50, red: 50 });
 </script>
@@ -126,8 +172,11 @@
                 <!-- Center VS -->
                 <div class="flex flex-col items-center min-w-[140px]">
                     <div class="text-5xl font-black text-slate-700 italic">VS</div>
-                    <div class="mt-2 px-6 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg
-                        {matchData.state === 'inProgress' ? 'bg-red-600 animate-pulse text-white' : 'bg-slate-700 text-slate-300'}">
+                    <div class="mt-2 px-6 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg flex items-center
+                        {matchData.state === 'inProgress' ? 'bg-red-500/10 border border-red-500/50 text-red-500' : 'bg-slate-700 text-slate-300'}">
+                        {#if matchData.state === 'inProgress'}
+                            <span class="w-2 h-2 bg-red-500 rounded-full mr-2 shadow-[0_0_10px_rgba(239,68,68,0.6)] animate-pulse"></span>
+                        {/if}
                         {matchData.state === 'inProgress' ? 'AO VIVO' : matchData.state}
                     </div>
                 </div>
@@ -164,11 +213,11 @@
                     </div>
                     <div class="flex flex-col items-center group cursor-help" title="Ouro Total">
                         <span class="text-lg md:text-xl text-yellow-500">💰</span>
-                        <span class="text-xs md:text-sm font-black text-blue-100">{fmtGold(matchData.blue_gold)}</span>
+                        <span class="text-xs md:text-sm font-black text-blue-100">{fmtGold(Math.round($bGold))}</span>
                     </div>
                     <div class="flex flex-col items-center group cursor-help" title="Abates">
                         <span class="text-lg md:text-xl text-red-500">⚔️</span>
-                        <span class="text-sm md:text-xl font-black text-blue-400">{matchData.blue_kills || 0}</span>
+                        <span class="text-sm md:text-xl font-black text-blue-400">{Math.round($bKills)}</span>
                     </div>
                 </div>
 
@@ -176,11 +225,11 @@
                 <div class="flex flex-wrap items-center justify-start gap-4 md:gap-7 pl-2 md:pl-4">
                     <div class="flex flex-col items-center group cursor-help" title="Abates">
                         <span class="text-lg md:text-xl text-red-500">⚔️</span>
-                        <span class="text-sm md:text-xl font-black text-red-400">{matchData.red_kills || 0}</span>
+                        <span class="text-sm md:text-xl font-black text-red-400">{Math.round($rKills)}</span>
                     </div>
                     <div class="flex flex-col items-center group cursor-help" title="Ouro Total">
                         <span class="text-lg md:text-xl text-yellow-500">💰</span>
-                        <span class="text-xs md:text-sm font-black text-red-100">{fmtGold(matchData.red_gold)}</span>
+                        <span class="text-xs md:text-sm font-black text-red-100">{fmtGold(Math.round($rGold))}</span>
                     </div>
                     <div class="flex flex-col items-center group cursor-help" title="Torres">
                         <span class="text-lg md:text-xl">🗼</span>
@@ -199,8 +248,8 @@
 
             <!-- Gold Percentage Bar -->
             <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden flex shadow-inner mb-2">
-                <div class="h-full bg-gradient-to-r from-blue-700 to-blue-400 transition-all duration-1000" style="width: {pcts.blue}%"></div>
-                <div class="h-full bg-gradient-to-l from-red-700 to-red-400 transition-all duration-1000" style="width: {pcts.red}%"></div>
+                <div class="h-full bg-gradient-to-r from-blue-700 to-blue-400 transition-all duration-500" style="width: {pcts.blue}%"></div>
+                <div class="h-full bg-gradient-to-l from-red-700 to-red-400 transition-all duration-500" style="width: {pcts.red}%"></div>
             </div>
             <div class="flex justify-between text-[10px] font-black text-slate-500 uppercase tracking-tighter px-1">
                 <span>{pcts.blue.toFixed(1)}%</span>
@@ -259,7 +308,7 @@
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-4">
                                     <div class="relative flex-shrink-0">
-                                        <img src="{CHAMPIONS_URL}{p.champion}.png" class="w-12 h-12 rounded-xl border border-slate-700 shadow-lg" alt={p.champion}>
+                                        <img src="{getChampImg(p.champion)}" onerror={handleImageError} class="w-12 h-12 rounded-xl border border-slate-700 shadow-lg" alt={p.champion}>
                                         <span class="absolute -bottom-1 -right-1 bg-slate-900 text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-lg border border-slate-700 text-slate-400">
                                             {p.level}
                                         </span>
@@ -272,7 +321,7 @@
                             </td>
                             <td class="px-4 py-4">
                                 <div class="w-full h-4 bg-slate-800 rounded-md overflow-hidden relative border border-slate-700/50">
-                                    <div class="h-full transition-all duration-500 rounded-r-sm" 
+                                    <div class="h-full transition-all duration-300 rounded-r-sm" 
                                          style="width: {hpPct}%; background: {hpPct > 60 ? '#10b981' : (hpPct > 30 ? '#f59e0b' : '#ef4444')}"></div>
                                     <span class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white drop-shadow-md">
                                         {p.currentHealth} / {p.maxHealth}
@@ -338,7 +387,7 @@
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-4">
                                     <div class="relative flex-shrink-0">
-                                        <img src="{CHAMPIONS_URL}{p.champion}.png" class="w-12 h-12 rounded-xl border border-slate-700 shadow-lg" alt={p.champion}>
+                                        <img src="{getChampImg(p.champion)}" onerror={handleImageError} class="w-12 h-12 rounded-xl border border-slate-700 shadow-lg" alt={p.champion}>
                                         <span class="absolute -bottom-1 -right-1 bg-slate-900 text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-lg border border-slate-700 text-slate-400">
                                             {p.level}
                                         </span>
@@ -351,7 +400,7 @@
                             </td>
                             <td class="px-4 py-4">
                                 <div class="w-full h-4 bg-slate-800 rounded-md overflow-hidden relative border border-slate-700/50">
-                                    <div class="h-full transition-all duration-500 rounded-r-sm" 
+                                    <div class="h-full transition-all duration-300 rounded-r-sm" 
                                          style="width: {hpPct}%; background: {hpPct > 60 ? '#10b981' : (hpPct > 30 ? '#f59e0b' : '#ef4444')}"></div>
                                     <span class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white drop-shadow-md">
                                         {p.currentHealth} / {p.maxHealth}

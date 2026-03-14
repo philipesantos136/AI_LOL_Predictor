@@ -20,8 +20,8 @@ load_dotenv("c:/Projetos/AI_LOL_Predictor/.env")
 API_URL_PERSISTED = "https://esports-api.lolesports.com/persisted/gw"
 API_URL_LIVE      = "https://feed.lolesports.com/livestats/v1"
 API_KEY           = "0TvQnueqKa5mxJntVWt0w4LpLfEkrV1Ta8rQBb9Z"
-CHAMPIONS_URL     = "https://ddragon.leagueoflegends.com/cdn/15.5.1/img/champion/"
-ITEMS_URL         = "https://ddragon.leagueoflegends.com/cdn/15.5.1/img/item/"
+CHAMPIONS_URL     = "https://ddragon.leagueoflegends.com/cdn/16.5.1/img/champion/"
+ITEMS_URL         = "https://ddragon.leagueoflegends.com/cdn/16.5.1/img/item/"
 
 HEADERS = {"x-api-key": API_KEY}
 
@@ -43,8 +43,13 @@ class _ContextFilter(logging.Filter):
 
 
 # ─── Configuração de logging estruturado ──────────────────────────────────────
+# Silencia logs de bibliotecas externas
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("interface.retry_system").setLevel(logging.WARNING)
+
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - [%(match_id)s/%(game_id)s] - %(message)s'
 )
 # Adiciona o filtro no root handler para que todos os loggers (uvicorn, urllib3, etc.)
@@ -55,6 +60,7 @@ for _handler in logging.root.handlers:
 
 logger = logging.getLogger(__name__)
 logger.addFilter(_context_filter)
+logger.setLevel(logging.INFO)
 
 # ─── Inicialização de componentes globais ────────────────────────────────────
 # Sistema de retry com backoff exponencial para requisições HTTP
@@ -75,7 +81,8 @@ def get_iso_date_multiple_of_10() -> str:
     now = datetime.now(timezone.utc)
     remainder = now.second % 10
     rounded = now.replace(microsecond=0, second=now.second - remainder)
-    adjusted = rounded - timedelta(seconds=60)
+    # Aumentado para 180s (3min) para evitar erros 400 em APIs que demoram a processar frames recentes
+    adjusted = rounded - timedelta(seconds=180)
     return adjusted.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
@@ -303,17 +310,7 @@ def get_schedule_today() -> list:
 
 def get_game_window(game_id: str):
     """Retorna o último frame de window (stats de time e jogadores) com cache e retry."""
-    _ctx = {"game_id": game_id}
-    # 1. Check cache first
-    cache_key = f"window_{game_id}"
-    cached = _cache_layer.get(cache_key)
-    if cached is not None:
-        logger.debug(f"Cache hit para window {game_id}", extra=_ctx)
-        return cached
-    
-    # 2. Cache miss - fetch with retry
-    logger.debug(f"Cache miss para window {game_id}, buscando da API", extra=_ctx)
-    
+    # 1. Fetch with retry (Cache removido para live telemetry)
     try:
         date = get_iso_date_multiple_of_10()
         
@@ -338,10 +335,7 @@ def get_game_window(game_id: str):
         
         result = {"frame": frames[-1], "metadata": data.get("gameMetadata")}
         
-        # 4. Store in cache (only if game_id != "unknown" and data is not None)
-        if game_id != "unknown" and result is not None:
-            _cache_layer.set(cache_key, result, ttl_seconds=5)
-            logger.debug(f"Window {game_id} armazenado em cache com TTL de 5s", extra=_ctx)
+        return result
         
         return result
         
@@ -352,20 +346,7 @@ def get_game_window(game_id: str):
 
 def get_game_details(game_id: str, timestamp: str = None):
     """Retorna o último frame de details (items dos jogadores) com cache e retry."""
-    _ctx = {"game_id": game_id}
-    # 1. Check cache first
-    cache_key = f"details_{game_id}"
-    if timestamp:
-        cache_key += f"_{timestamp}"
-    
-    cached = _cache_layer.get(cache_key)
-    if cached is not None:
-        logger.debug(f"Cache hit para details {game_id}", extra=_ctx)
-        return cached
-    
-    # 2. Cache miss - fetch with retry
-    logger.debug(f"Cache miss para details {game_id}, buscando da API", extra=_ctx)
-    
+    # 1. Fetch with retry (Cache removido para live telemetry)
     try:
         params = {"hl": "pt-BR", "_": _get_cache_buster()}
         if timestamp:
@@ -386,16 +367,26 @@ def get_game_details(game_id: str, timestamp: str = None):
         
         # 3. Process response
         frames = data.get("frames", [])
+        
+        # Fallback: Se retornou sucesso mas sem frames (comum se o startingTime for futuro), tenta sem startingTime
+        if not frames and timestamp:
+            logger.debug(f"Details {game_id} retornou vazio para timestamp {timestamp}, tentando sem startingTime.", extra=_ctx)
+            data = _retry_system.fetch_with_retry(
+                url=f"{API_URL_LIVE}/details/{game_id}",
+                params={"hl": "pt-BR", "_": _get_cache_buster()},
+                headers=HEADERS,
+                timeout=10
+            )
+            if data:
+                frames = data.get("frames", [])
+
         if not frames:
             logger.debug(f"Nenhum frame disponível para details {game_id}", extra=_ctx)
             return None
         
         result = frames[-1]
         
-        # 4. Store in cache (only if game_id != "unknown" and result is not None)
-        if game_id != "unknown" and result is not None:
-            _cache_layer.set(cache_key, result, ttl_seconds=5)
-            logger.debug(f"Details {game_id} armazenado em cache com TTL de 5s", extra=_ctx)
+        return result
         
         return result
         
@@ -471,7 +462,7 @@ def _champ_img(champion_id: str) -> str:
         '<img src="' + CHAMPIONS_URL + name + '.png" '
         'title="Campeão: ' + champion_id + '" '
         'style="width:30px;height:30px;border-radius:50%;border:1px solid #334155;cursor:help;" '
-        'onerror="this.src=\'https://ddragon.leagueoflegends.com/cdn/15.5.1/img/profileicon/29.png\'" />'
+        'onerror="this.src=\'https://ddragon.leagueoflegends.com/cdn/16.5.1/img/profileicon/29.png\'" />'
     )
 
 
@@ -526,7 +517,11 @@ def _render_player_rows(participants: list, meta_parts: list,
         items_html = ""
         if i < len(detail_parts):
             dp = detail_parts[i]
-            item_ids = [dp.get("item" + str(j), 0) for j in range(7)]
+            # No Riot Live Stats, itens vem numa lista 'items'
+            raw_items = dp.get("items", [])
+            if not isinstance(raw_items, list): raw_items = []
+            # Mantém 7 slots para o layout (6 itens + 1 trinket)
+            item_ids = raw_items + [0] * (7 - len(raw_items))
             items_html = _item_imgs(item_ids)
 
         bar  = _health_bar(cur_hp, max_hp)
@@ -1265,6 +1260,16 @@ def _enrich_match_with_window(game_info: dict) -> dict:
             timeout=10,
             retry_without_param="startingTime"
         )
+        
+        # Fallback: Se retornar vazio com timestamp recente, tenta sem timestamp (pode trazer o início, mas é melhor que nada)
+        if not data or not data.get("frames"):
+            logger.debug(f"Nada encontrado com startingTime para {game_id}, tentando sem.", extra={"game_id": game_id})
+            data = _retry_system.fetch_with_retry(
+                url=f"{API_URL_LIVE}/window/{game_id}",
+                params={"hl": "pt-BR", "_": _get_cache_buster()},
+                headers=HEADERS,
+                timeout=10
+            )
 
     if not data:
         return result
@@ -1309,8 +1314,11 @@ def _enrich_match_with_window(game_info: dict) -> dict:
             opp_p = opp_parts[i] if i < len(opp_parts) else {}
             gold_diff = p.get("totalGold", 0) - opp_p.get("totalGold", 0)
             
-            # Lista de IDs de Itens (0-6)
-            items = [d.get(f"item{j}", 0) for j in range(7)]
+            # Lista de IDs de Itens da API (geralmente uma lista no campo 'items')
+            raw_items = d.get("items", [])
+            if not isinstance(raw_items, list): raw_items = []
+            # Garante 7 slots para o layout no Svelte
+            items = raw_items + [0] * (7 - len(raw_items))
 
             champs.append({
                 "champion": m.get("championId", ""),
