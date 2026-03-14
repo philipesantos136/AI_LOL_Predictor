@@ -231,14 +231,14 @@ def build_radar_section(s1, s2, t1, t2, g1=None, g2=None):
         throw = g.get("throw_rate") or 0
         comeback = g.get("comeback_rate") or 0
         egdi = g.get("egdi_score") or 0
-        if throw > 0.25:
+        if throw > 25:
             comments.append(
-                f'⚠️ <b>{team} tem Throw Rate de {throw*100:.0f}%</b> (Gold Layer). '
+                f'⚠️ <b>{team} tem Throw Rate de {throw:.0f}%</b> (Gold Layer). '
                 f'Desperdiça vantagens com frequência — cuidado com apostas de ML em jogos onde este time lidera no early.'
             )
-        if comeback > 0.25:
+        if comeback > 25:
             comments.append(
-                f'🔄 <b>{team} é especialista em viradas ({comeback*100:.0f}%)</b> (Gold Layer). '
+                f'🔄 <b>{team} é especialista em viradas ({comeback:.0f}%)</b> (Gold Layer). '
                 f'Excelente para <b>live betting</b> quando este time está atrás no placar.'
             )
         if egdi > 0.6:
@@ -425,12 +425,13 @@ def build_economy_section(s1, s2, t1, t2, g1, g2):
             comments.append(f'⚔️ <b>{team} é eficiente com poucos recursos.</b> Indica time letal.')
     if g1 and g2:
         for g_stats, team in [(g1, t1), (g2, t2)]:
+            # Assuming throw_rate and comeback_rate are now 0-100 percentages
             th = g_stats.get("throw_rate", 0) or 0
             cb = g_stats.get("comeback_rate", 0) or 0
-            if th > 0.3:
-                comments.append(f'⚠️ <b>{team} tem Throw Rate alto ({th*100:.0f}%).</b> Desperdiça vantagens.')
-            if cb > 0.3:
-                comments.append(f'🔄 <b>{team} é expert em viradas ({cb*100:.0f}%).</b> Bom para live betting.')
+            if th > 30:
+                comments.append(f'⚠️ <b>{team} tem Throw Rate alto ({th:.0f}%).</b> Desperdiça vantagens.')
+            if cb > 30:
+                comments.append(f'🔄 <b>{team} é expert em viradas ({cb:.0f}%).</b> Bom para live betting.')
 
     return {
         "egpm": {"t1": avg_egpm1, "t2": avg_egpm2},
@@ -1310,8 +1311,8 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
     if not stats1 or not stats2:
         return None
 
-    gold_t1 = get_gold_team_stats(team1)
-    gold_t2 = get_gold_team_stats(team2)
+    gold_t1 = get_gold_team_stats(team1, patches)
+    gold_t2 = get_gold_team_stats(team2, patches)
 
     # Platinum layer (same as renderer.py)
     plat1, plat2 = {}, {}

@@ -132,21 +132,48 @@ def get_team_stats(team_name, patches=None):
         print(f"  ⚠️ Erro ao consultar DB (team={team_name}): {e}")
         return None
 
-def get_gold_team_stats(team_name):
+def get_gold_team_stats(team_name, patches=None):
     """
     Busca as métricas preditivas avançadas da camada Gold para um time.
+    Versão dinâmica: calcula na hora para respeitar o filtro de patches.
+    Threshold de Throw/Comeback aumentado para 2000g (vantagem real).
     """
     db_path = get_db_path()
+    patch_clause, patch_params = build_patch_clause(patches)
     try:
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
-        c.execute("SELECT * FROM gold_team_metrics WHERE teamname = ?", (team_name,))
+        
+        base_where = f"position='team' AND teamname = ?{patch_clause}"
+        params = [team_name] + patch_params
+
+        query = f"""
+            SELECT 
+                COUNT(DISTINCT gameid) as games_played,
+                AVG(golddiffat15) as avg_golddiffat15,
+                AVG(xpdiffat15) as avg_xpdiffat15,
+                AVG(csdiffat15) as avg_csdiffat15,
+                (AVG(golddiffat15) + AVG(xpdiffat15) * 2 + AVG(csdiffat15) * 20) / 3 AS egdi_score,
+                
+                -- Throw Rate (Perder jogo com > 2000g de vantagem aos 15)
+                SUM(CASE WHEN golddiffat15 > 2000 AND result = '0' THEN 1.0 ELSE 0.0 END) / 
+                NULLIF(SUM(CASE WHEN golddiffat15 > 2000 THEN 1.0 ELSE 0.0 END), 0) * 100.0 as throw_rate,
+                
+                -- Comeback Rate (Ganhar jogo com < -2000g de desvantagem aos 15)
+                SUM(CASE WHEN golddiffat15 < -2000 AND result = '1' THEN 1.0 ELSE 0.0 END) / 
+                NULLIF(SUM(CASE WHEN golddiffat15 < -2000 THEN 1.0 ELSE 0.0 END), 0) * 100.0 as comeback_rate,
+                
+                AVG(CAST(result AS INTEGER)) * 100.0 as win_rate
+            FROM match_data_silver
+            WHERE {base_where}
+        """
+        c.execute(query, params)
         row = c.fetchone()
         conn.close()
-        return dict(row) if row else None
+        return dict(row) if row and row['games_played'] > 0 else None
     except Exception as e:
-        print(f"  ⚠️ Erro ao consultar Gold Team DB ({team_name}): {e}")
+        print(f"  ⚠️ Erro ao calcular Gold Team Stats dinâmico ({team_name}): {e}")
         return None
 
 def get_gold_player_stats(team_name):
