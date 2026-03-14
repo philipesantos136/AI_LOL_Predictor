@@ -20,8 +20,8 @@ load_dotenv("c:/Projetos/AI_LOL_Predictor/.env")
 API_URL_PERSISTED = "https://esports-api.lolesports.com/persisted/gw"
 API_URL_LIVE      = "https://feed.lolesports.com/livestats/v1"
 API_KEY           = "0TvQnueqKa5mxJntVWt0w4LpLfEkrV1Ta8rQBb9Z"
-CHAMPIONS_URL     = "https://ddragon.leagueoflegends.com/cdn/14.5.1/img/champion/"
-ITEMS_URL         = "https://ddragon.leagueoflegends.com/cdn/14.5.1/img/item/"
+CHAMPIONS_URL     = "https://ddragon.leagueoflegends.com/cdn/15.5.1/img/champion/"
+ITEMS_URL         = "https://ddragon.leagueoflegends.com/cdn/15.5.1/img/item/"
 
 HEADERS = {"x-api-key": API_KEY}
 
@@ -471,7 +471,7 @@ def _champ_img(champion_id: str) -> str:
         '<img src="' + CHAMPIONS_URL + name + '.png" '
         'title="Campeão: ' + champion_id + '" '
         'style="width:30px;height:30px;border-radius:50%;border:1px solid #334155;cursor:help;" '
-        'onerror="this.src=\'https://ddragon.leagueoflegends.com/cdn/14.5.1/img/profileicon/29.png\'" />'
+        'onerror="this.src=\'https://ddragon.leagueoflegends.com/cdn/15.5.1/img/profileicon/29.png\'" />'
     )
 
 
@@ -624,8 +624,14 @@ def render_live_match(game_info: dict) -> str:
     detail_blue = []
     detail_red  = []
     if details_data:
-        detail_blue = (details_data.get("blueTeam") or {}).get("participants", [])
-        detail_red  = (details_data.get("redTeam") or {}).get("participants", [])
+        # Tenta pegar participants direto (flat list de 10) ou agrupado por time
+        all_parts = details_data.get("participants", [])
+        if all_parts and len(all_parts) >= 10:
+            detail_blue = all_parts[:5]
+            detail_red  = all_parts[5:]
+        else:
+            detail_blue = (details_data.get("blueTeam") or {}).get("participants", [])
+            detail_red  = (details_data.get("redTeam") or {}).get("participants", [])
 
     # Stats do time
     blue_gold   = blue_frame.get("totalGold", 0)
@@ -1278,8 +1284,16 @@ def _enrich_match_with_window(game_info: dict) -> dict:
     # ─── Buscar Detalhes de Itens (Real-time) ───
     ts = frame.get("rfc460Timestamp")
     details_data = get_game_details(game_id, timestamp=ts)
-    detail_blue = (details_data.get("blueTeam") or {}).get("participants", []) if details_data else []
-    detail_red  = (details_data.get("redTeam") or {}).get("participants", []) if details_data else []
+    detail_blue = []
+    detail_red  = []
+    if details_data:
+        all_parts = details_data.get("participants", [])
+        if all_parts and len(all_parts) >= 10:
+            detail_blue = all_parts[:5]
+            detail_red  = all_parts[5:]
+        else:
+            detail_blue = (details_data.get("blueTeam") or {}).get("participants", [])
+            detail_red  = (details_data.get("redTeam") or {}).get("participants", [])
 
     metadata = data.get("gameMetadata") or {}
     blue_meta = (metadata.get("blueTeamMetadata") or {}).get("participantMetadata", [])

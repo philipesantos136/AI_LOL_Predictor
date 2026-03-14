@@ -7,8 +7,8 @@
   let matchData: any = $state(null);
   let loading = $state(true);
 
-  const CHAMPIONS_URL = "https://ddragon.leagueoflegends.com/cdn/14.5.1/img/champion/";
-  const ITEMS_URL     = "https://ddragon.leagueoflegends.com/cdn/14.5.1/img/item/";
+  const CHAMPIONS_URL = "https://ddragon.leagueoflegends.com/cdn/15.5.1/img/champion/";
+  const ITEMS_URL     = "https://ddragon.leagueoflegends.com/cdn/15.5.1/img/item/";
 
   async function fetchDetails() {
     try {
