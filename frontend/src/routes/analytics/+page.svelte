@@ -26,8 +26,11 @@
   let time2 = $state('');
   let selectedPatches: string[] = $state([]);
 
-  let t1_champs = $state({ top: '', jg: '', mid: '', adc: '', sup: '' });
-  let t2_champs = $state({ top: '', jg: '', mid: '', adc: '', sup: '' });
+  type Role = 'top' | 'jg' | 'mid' | 'adc' | 'sup';
+  const roles: Role[] = ['top', 'jg', 'mid', 'adc', 'sup'];
+
+  let t1_champs = $state<Record<Role, string>>({ top: '', jg: '', mid: '', adc: '', sup: '' });
+  let t2_champs = $state<Record<Role, string>>({ top: '', jg: '', mid: '', adc: '', sup: '' });
 
   let t1_logo = $state("");
   let t2_logo = $state("");
@@ -177,7 +180,7 @@
       <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
         <!-- Time 1 Selection -->
         <div class="flex flex-col gap-2 relative">
-          <label class="flex items-center gap-2 text-sm font-semibold text-[#90CDF4]">
+          <label for="team1-input" class="flex items-center gap-2 text-sm font-semibold text-[#90CDF4]">
             <span class="h-3 w-3 rounded-sm bg-blue-500"></span>
             Time 1 (Blue Side)
           </label>
@@ -191,6 +194,7 @@
             </div>
             <div class="relative w-full">
               <input 
+                id="team1-input"
                 type="text"
                 placeholder="Busque o time (ex: love)..."
                 bind:value={q1}
@@ -217,7 +221,7 @@
 
         <!-- Time 2 Selection -->
         <div class="flex flex-col gap-2 relative">
-          <label class="flex items-center gap-2 text-sm font-semibold text-[#F56565]">
+          <label for="team2-input" class="flex items-center gap-2 text-sm font-semibold text-[#F56565]">
             <span class="h-3 w-3 rounded-sm bg-red-500"></span>
             Time 2 (Red Side)
           </label>
@@ -231,6 +235,7 @@
             </div>
             <div class="relative w-full">
               <input 
+                id="team2-input"
                 type="text"
                 placeholder="Busque o time (ex: T1)..."
                 bind:value={q2}
@@ -282,20 +287,17 @@
               <span class="w-3 h-3 bg-blue-500 rounded-full inline-block"></span> 🟦 Blue Side Draft
            </h3>
            <div class="grid grid-cols-2 lg:grid-cols-5 gap-6">
-             {#each ['top', 'jg', 'mid', 'adc', 'sup'] as role}
+             {#each roles as role}
                <div class="flex flex-col items-center bg-[#0a101a] p-3 rounded-xl border border-[#1e40af] border-opacity-30">
                  <label class="block text-xs font-bold text-blue-300 uppercase tracking-widest mb-3">{role}</label>
                  <!-- Image Preview -->
                  <div class="w-16 h-16 bg-[#0f172a] border border-[#1e293b] rounded-lg overflow-hidden flex items-center justify-center mb-3 shadow-inner">
-                   <!-- @ts-ignore -->
                    {#if t1_champs[role]}
-                     <!-- @ts-ignore -->
                      <img src={`http://localhost:8000/champs/${t1_champs[role]}.png`} alt={t1_champs[role]} class="w-full h-full object-cover" />
                    {:else}
                      <span class="text-xl text-slate-700 font-bold opacity-50">?</span>
                    {/if}
                  </div>
-                 <!-- @ts-ignore -->
                  <select bind:value={t1_champs[role]} class="w-full bg-[#1e293b] text-xs border border-[#334155] rounded p-2 text-white outline-none focus:ring-1 focus:ring-blue-500 transition-colors">
                    <option value="">Nenhum</option>
                    {#each champions as c} 
@@ -311,20 +313,17 @@
              <span class="w-3 h-3 bg-red-500 rounded-full inline-block"></span> 🟥 Red Side Draft
            </h3>
            <div class="grid grid-cols-2 lg:grid-cols-5 gap-6">
-             {#each ['top', 'jg', 'mid', 'adc', 'sup'] as role}
+             {#each roles as role}
                <div class="flex flex-col items-center bg-[#0a101a] p-3 rounded-xl border border-[#991b1b] border-opacity-30">
                  <label class="block text-xs font-bold text-red-300 uppercase tracking-widest mb-3">{role}</label>
                  <!-- Image Preview -->
                  <div class="w-16 h-16 bg-[#0f172a] border border-[#1e293b] rounded-lg overflow-hidden flex items-center justify-center mb-3 shadow-inner">
-                   <!-- @ts-ignore -->
                    {#if t2_champs[role]}
-                     <!-- @ts-ignore -->
                      <img src={`http://localhost:8000/champs/${t2_champs[role]}.png`} alt={t2_champs[role]} class="w-full h-full object-cover" />
                    {:else}
                      <span class="text-xl text-slate-700 font-bold opacity-50">?</span>
                    {/if}
                  </div>
-                 <!-- @ts-ignore -->
                  <select bind:value={t2_champs[role]} class="w-full bg-[#1e293b] text-xs border border-[#334155] rounded p-2 text-white outline-none focus:ring-1 focus:ring-red-500 transition-colors">
                    <option value="">Nenhum</option>
                    {#each champions as c} 
@@ -353,93 +352,66 @@
   </div>
 
   {#if analyticsData}
-    <div class="results-panel flex flex-col gap-6 mt-4">
+    <div class="results-panel flex flex-col gap-6 mt-6 w-full">
       
-      <div class="analytics-section">
-        <ResultsHeader
-          team1={analyticsData.meta.team1}
-          team2={analyticsData.meta.team2}
-          patchLabel={analyticsData.meta.patch_label}
-          gamesT1={analyticsData.meta.games_t1}
-          gamesT2={analyticsData.meta.games_t2}
-        />
+      <!-- Seções de Largura Total -->
+      <ResultsHeader
+        team1={analyticsData.meta.team1}
+        team2={analyticsData.meta.team2}
+        patchLabel={analyticsData.meta.patch_label}
+        gamesT1={analyticsData.meta.games_t1}
+        gamesT2={analyticsData.meta.games_t2}
+      />
+
+      <EducationalSection />
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <!-- Coluna Esquerda: Stack de métricas e distribuições -->
+        <div class="flex flex-col gap-6 h-full">
+          <EGRSection data={analyticsData.egr} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+          <RadarSection data={analyticsData.radar} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+          <VisionSection data={analyticsData.vision} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+          <PaceSection data={analyticsData.pace} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+          <RecentFormSection data={analyticsData.recent_form} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+          
+          {#if analyticsData.dragons && analyticsData.towers && analyticsData.barons}
+            <ObjectivesSection
+              dragons={analyticsData.dragons}
+              towers={analyticsData.towers}
+              barons={analyticsData.barons}
+              team1={analyticsData.meta.team1}
+              team2={analyticsData.meta.team2}
+            />
+          {/if}
+        </div>
+
+        <!-- Coluna Direita: Stack de métricas e distribuições -->
+        <div class="flex flex-col gap-6 h-full">
+          <MLRSection data={analyticsData.mlr} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+          <TimelineSection data={analyticsData.timeline} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+          <EconomySection data={analyticsData.economy} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+          <WinRateSection data={analyticsData.winrate} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+          
+          {#if analyticsData.kills_total && analyticsData.kills_per_team && analyticsData.handicap}
+            <KillsSection
+              killsTotal={analyticsData.kills_total}
+              killsPerTeam={analyticsData.kills_per_team}
+              handicap={analyticsData.handicap}
+              team1={analyticsData.meta.team1}
+              team2={analyticsData.meta.team2}
+            />
+          {/if}
+
+          {#if analyticsData.duration}
+            <DurationSection data={analyticsData.duration} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+          {/if}
+        </div>
       </div>
 
-      <div class="analytics-section">
-        <EducationalSection />
-      </div>
-
-      <div class="analytics-section">
-        <EGRSection data={analyticsData.egr} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-      </div>
-
-      <div class="analytics-section">
-        <MLRSection data={analyticsData.mlr} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-      </div>
-
-      <div class="analytics-section">
-        <RadarSection data={analyticsData.radar} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-      </div>
-
-      <div class="analytics-section">
-        <TimelineSection data={analyticsData.timeline} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-      </div>
-
-      <div class="analytics-section">
-        <VisionSection data={analyticsData.vision} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-      </div>
-
-      <div class="analytics-section">
-        <EconomySection data={analyticsData.economy} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-      </div>
-
-      <div class="analytics-section">
-        <PaceSection data={analyticsData.pace} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-      </div>
-
-      <div class="analytics-section">
-        <WinRateSection data={analyticsData.winrate} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-      </div>
-
-      <div class="analytics-section">
-        <RecentFormSection data={analyticsData.recent_form} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-      </div>
-
-      <div class="analytics-section">
-        {#if analyticsData.kills_total && analyticsData.kills_per_team && analyticsData.handicap}
-          <KillsSection
-            killsTotal={analyticsData.kills_total}
-            killsPerTeam={analyticsData.kills_per_team}
-            handicap={analyticsData.handicap}
-            team1={analyticsData.meta.team1}
-            team2={analyticsData.meta.team2}
-          />
-        {/if}
-      </div>
-
-      <div class="analytics-section">
-        {#if analyticsData.dragons && analyticsData.towers && analyticsData.barons}
-          <ObjectivesSection
-            dragons={analyticsData.dragons}
-            towers={analyticsData.towers}
-            barons={analyticsData.barons}
-            team1={analyticsData.meta.team1}
-            team2={analyticsData.meta.team2}
-          />
-        {/if}
-      </div>
-
-      <div class="analytics-section">
-        {#if analyticsData.duration}
-          <DurationSection data={analyticsData.duration} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-        {/if}
-      </div>
-
-      <div class="analytics-section">
-        {#if analyticsData.ev_finder}
-          <EVFinderSection data={analyticsData.ev_finder} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-        {/if}
-      </div>
+      <!-- EV Finder (Largura Total) -->
+      {#if analyticsData.ev_finder}
+        <EVFinderSection data={analyticsData.ev_finder} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+      {/if}
 
       <footer class="text-center text-slate-500 text-sm py-8 border-t border-slate-800 mt-4">
         Camada Silver Analytics | Desenvolvido com Metodologia do Oracle's Elixir

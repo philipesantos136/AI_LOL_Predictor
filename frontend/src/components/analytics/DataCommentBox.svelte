@@ -2,14 +2,16 @@
   const { comments }: { comments: string[] } = $props();
 </script>
 
-<div class="data-comment-box">
-  <div class="data-comment-box-inner">
-    <div class="comment-title"><span class="pulse-dot"></span>💡 Comentário Baseado em Dados</div>
-    {#each comments as comment}
-      <div class="insight-item">{@html comment}</div>
-    {/each}
+{#if comments && comments.length > 0}
+  <div class="data-comment-box">
+    <div class="data-comment-box-inner">
+      <div class="comment-title"><span class="pulse-dot"></span>💡 Comentário Baseado em Dados</div>
+      {#each comments as comment}
+        <div class="insight-item">{@html comment}</div>
+      {/each}
+    </div>
   </div>
-</div>
+{/if}
 
 <style>
   .data-comment-box {

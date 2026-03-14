@@ -2,7 +2,6 @@
   import type { DistributionSection, BetEntryData } from '$lib/types/analytics';
   import HistogramChart from './HistogramChart.svelte';
   import StatsBadge from './StatsBadge.svelte';
-  import BetEntry from './BetEntry.svelte';
   import ExplainBox from './ExplainBox.svelte';
   import DataCommentBox from './DataCommentBox.svelte';
 
@@ -67,11 +66,6 @@
         </div>
       {/if}
 
-      <div class="bet-entries">
-        {#each card.data.bet_entries as entry}
-          <BetEntry {entry} />
-        {/each}
-      </div>
 
       <ExplainBox text={card.data.explain_text} />
       <DataCommentBox comments={card.data.comments} />
@@ -100,6 +94,7 @@
     border: 1px solid #334155;
     border-left: 3px solid var(--accent, #f97316);
     transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    width: 100%;
   }
 
   .chart-card:hover {
@@ -131,10 +126,4 @@
     margin-bottom: 0.75rem;
   }
 
-  .bet-entries {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    margin-bottom: 0.75rem;
-  }
 </style>

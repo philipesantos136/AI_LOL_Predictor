@@ -2,7 +2,6 @@
   import type { DistributionSection, KillsPerTeamSection, HandicapSection, BetEntryData } from '$lib/types/analytics';
   import HistogramChart from './HistogramChart.svelte';
   import StatsBadge from './StatsBadge.svelte';
-  import BetEntry from './BetEntry.svelte';
   import ExplainBox from './ExplainBox.svelte';
   import DataCommentBox from './DataCommentBox.svelte';
 
@@ -56,11 +55,6 @@
       </div>
     {/if}
 
-    <div class="bet-entries">
-      {#each killsTotal.bet_entries as entry}
-        <BetEntry {entry} />
-      {/each}
-    </div>
 
     <ExplainBox text={killsTotal.explain_text} />
     <DataCommentBox comments={killsTotal.comments} />
@@ -100,14 +94,6 @@
       </div>
     {/if}
 
-    <div class="bet-entries">
-      {#each killsPerTeam.t1_bet_entries as entry}
-        <BetEntry {entry} />
-      {/each}
-      {#each killsPerTeam.t2_bet_entries as entry}
-        <BetEntry {entry} />
-      {/each}
-    </div>
 
     <ExplainBox text={killsPerTeam.explain_text} />
     <DataCommentBox comments={killsPerTeam.comments} />
@@ -144,11 +130,6 @@
       </div>
     {/if}
 
-    <div class="bet-entries">
-      {#each handicap.bet_entries as entry}
-        <BetEntry {entry} />
-      {/each}
-    </div>
 
     <ExplainBox text={handicap.explain_text} />
     <DataCommentBox comments={handicap.comments} />
@@ -176,6 +157,7 @@
     border: 1px solid #334155;
     border-left: 3px solid #8b5cf6;
     transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    width: 100%;
   }
 
   .chart-card:hover {
@@ -235,12 +217,6 @@
     margin-bottom: 0.75rem;
   }
 
-  .bet-entries {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    margin-bottom: 0.75rem;
-  }
 
   .handicap-note {
     background: rgba(139, 92, 246, 0.07);

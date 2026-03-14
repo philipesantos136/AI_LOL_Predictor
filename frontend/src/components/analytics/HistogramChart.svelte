@@ -1,123 +1,135 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
-  import { Chart, BarController, BarElement, CategoryScale, LinearScale, Legend, Tooltip, LineController, PointElement, LineElement } from 'chart.js';
-
-  Chart.register(BarController, BarElement, CategoryScale, LinearScale, Legend, Tooltip, LineController, PointElement, LineElement);
+  import { onMount } from 'svelte';
+  import gsap from 'gsap';
 
   interface Props {
     rawData: number[];
     color: string;
     meanLine?: boolean;
-    label?: string;
+    label: string;
   }
 
-  let { rawData, color, meanLine = false, label = 'Distribuição' }: Props = $props();
+  let { rawData, color, meanLine = false, label }: Props = $props();
 
-  let canvas: HTMLCanvasElement;
-  let chart: Chart | null = null;
-
-  const binData = $derived.by(() => {
-    const counts = new Map<number, number>();
-    for (const v of rawData) counts.set(v, (counts.get(v) ?? 0) + 1);
-    const sortedLabels = [...counts.keys()].sort((a, b) => a - b);
-    const values = sortedLabels.map(l => counts.get(l)!);
-    return { sortedLabels, values };
+  let bars: SVGRectElement[] = [];
+  let meanLineEl = $state<SVGLineElement | null>(null);
+  let tooltip = $state<{ visible: boolean; x: number; y: number; freq: number; range: string }>({
+    visible: false, x: 0, y: 0, freq: 0, range: ''
   });
 
-  const mean = $derived(
-    rawData.length > 0 ? rawData.reduce((a, b) => a + b, 0) / rawData.length : 0
-  );
+  const width = 600;
+  const height = 200;
+  const padding = { top: 24, right: 20, bottom: 40, left: 50 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+
+  const bins = 15;
+  const minVal = $derived(Math.min(...rawData, 0));
+  const maxVal = $derived(Math.max(...rawData, 1));
+  const binWidth = $derived((maxVal - minVal) / bins || 1);
+
+  const histogram = $derived.by(() => {
+    const h = Array(bins).fill(0);
+    rawData.forEach(val => {
+      const idx = Math.min(Math.floor((val - minVal) / binWidth), bins - 1);
+      h[idx]++;
+    });
+    return h;
+  });
+
+  const maxFreq = $derived(Math.max(...histogram, 1));
+  const barWidthPx = $derived(chartWidth / bins);
+  const mean = $derived(rawData.length > 0 ? rawData.reduce((a, b) => a + b, 0) / rawData.length : 0);
+  const meanX = $derived(padding.left + ((mean - minVal) / (maxVal - minVal || 1)) * chartWidth);
+
+  function showTooltip(e: MouseEvent, i: number) {
+    const svg = (e.target as SVGElement).closest('svg')!.getBoundingClientRect();
+    const rect = (e.target as SVGElement).getBoundingClientRect();
+    tooltip = {
+      visible: true,
+      x: rect.left - svg.left + barWidthPx / 2,
+      y: rect.top - svg.top,
+      freq: histogram[i],
+      range: `${(minVal + i * binWidth).toFixed(1)} – ${(minVal + (i + 1) * binWidth).toFixed(1)}`
+    };
+  }
+
+  function hideTooltip() { tooltip = { ...tooltip, visible: false }; }
 
   $effect(() => {
-    if (!canvas) return;
+    if (rawData.length === 0) return;
 
-    chart?.destroy();
+    // Filter out any potential nulls from the bind:this array
+    const validBars = bars.filter(b => b !== null);
 
-    const { sortedLabels, values } = binData;
-    const strLabels = sortedLabels.map(String);
-
-    const datasets: any[] = [
+    gsap.fromTo(validBars,
+      { attr: { height: 0, y: padding.top + chartHeight } },
       {
-        type: 'bar' as const,
-        label,
-        data: values,
-        backgroundColor: color.startsWith('rgba') ? color : hexToRgba(color, 0.7),
-        borderColor: color,
-        borderWidth: 1,
-      },
-    ];
-
-    if (meanLine && rawData.length > 0) {
-      // Find the closest label index to the mean
-      const meanLabel = String(Math.round(mean));
-      const meanIndex = strLabels.indexOf(meanLabel);
-      const targetIndex = meanIndex >= 0 ? meanIndex : findClosestIndex(sortedLabels, mean);
-      const maxVal = Math.max(...values);
-
-      // Vertical mean line as a dataset with null values except at mean position
-      const meanData = strLabels.map((_, i) => (i === targetIndex ? maxVal : null));
-      datasets.push({
-        type: 'bar' as const,
-        label: `Média (${mean.toFixed(1)})`,
-        data: meanData,
-        backgroundColor: 'rgba(16,185,129,0.9)',
-        borderColor: '#10b981',
-        borderWidth: 2,
-        barThickness: 3,
-      });
-    }
-
-    chart = new Chart(canvas, {
-      type: 'bar',
-      data: { labels: strLabels, datasets },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { labels: { color: '#94a3b8' } },
+        attr: {
+          height: (i) => (histogram[i] / maxFreq) * chartHeight,
+          y: (i) => padding.top + chartHeight - (histogram[i] / maxFreq) * chartHeight
         },
-        scales: {
-          x: {
-            ticks: { color: '#94a3b8' },
-            grid: { color: 'rgba(255,255,255,0.05)' },
-          },
-          y: {
-            ticks: { color: '#94a3b8' },
-            grid: { color: 'rgba(255,255,255,0.05)' },
-            beginAtZero: true,
-          },
-        },
-      },
-    });
-
-    return () => {
-      chart?.destroy();
-      chart = null;
-    };
-  });
-
-  onDestroy(() => {
-    chart?.destroy();
-    chart = null;
-  });
-
-  function hexToRgba(hex: string, alpha: number): string {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    if (!result) return hex;
-    const r = parseInt(result[1], 16);
-    const g = parseInt(result[2], 16);
-    const b = parseInt(result[3], 16);
-    return `rgba(${r},${g},${b},${alpha})`;
-  }
-
-  function findClosestIndex(arr: number[], target: number): number {
-    let closest = 0;
-    let minDiff = Math.abs(arr[0] - target);
-    for (let i = 1; i < arr.length; i++) {
-      const diff = Math.abs(arr[i] - target);
-      if (diff < minDiff) { minDiff = diff; closest = i; }
+        duration: 1,
+        ease: 'power2.out',
+        stagger: 0.03
+      }
+    );
+    if (meanLine && meanLineEl) {
+      gsap.fromTo(meanLineEl,
+        { attr: { strokeDashoffset: 300 } },
+        { attr: { strokeDashoffset: 0 }, duration: 1.5, delay: 0.5, ease: 'power2.out' }
+      );
     }
-    return closest;
-  }
+  });
 </script>
 
-<canvas bind:this={canvas}></canvas>
+<div class="relative w-full">
+  <svg {width} {height} viewBox="0 0 {width} {height}" class="w-full h-auto">
+    <line x1={padding.left} y1={padding.top} x2={padding.left} y2={padding.top + chartHeight}
+      stroke="#475569" stroke-width="2" />
+    <line x1={padding.left} y1={padding.top + chartHeight} x2={padding.left + chartWidth} y2={padding.top + chartHeight}
+      stroke="#475569" stroke-width="2" />
+
+    {#each histogram as freq, i}
+      <rect bind:this={bars[i]}
+        x={padding.left + i * barWidthPx + 1}
+        y={padding.top + chartHeight}
+        width={barWidthPx - 2}
+        height="0"
+        fill={color}
+        opacity="0.8"
+        style="cursor: pointer; filter: drop-shadow(0 0 3px {color})"
+        onmouseenter={(e) => showTooltip(e, i)}
+        onmouseleave={hideTooltip}
+      />
+    {/each}
+
+    {#if meanLine}
+      <line bind:this={meanLineEl}
+        x1={meanX} y1={padding.top} x2={meanX} y2={padding.top + chartHeight}
+        stroke="#fbbf24" stroke-width="2" stroke-dasharray="6 4" stroke-dashoffset="300"
+        style="filter: drop-shadow(0 0 4px rgba(251,191,36,0.6))" />
+      <text x={meanX} y={padding.top - 5} text-anchor="middle" font-size="11" font-weight="600" fill="#fbbf24">
+        μ = {mean.toFixed(1)}
+      </text>
+    {/if}
+
+    <text x={padding.left} y={padding.top + chartHeight + 25} font-size="10" fill="#94a3b8" 
+      transform="rotate(45, {padding.left}, {padding.top + chartHeight + 25})">{minVal.toFixed(0)}</text>
+    <text x={padding.left + chartWidth} y={padding.top + chartHeight + 25} text-anchor="start" font-size="10" fill="#94a3b8"
+      transform="rotate(45, {padding.left + chartWidth}, {padding.top + chartHeight + 25})">{maxVal.toFixed(0)}</text>
+    
+    <text x={padding.left + chartWidth / 2} y={padding.top + chartHeight + 35} text-anchor="middle" font-size="11" font-weight="600" fill="#94a3b8">{label}</text>
+    
+    <text x={padding.left - 40} y={padding.top + chartHeight / 2} text-anchor="middle" font-size="10" fill="#94a3b8"
+      transform="rotate(-90, {padding.left - 40}, {padding.top + chartHeight / 2})">Frequência</text>
+  </svg>
+
+  {#if tooltip.visible}
+    <div class="absolute pointer-events-none z-10 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-xs shadow-xl"
+      style="left: {tooltip.x}px; top: {tooltip.y}px; transform: translate(-50%, -110%)">
+      <div class="text-slate-400 mb-0.5">{tooltip.range}</div>
+      <div class="font-bold" style="color: {color}">{tooltip.freq} jogos</div>
+    </div>
+  {/if}
+</div>

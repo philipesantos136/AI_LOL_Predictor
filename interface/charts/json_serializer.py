@@ -153,8 +153,8 @@ def build_mlr_section(s1, s2, t1, t2):
     }
 
 
-def build_radar_section(s1, s2, t1, t2):
-    """Returns RadarSection dict."""
+def build_radar_section(s1, s2, t1, t2, g1=None, g2=None):
+    """Returns RadarSection dict. g1/g2 are optional Gold layer dicts."""
     def calc_radar(stats):
         wr = stats.get("win_rate", 0)
         egr = (stats.get("fb_rate", 0) + stats.get("fd_rate", 0) + stats.get("fherald_rate", 0)) / 3
@@ -166,24 +166,85 @@ def build_radar_section(s1, s2, t1, t2):
 
     t1_vals = calc_radar(s1)
     t2_vals = calc_radar(s2)
-    egr_1, mlr_1, vis_1, kpm_1, eco_1 = t1_vals[1], t1_vals[2], t1_vals[3], t1_vals[5], t1_vals[4]
-    egr_2, mlr_2, vis_2, kpm_2, eco_2 = t2_vals[1], t2_vals[2], t2_vals[3], t2_vals[5], t2_vals[4]
+    wr_1, egr_1, mlr_1, vis_1, eco_1, kpm_1 = t1_vals
+    wr_2, egr_2, mlr_2, vis_2, eco_2, kpm_2 = t2_vals
 
     comments = []
-    for team, egr_v, mlr_v, vis_v, kpm_v, eco_v in [
-        (t1, egr_1, mlr_1, vis_1, kpm_1, eco_1),
-        (t2, egr_2, mlr_2, vis_2, kpm_2, eco_2),
+
+    # --- Archetype detection (lowered thresholds to fire more often) ---
+    for team, wr_v, egr_v, mlr_v, vis_v, kpm_v, eco_v in [
+        (t1, wr_1, egr_1, mlr_1, vis_1, kpm_1, eco_1),
+        (t2, wr_2, egr_2, mlr_2, vis_2, kpm_2, eco_2),
     ]:
-        if egr_v > 60 and kpm_v > 60:
-            comments.append(f'⚔️ <b>{team} tem perfil AGRESSIVO</b> (EGR {egr_v:.0f}%, KPM {kpm_v:.0f}%). Busca jogos caóticos e rápidos. Favoreça <b>Over em kills</b> e <b>Under em duração</b> quando este time joga.')
-        elif mlr_v > 60 and vis_v > 60:
-            comments.append(f'🧠 <b>{team} tem perfil CONTROLADO</b> (MLR {mlr_v:.0f}%, Visão {vis_v:.0f}%). Joga por objetivos e controle de mapa. Favoreça <b>Over em duração</b> e <b>Over em Barões</b>.')
-        elif eco_v > 70 and kpm_v < 40:
-            comments.append(f'💰 <b>{team} é um time FARM-HEAVY</b> (Economia {eco_v:.0f}%, Ação apenas {kpm_v:.0f}%). Acumula recursos mas evita lutas. Jogos tendem a ser mais longos e com menos kills.')
-    if egr_1 > 55 and kpm_1 > 55 and mlr_2 > 55 and vis_2 > 55:
-        comments.append(f'💥 <b>Duelo de estilos!</b> {t1} (agressivo/early) vs {t2} (controlado/late). A partida depende de quem impõe o ritmo. Se {t1} não dominar o early, {t2} tende a virar. Janela de aposta live nos 15min.')
-    elif egr_2 > 55 and kpm_2 > 55 and mlr_1 > 55 and vis_1 > 55:
-        comments.append(f'💥 <b>Duelo de estilos!</b> {t2} (agressivo/early) vs {t1} (controlado/late). A partida depende de quem impõe o ritmo. Se {t2} não dominar o early, {t1} tende a virar. Janela de aposta live nos 15min.')
+        if egr_v > 55 and kpm_v > 50:
+            comments.append(
+                f'⚔️ <b>{team} tem perfil AGRESSIVO</b> (EGR {egr_v:.0f}%, KPM {kpm_v:.0f}%). '
+                f'Busca jogos caóticos e rápidos. Favoreça <b>Over em kills</b> e <b>Under em duração</b>.'
+            )
+        elif mlr_v > 50 and vis_v > 50:
+            comments.append(
+                f'🧠 <b>{team} tem perfil CONTROLADO</b> (MLR {mlr_v:.0f}%, Visão {vis_v:.0f}%). '
+                f'Joga por objetivos e controle de mapa. Favoreça <b>Over em duração</b> e <b>Over em Barões</b>.'
+            )
+        elif eco_v > 60 and kpm_v < 45:
+            comments.append(
+                f'💰 <b>{team} é um time FARM-HEAVY</b> (Economia {eco_v:.0f}%, Ação apenas {kpm_v:.0f}%). '
+                f'Acumula recursos mas evita lutas. Jogos tendem a ser mais longos e com menos kills.'
+            )
+        else:
+            # Generic comment always fires as fallback
+            dominant_dim = max(
+                [("EGR", egr_v), ("MLR", mlr_v), ("Visão", vis_v), ("Economia", eco_v), ("KPM", kpm_v)],
+                key=lambda x: x[1]
+            )
+            comments.append(
+                f'📊 <b>{team} tem perfil EQUILIBRADO</b> com destaque em <b>{dominant_dim[0]} ({dominant_dim[1]:.0f}%)</b>. '
+                f'Win Rate histórico: {wr_v:.0f}%.'
+            )
+
+    # --- Style clash detection ---
+    if egr_1 > 50 and kpm_1 > 45 and mlr_2 > 50 and vis_2 > 45:
+        comments.append(
+            f'💥 <b>Duelo de estilos!</b> {t1} (agressivo/early) vs {t2} (controlado/late). '
+            f'Se {t1} não dominar o early, {t2} tende a virar. Janela de aposta live nos 15min.'
+        )
+    elif egr_2 > 50 and kpm_2 > 45 and mlr_1 > 50 and vis_1 > 45:
+        comments.append(
+            f'💥 <b>Duelo de estilos!</b> {t2} (agressivo/early) vs {t1} (controlado/late). '
+            f'Se {t2} não dominar o early, {t1} tende a virar. Janela de aposta live nos 15min.'
+        )
+
+    # --- Win rate gap ---
+    wr_diff = abs(wr_1 - wr_2)
+    if wr_diff > 15:
+        fav, dog = (t1, t2) if wr_1 > wr_2 else (t2, t1)
+        fav_wr = max(wr_1, wr_2)
+        comments.append(
+            f'🏆 <b>{fav} lidera em Win Rate ({fav_wr:.0f}%)</b> com vantagem de {wr_diff:.0f}% sobre {dog}. '
+            f'O DNA tático confirma o domínio histórico.'
+        )
+
+    # --- Gold layer enrichment (throw/comeback/egdi) ---
+    for team, g in [(t1, g1), (t2, g2)]:
+        if not g:
+            continue
+        throw = g.get("throw_rate") or 0
+        comeback = g.get("comeback_rate") or 0
+        egdi = g.get("egdi_score") or 0
+        if throw > 0.25:
+            comments.append(
+                f'⚠️ <b>{team} tem Throw Rate de {throw*100:.0f}%</b> (Gold Layer). '
+                f'Desperdiça vantagens com frequência — cuidado com apostas de ML em jogos onde este time lidera no early.'
+            )
+        if comeback > 0.25:
+            comments.append(
+                f'🔄 <b>{team} é especialista em viradas ({comeback*100:.0f}%)</b> (Gold Layer). '
+                f'Excelente para <b>live betting</b> quando este time está atrás no placar.'
+            )
+        if egdi > 0.6:
+            comments.append(
+                f'💎 <b>{team} tem EGDI Score alto ({egdi:.2f})</b> — converte vantagens de ouro em vitórias com eficiência acima da média.'
+            )
 
     return {
         "labels": ["Win Rate", "EGR Score (Early)", "MLR Score (Late)", "Visão (VSPM)", "Economia (EGPM)", "Ação (KPM)"],
@@ -239,13 +300,34 @@ def build_timeline_section(s1, s2, t1, t2, mult1, mult2):
     gd15_2 = s2.get("golddiffat15", 0) or 0
     gd10_1 = s1.get("golddiffat10", 0) or 0
     gd10_2 = s2.get("golddiffat10", 0) or 0
-    for team, opp, gd10, gd15 in [(t1, t2, gd10_1, gd15_1), (t2, t1, gd10_2, gd15_2)]:
+    xp15_1 = s1.get("xpdiffat15", 0) or 0
+    xp15_2 = s2.get("xpdiffat15", 0) or 0
+    cs15_1 = s1.get("csdiffat15", 0) or 0
+    cs15_2 = s2.get("csdiffat15", 0) or 0
+
+    for team, opp, gd10, gd15, xp15, cs15 in [
+        (t1, t2, gd10_1, gd15_1, xp15_1, cs15_1),
+        (t2, t1, gd10_2, gd15_2, xp15_2, cs15_2),
+    ]:
         if gd15 > 1000:
             comments.append(f'💰 <b>{team} domina com +{gd15:.0f}g aos 15min.</b> Vantagem significativa que historicamente se converte em vitória.')
+        elif gd15 > 400:
+            comments.append(f'📈 <b>{team} costuma ter vantagem de ouro aos 15min (+{gd15:.0f}g).</b> Early game consistentemente positivo.')
         elif gd15 < -1000:
             comments.append(f'📉 <b>{team} costuma estar {abs(gd15):.0f}g atrás aos 15min.</b> Se o MLR for alto, este é o time para apostar live após os 10-15min.')
+        elif gd15 < -400:
+            comments.append(f'⚠️ <b>{team} tende a estar atrás em ouro aos 15min ({gd15:+.0f}g).</b> Depende de virada no mid/late.')
+
         if gd10 > 0 and gd15 < gd10 * 0.5:
             comments.append(f'🔄 <b>{team} perde vantagem entre 10 e 15min.</b> Começa bem (+{gd10:.0f}g@10) mas não sustenta ({gd15:+.0f}g@15).')
+        elif gd10 < 0 and gd15 > gd10 * 0.5:
+            comments.append(f'📈 <b>{team} recupera terreno entre 10 e 15min.</b> Começa atrás ({gd10:+.0f}g@10) mas reage ({gd15:+.0f}g@15).')
+
+        if xp15 > 500:
+            comments.append(f'⚡ <b>{team} tem vantagem de XP aos 15min (+{xp15:.0f} XP).</b> Nível superior favorece lutas e objetivos.')
+        if cs15 > 10:
+            comments.append(f'🌾 <b>{team} domina em CS aos 15min (+{cs15:.0f} CS).</b> Eficiência de farm superior.')
+
     if abs(gd15_1) < 300 and abs(gd15_2) < 300:
         comments.append(f'⚖️ <b>Ambos os times chegam aos 15min equilibrados em ouro.</b> Early game competitivo — o jogo será decidido no mid/late.')
 
@@ -1283,7 +1365,7 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
         "educational": build_educational_section(),
         "egr": build_egr_section(stats1, stats2, team1, team2),
         "mlr": build_mlr_section(stats1, stats2, team1, team2),
-        "radar": build_radar_section(stats1, stats2, team1, team2),
+        "radar": build_radar_section(stats1, stats2, team1, team2, gold_t1, gold_t2),
         "timeline": build_timeline_section(stats1, stats2, team1, team2, mult_t1, mult_t2),
         "vision": build_vision_section(stats1, stats2, team1, team2),
         "economy": build_economy_section(stats1, stats2, team1, team2, gold_t1, gold_t2),

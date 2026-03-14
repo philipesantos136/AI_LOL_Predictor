@@ -67,6 +67,7 @@
     padding: 1.25rem;
     border: 1px solid #334155;
     border-left: 3px solid #eab308;
+    width: 100%;
   }
 
   .section-title {

@@ -1,8 +1,6 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
-  import { Chart, DoughnutController, ArcElement, Tooltip } from 'chart.js';
-
-  Chart.register(DoughnutController, ArcElement, Tooltip);
+  import { onMount } from 'svelte';
+  import gsap from 'gsap';
 
   interface Props {
     winRate: number;
@@ -12,98 +10,74 @@
 
   let { winRate, teamColor, teamName }: Props = $props();
 
-  let canvas: HTMLCanvasElement;
-  let chart: Chart | null = null;
+  let arcEl: SVGPathElement;
+  let countEl: SVGTextElement;
+  let svgEl: SVGSVGElement;
 
-  const delta = $derived(winRate - 50);
-  const deltaText = $derived(delta >= 0 ? `+${delta.toFixed(1)}%` : `${delta.toFixed(1)}%`);
-  const deltaColor = $derived(delta >= 0 ? '#10b981' : '#ef4444');
+  const cx = 120, cy = 130, r = 85, sw = 12;
 
-  $effect(() => {
-    if (!canvas) return;
+  function polar(cx: number, cy: number, r: number, deg: number) {
+    // Start at -180deg (Left) and sweep clockwise
+    const rad = ((deg - 180) * Math.PI) / 180;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  }
 
-    chart?.destroy();
+  function arc(pct: number) {
+    const angle = (pct / 100) * 180;
+    const start = polar(cx, cy, r, 0); // 9 o'clock
+    const end = polar(cx, cy, r, angle);
+    const large = angle > 180 ? 1 : 0;
+    // Sweep-flag 1 for standard top-arc (clockwise from left)
+    return `M ${start.x} ${start.y} A ${r} ${r} 0 ${large} 1 ${end.x} ${end.y}`;
+  }
 
-    chart = new Chart(canvas, {
-      type: 'doughnut',
-      data: {
-        datasets: [
-          {
-            data: [winRate, 100 - winRate],
-            backgroundColor: [teamColor, 'rgba(15,23,42,0.5)'],
-            borderWidth: 0,
-            // @ts-ignore — Chart.js supports these on dataset level
-            circumference: 180,
-            rotation: 270,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        cutout: '70%',
-        plugins: {
-          legend: { display: false },
-          tooltip: { enabled: false },
-        },
-      },
+  const bgPath = arc(100);
+
+  onMount(() => {
+    const proxy = { pct: 0 };
+    gsap.to(proxy, {
+      pct: winRate,
+      duration: 1.8,
+      ease: 'power4.out',
+      onUpdate() {
+        if (arcEl) arcEl.setAttribute('d', arc(proxy.pct));
+        if (countEl) countEl.textContent = Math.round(proxy.pct).toString();
+      }
     });
 
-    return () => {
-      chart?.destroy();
-      chart = null;
-    };
-  });
-
-  onDestroy(() => {
-    chart?.destroy();
-    chart = null;
+    // Elegant Glow pulse
+    gsap.to(arcEl, {
+      filter: `drop-shadow(0 0 18px ${teamColor})`,
+      duration: 2,
+      delay: 1.8,
+      ease: 'sine.inOut',
+      repeat: -1,
+      yoyo: true
+    });
   });
 </script>
 
-<div class="gauge-wrapper">
-  <canvas bind:this={canvas}></canvas>
-  <div class="gauge-center">
-    <span class="gauge-rate">{winRate.toFixed(1)}%</span>
-    <span class="gauge-delta" style:color={deltaColor}>{deltaText}</span>
-    <span class="gauge-label">{teamName}</span>
-  </div>
-</div>
+<svg bind:this={svgEl} width="240" height="170" viewBox="0 0 240 170" class="w-full h-auto overflow-visible">
+  <!-- Background arc -->
+  <path d={bgPath} fill="none" stroke="#1e293b" stroke-width={sw + 6} stroke-linecap="round" opacity="0.4" />
+  <path d={bgPath} fill="none" stroke="#2d3748" stroke-width={sw} stroke-linecap="round" />
 
-<style>
-  .gauge-wrapper {
-    position: relative;
-    display: inline-block;
-    width: 100%;
-  }
+  <!-- Animated fill arc -->
+  <path bind:this={arcEl} d={arc(0)} fill="none" stroke={teamColor} stroke-width={sw} stroke-linecap="round"
+    style="filter: drop-shadow(0 0 10px {teamColor})" />
 
-  .gauge-center {
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    pointer-events: none;
-    padding-bottom: 0.5rem;
-  }
+  <!-- Percentage core -->
+  <text x={cx} y={cy - 22} text-anchor="middle" dominant-baseline="central">
+    <tspan bind:this={countEl} font-size="48" font-weight="900" fill="#f8fafc" style="filter: drop-shadow(0 0 10px rgba(0,0,0,0.5))">0</tspan>
+    <tspan font-size="16" font-weight="700" fill="#64748b" dx="4" dy="-14">%</tspan>
+  </text>
 
-  .gauge-rate {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #f1f5f9;
-    line-height: 1;
-  }
+  <!-- Team name as a subtle label below -->
+  <text x={cx} y={cy + 24} text-anchor="middle" font-size="11" font-weight="800" fill={teamColor} style="text-transform: uppercase; letter-spacing: 3px; opacity: 0.9">
+    {teamName}
+  </text>
 
-  .gauge-delta {
-    font-size: 0.875rem;
-    font-weight: 600;
-    line-height: 1.2;
-  }
-
-  .gauge-label {
-    font-size: 0.75rem;
-    color: #94a3b8;
-    margin-top: 0.125rem;
-  }
-</style>
+  <!-- Min/Max (0/100) labels inside the base -->
+  <text x={cx - r} y={cy + 15} text-anchor="middle" font-size="9" font-weight="700" fill="#4a5568">0%</text>
+  <text x={cx + r} y={cy + 15} text-anchor="middle" font-size="9" font-weight="700" fill="#4a5568">100%</text>
+</svg>
