@@ -49,7 +49,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("interface.retry_system").setLevel(logging.WARNING)
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,
     format='%(asctime)s - %(name)s - %(levelname)s - [%(match_id)s/%(game_id)s] - %(message)s'
 )
 # Adiciona o filtro no root handler para que todos os loggers (uvicorn, urllib3, etc.)
@@ -60,7 +60,7 @@ for _handler in logging.root.handlers:
 
 logger = logging.getLogger(__name__)
 logger.addFilter(_context_filter)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.ERROR)
 
 # ─── Inicialização de componentes globais ────────────────────────────────────
 # Sistema de retry com backoff exponencial para requisições HTTP
@@ -81,8 +81,9 @@ def get_iso_date_multiple_of_10() -> str:
     now = datetime.now(timezone.utc)
     remainder = now.second % 10
     rounded = now.replace(microsecond=0, second=now.second - remainder)
-    # Aumentado para 180s (3min) para evitar erros 400 em APIs que demoram a processar frames recentes
-    adjusted = rounded - timedelta(seconds=180)
+    # Reduzido de 180s para 60s para diminuir o atraso em relação ao tempo real.
+    # Se houver erro 400, o RetrySystem remove o parâmetro e pega o frame mais recente.
+    adjusted = rounded - timedelta(seconds=60)
     return adjusted.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
@@ -310,6 +311,11 @@ def get_schedule_today() -> list:
 
 def get_game_window(game_id: str):
     """Retorna o último frame de window (stats de time e jogadores) com cache e retry."""
+    cache_key = f"window_{game_id}"
+    cached = _cache_layer.get(cache_key)
+    if cached:
+        return cached
+
     # 1. Fetch with retry (Cache removido para live telemetry)
     try:
         date = get_iso_date_multiple_of_10()
@@ -324,28 +330,31 @@ def get_game_window(game_id: str):
         )
         
         if not data:
-            logger.warning(f"Falha ao buscar window {game_id} após todas as tentativas", extra=_ctx)
+            logger.warning(f"Falha ao buscar window {game_id} após todas as tentativas", extra={"game_id": game_id})
             return None
         
         # 3. Process response
         frames = data.get("frames", [])
         if not frames:
-            logger.debug(f"Nenhum frame disponível para window {game_id}", extra=_ctx)
+            logger.debug(f"Nenhum frame disponível para window {game_id}", extra={"game_id": game_id})
             return None
         
         result = {"frame": frames[-1], "metadata": data.get("gameMetadata")}
-        
-        return result
-        
+        _cache_layer.set(cache_key, result, ttl_seconds=1) # Set TTL to 1 second for live telemetry
         return result
         
     except Exception as e:
-        logger.error(f"Erro inesperado ao buscar window {game_id}: {e}", exc_info=True, extra=_ctx)
+        logger.error(f"Erro inesperado ao buscar window {game_id}: {e}", exc_info=True, extra={"game_id": game_id})
         return None
 
 
 def get_game_details(game_id: str, timestamp: str = None):
     """Retorna o último frame de details (items dos jogadores) com cache e retry."""
+    cache_key = f"details_{game_id}_{timestamp}" if timestamp else f"details_{game_id}"
+    cached = _cache_layer.get(cache_key)
+    if cached:
+        return cached
+
     # 1. Fetch with retry (Cache removido para live telemetry)
     try:
         params = {"hl": "pt-BR", "_": _get_cache_buster()}
@@ -362,7 +371,7 @@ def get_game_details(game_id: str, timestamp: str = None):
         )
         
         if not data:
-            logger.warning(f"Falha ao buscar details {game_id} após todas as tentativas", extra=_ctx)
+            logger.warning(f"Falha ao buscar details {game_id} após todas as tentativas", extra={"game_id": game_id})
             return None
         
         # 3. Process response
@@ -370,7 +379,7 @@ def get_game_details(game_id: str, timestamp: str = None):
         
         # Fallback: Se retornou sucesso mas sem frames (comum se o startingTime for futuro), tenta sem startingTime
         if not frames and timestamp:
-            logger.debug(f"Details {game_id} retornou vazio para timestamp {timestamp}, tentando sem startingTime.", extra=_ctx)
+            logger.debug(f"Details {game_id} retornou vazio para timestamp {timestamp}, tentando sem startingTime.", extra={"game_id": game_id})
             data = _retry_system.fetch_with_retry(
                 url=f"{API_URL_LIVE}/details/{game_id}",
                 params={"hl": "pt-BR", "_": _get_cache_buster()},
@@ -381,13 +390,11 @@ def get_game_details(game_id: str, timestamp: str = None):
                 frames = data.get("frames", [])
 
         if not frames:
-            logger.debug(f"Nenhum frame disponível para details {game_id}", extra=_ctx)
+            logger.debug(f"Nenhum frame disponível para details {game_id}", extra={"game_id": game_id})
             return None
         
         result = frames[-1]
-        
-        return result
-        
+        _cache_layer.set(cache_key, result, ttl_seconds=1) # Set TTL to 1 second for live telemetry
         return result
         
     except Exception as e:
@@ -1347,6 +1354,8 @@ def _enrich_match_with_window(game_info: dict) -> dict:
         "red_towers":      red_frame.get("towers", 0),
         "blue_barons":     blue_frame.get("barons", 0),
         "red_barons":      red_frame.get("barons", 0),
+        "blue_heralds":    blue_frame.get("heralds", 0),
+        "red_heralds":     red_frame.get("heralds", 0),
         "blue_inhibitors": blue_frame.get("inhibitors", 0),
         "red_inhibitors":  red_frame.get("inhibitors", 0),
         "blue_dragons":    blue_frame.get("dragons", []),

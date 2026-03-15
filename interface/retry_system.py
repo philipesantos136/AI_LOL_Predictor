@@ -73,7 +73,7 @@ class RetrySystem:
             try:
                 start_time = time.time()
                 
-                self.logger.info(
+                self.logger.debug(
                     f"Tentativa {attempt}/{self.config.max_attempts} para {url}",
                     extra={
                         "attempt": attempt,
@@ -95,7 +95,7 @@ class RetrySystem:
                 # Sucesso
                 if response.status_code == 200:
                     self._successful_requests += 1
-                    self.logger.info(
+                    self.logger.debug(
                         f"Requisição bem-sucedida na tentativa {attempt}",
                         extra={
                             "attempt": attempt,
@@ -108,7 +108,7 @@ class RetrySystem:
                 
                 # Erro 400 - tentar sem parâmetro específico
                 elif response.status_code == 400 and retry_without_param and retry_without_param in params:
-                    self.logger.warning(
+                    self.logger.debug(
                         f"Erro 400 na tentativa {attempt}, removendo parâmetro '{retry_without_param}'",
                         extra={
                             "attempt": attempt,
