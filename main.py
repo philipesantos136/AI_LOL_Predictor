@@ -6,13 +6,14 @@ from pipeline.controller import executar_pipeline_completo
 
 def run_servers():
     """Lança o backend (FastAPI) e o frontend (SvelteKit) em subprocessos e os mantém rodando."""
-    print("\n🌐 Iniciando os servidores da Aplicação (Backend & Frontend)...")
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    print(f"\n🌐 Iniciando os servidores da Aplicação em {project_root}...")
     
     # 1. Inicia o Backend Python (FastAPI via Uvicorn)
-    # Assumimos que o comando python atual (sys.executable) seja usado para garantir o mesmo ambiente virtual
+    api_path = os.path.join(project_root, "api.py")
     backend_process = subprocess.Popen(
-        [sys.executable, "api.py"],
-        cwd=os.getcwd(),
+        [sys.executable, api_path],
+        cwd=project_root,
         stdout=sys.stdout,
         stderr=sys.stderr
     )
@@ -21,7 +22,12 @@ def run_servers():
     time.sleep(2)
     
     # 2. Inicia o Frontend SvelteKit (via npm)
-    frontend_dir = os.path.join(os.getcwd(), "frontend")
+    frontend_dir = os.path.join(project_root, "frontend")
+
+    if not os.path.exists(frontend_dir):
+        print(f"❌ Erro: Diretório frontend não encontrado em {frontend_dir}")
+        backend_process.terminate()
+        return
 
     # Garante que o diretório do Node.js está no PATH do processo filho
     node_dir = r"C:\Program Files\nodejs"
@@ -30,7 +36,8 @@ def run_servers():
         env["PATH"] = node_dir + os.pathsep + env.get("PATH", "")
 
     if os.name == "nt":
-        npm_cmd = '"C:\\Program Files\\nodejs\\npm.cmd" run dev'
+        # Tentamos encontrar o npm.cmd automaticamente ou usar o caminho padrão
+        npm_cmd = "npm.cmd run dev"
     else:
         npm_cmd = "npm run dev"
 
@@ -63,6 +70,10 @@ def run_servers():
 if __name__ == "__main__":
     # Impede a criação de arquivos __pycache__ e .pyc
     sys.dont_write_bytecode = True
+    
+    # Garante que estamos rodando a partir da pasta raiz do projeto
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(project_root)
     
     print("🚀 Iniciando Pipeline Automático de Processamento de Dados...")
     resultado_pipeline = executar_pipeline_completo()

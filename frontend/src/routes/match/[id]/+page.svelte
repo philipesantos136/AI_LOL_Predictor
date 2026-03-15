@@ -53,8 +53,13 @@
   }
 
   const DRAGON_ICONS: Record<string, string> = {
-    ocean: "🌊", infernal: "🔥", mountain: "🗻",
-    cloud: "🌬️", elder: "🐲", chemtech: "☣️", hextech: "⚡"
+    ocean: "/images/dragon-ocean.svg", 
+    infernal: "/images/dragon-infernal.svg", 
+    mountain: "/images/dragon-mountain.svg",
+    cloud: "/images/dragon-cloud.svg", 
+    elder: "/images/dragon-elder.svg", 
+    chemtech: "/images/dragon-chemtech.svg", 
+    hextech: "/images/dragon-hextech.svg"
   };
 
   const DRAGON_NAMES: Record<string, string> = {
@@ -200,23 +205,27 @@
                 <!-- Blue Stats -->
                 <div class="flex flex-wrap items-center justify-end gap-4 md:gap-7 pr-2 md:pr-4 border-r border-slate-800">
                     <div class="flex flex-col items-center group cursor-help" title="Dragões">
-                        <span class="text-lg md:text-xl">🐉</span>
+                        <img src="/images/dragon-infernal.svg" alt="Dragão" class="w-6 h-6 md:w-7 md:h-7 opacity-80 group-hover:opacity-100 transition-opacity" />
                         <span class="text-sm font-black text-blue-100">{matchData.blue_dragons?.length || 0}</span>
                     </div>
                     <div class="flex flex-col items-center group cursor-help" title="Barões">
-                        <span class="text-lg md:text-xl">👾</span>
+                        <img src="/images/baron.svg" alt="Barão" class="w-6 h-6 md:w-7 md:h-7 opacity-80 group-hover:opacity-100 transition-opacity" />
                         <span class="text-sm font-black text-blue-100">{matchData.blue_barons || 0}</span>
                     </div>
+                    <div class="flex flex-col items-center group cursor-help" title="Arautos">
+                        <img src="/images/herald.png" alt="Arauto" class="w-6 h-6 md:w-7 md:h-7 opacity-80 group-hover:opacity-100 transition-opacity" />
+                        <span class="text-sm font-black text-blue-100">{matchData.blue_heralds || 0}</span>
+                    </div>
                     <div class="flex flex-col items-center group cursor-help" title="Torres">
-                        <span class="text-lg md:text-xl">🗼</span>
+                        <img src="/images/tower.svg" alt="Torre" class="w-6 h-6 md:w-7 md:h-7 opacity-80 group-hover:opacity-100 transition-opacity" />
                         <span class="text-sm font-black text-blue-100">{matchData.blue_towers || 0}</span>
                     </div>
                     <div class="flex flex-col items-center group cursor-help" title="Ouro Total">
-                        <span class="text-lg md:text-xl text-yellow-500">💰</span>
+                        <img src="/images/gold.svg" alt="Ouro" class="w-6 h-6 md:w-7 md:h-7" />
                         <span class="text-xs md:text-sm font-black text-blue-100">{fmtGold(Math.round($bGold))}</span>
                     </div>
                     <div class="flex flex-col items-center group cursor-help" title="Abates">
-                        <span class="text-lg md:text-xl text-red-500">⚔️</span>
+                        <img src="/images/kill.svg" alt="Abates" class="w-6 h-6 md:w-7 md:h-7" />
                         <span class="text-sm md:text-xl font-black text-blue-400">{Math.round($bKills)}</span>
                     </div>
                 </div>
@@ -224,23 +233,27 @@
                 <!-- Red Stats -->
                 <div class="flex flex-wrap items-center justify-start gap-4 md:gap-7 pl-2 md:pl-4">
                     <div class="flex flex-col items-center group cursor-help" title="Abates">
-                        <span class="text-lg md:text-xl text-red-500">⚔️</span>
+                        <img src="/images/kill.svg" alt="Abates" class="w-6 h-6 md:w-7 md:h-7" />
                         <span class="text-sm md:text-xl font-black text-red-400">{Math.round($rKills)}</span>
                     </div>
                     <div class="flex flex-col items-center group cursor-help" title="Ouro Total">
-                        <span class="text-lg md:text-xl text-yellow-500">💰</span>
+                        <img src="/images/gold.svg" alt="Ouro" class="w-6 h-6 md:w-7 md:h-7" />
                         <span class="text-xs md:text-sm font-black text-red-100">{fmtGold(Math.round($rGold))}</span>
                     </div>
                     <div class="flex flex-col items-center group cursor-help" title="Torres">
-                        <span class="text-lg md:text-xl">🗼</span>
+                        <img src="/images/tower.svg" alt="Torre" class="w-6 h-6 md:w-7 md:h-7 opacity-80 group-hover:opacity-100 transition-opacity" />
                         <span class="text-sm font-black text-red-100">{matchData.red_towers || 0}</span>
                     </div>
+                    <div class="flex flex-col items-center group cursor-help" title="Arautos">
+                        <img src="/images/herald.png" alt="Arauto" class="w-6 h-6 md:w-7 md:h-7 opacity-80 group-hover:opacity-100 transition-opacity" />
+                        <span class="text-sm font-black text-red-100">{matchData.red_heralds || 0}</span>
+                    </div>
                     <div class="flex flex-col items-center group cursor-help" title="Barões">
-                        <span class="text-lg md:text-xl">👾</span>
+                        <img src="/images/baron.svg" alt="Barão" class="w-6 h-6 md:w-7 md:h-7 opacity-80 group-hover:opacity-100 transition-opacity" />
                         <span class="text-sm font-black text-red-100">{matchData.red_barons || 0}</span>
                     </div>
                     <div class="flex flex-col items-center group cursor-help" title="Dragões">
-                        <span class="text-lg md:text-xl">🐉</span>
+                        <img src="/images/dragon-infernal.svg" alt="Dragão" class="w-6 h-6 md:w-7 md:h-7 opacity-80 group-hover:opacity-100 transition-opacity" />
                         <span class="text-sm font-black text-red-100">{matchData.red_dragons?.length || 0}</span>
                     </div>
                 </div>
@@ -261,16 +274,18 @@
             <div class="flex justify-between items-center mt-6 px-2">
                 <div class="flex gap-1.5 h-8 items-center">
                     {#each (matchData.blue_dragons || []) as drag}
-                        <span class="text-2xl filter drop-shadow-md hover:scale-125 transition-transform cursor-help" title={DRAGON_NAMES[drag.toLowerCase()] || drag}>
-                            {DRAGON_ICONS[drag.toLowerCase()] || "🐉"}
-                        </span>
+                        <img src={DRAGON_ICONS[drag.toLowerCase()] || "/images/dragon-infernal.svg"} 
+                             class="w-8 h-8 filter drop-shadow-md hover:scale-125 transition-transform cursor-help" 
+                             alt={drag}
+                             title={DRAGON_NAMES[drag.toLowerCase()] || drag} />
                     {/each}
                 </div>
                 <div class="flex gap-1.5 h-8 flex-row-reverse items-center">
                     {#each (matchData.red_dragons || []) as drag}
-                        <span class="text-2xl filter drop-shadow-md hover:scale-125 transition-transform cursor-help" title={DRAGON_NAMES[drag.toLowerCase()] || drag}>
-                            {DRAGON_ICONS[drag.toLowerCase()] || "🐉"}
-                        </span>
+                        <img src={DRAGON_ICONS[drag.toLowerCase()] || "/images/dragon-infernal.svg"} 
+                             class="w-8 h-8 filter drop-shadow-md hover:scale-125 transition-transform cursor-help" 
+                             alt={drag}
+                             title={DRAGON_NAMES[drag.toLowerCase()] || drag} />
                     {/each}
                 </div>
             </div>
