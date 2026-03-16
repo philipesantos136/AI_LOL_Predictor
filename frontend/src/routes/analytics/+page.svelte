@@ -15,6 +15,7 @@
   import KillsSection from '../../components/analytics/KillsSection.svelte';
   import ObjectivesSection from '../../components/analytics/ObjectivesSection.svelte';
   import DurationSection from '../../components/analytics/DurationSection.svelte';
+  import SeriesSection from '../../components/analytics/SeriesSection.svelte';
   import EVFinderSection from '../../components/analytics/EVFinderSection.svelte';
 
   let teams: string[] = $state([]);
@@ -415,6 +416,13 @@
           {/if}
         </div>
       </div>
+
+      <!-- Series Performance -->
+      {#if analyticsData.series}
+        <div class="analytics-section">
+          <SeriesSection data={analyticsData.series} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+        </div>
+      {/if}
 
       <!-- EV Finder (Largura Total) -->
       {#if analyticsData.ev_finder}
