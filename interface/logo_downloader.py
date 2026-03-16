@@ -14,7 +14,7 @@ LIQUIPEDIA_USER_AGENT = "AI_LoL_Predictor/1.1 (https://github.com/philipesantos1
 
 async def download_team_logo_liquipedia(team_name: str) -> bool:
     """
-    Tenta baixar a logo do time via Liquipedia API + Scraping e salva localmente.
+    Tenta baixar a logo do time via Liquipedia API (Search + Scraping) e salva localmente.
     """
     clean_name = team_name.replace(" ", "_")
     output_path = LOGO_DIR / f"{clean_name}.png"
@@ -24,94 +24,104 @@ async def download_team_logo_liquipedia(team_name: str) -> bool:
 
     headers = {
         "User-Agent": LIQUIPEDIA_USER_AGENT,
-        "Accept-Encoding": "gzip",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+        "Accept-Encoding": "gzip"
     }
     
+    async def get_team_page_via_search(name: str, client: httpx.AsyncClient) -> str:
+        """Usa API de busca para encontrar o nome correto da página do time."""
+        async def _search(q: str):
+            try:
+                url = f"https://liquipedia.net/leagueoflegends/api.php?action=opensearch&search={q}&limit=5&format=json"
+                res = await client.get(url, timeout=10)
+                if res.status_code == 200:
+                    data = res.json()
+                    titles, urls = data[1], data[3]
+                    for i, title in enumerate(titles):
+                        if q.lower() in title.lower(): return urls[i]
+                    if urls: return urls[0]
+            except: pass
+            return None
+
+        # 1. Tenta nome completo
+        url = await _search(name)
+        if url: return url
+
+        # 2. Tenta sem "Team" no início
+        if name.lower().startswith("team "):
+            url = await _search(name[5:])
+            if url: return url
+
+        # 3. Tenta apenas as duas primeiras palavras (para casos de fusão/patrocínio)
+        parts = name.split()
+        if len(parts) > 2:
+            url = await _search(" ".join(parts[:2]))
+            if url: return url
+            
+        return None
+
     try:
-        # Tenta pegar o HTML da página via MediaWiki API para evitar alguns filtros de robô no front
-        api_url = f"https://liquipedia.net/leagueoflegends/api.php?action=parse&page=Portal:Teams&format=json"
-        
         async with httpx.AsyncClient(headers=headers, follow_redirects=True) as client:
             print(f"🔍 Buscando {team_name} via API Liquipedia...")
-            response = await client.get(api_url, timeout=20)
             
-            if response.status_code == 403:
-                print("⚠️ API bloqueada (403). Tentando acesso direto...")
-                response = await client.get("https://liquipedia.net/leagueoflegends/Portal:Teams", timeout=20)
+            # Estratégia 1: Busca Direta via Opensearch (mais robusto)
+            team_page_url = await get_team_page_via_search(team_name, client)
             
-            response.raise_for_status()
-            
-            if "api.php" in str(response.url):
-                html_content = response.json().get('parse', {}).get('text', {}).get('*', '')
-            else:
-                html_content = response.text
+            # Estratégia 2: Fallback para Portal:Teams se a busca falhar
+            if not team_page_url:
+                print(f"⚠️ Busca falhou para {team_name}. Tentando portal de times...")
+                portal_url = "https://liquipedia.net/leagueoflegends/api.php?action=parse&page=Portal:Teams&format=json"
+                response = await client.get(portal_url, timeout=20)
                 
-            soup = BeautifulSoup(html_content, 'html.parser')
-            
-            # Procura pelo link do time
-            team_link = soup.find('a', title=re.compile(f"^{re.escape(team_name)}$", re.I))
-            if not team_link:
-                team_link = soup.find('a', string=re.compile(f"^{re.escape(team_name)}$", re.I))
-            
-            if not team_link:
-                # Tenta buscar pelo nome do time no texto das spans de time
-                all_spans = soup.find_all('span', class_='team-template-text')
-                for span in all_spans:
-                    a = span.find('a')
-                    if a and (a.get_text().lower() == team_name.lower() or a.get('title', '').lower() == team_name.lower()):
-                        team_link = a
-                        break
+                if response.status_code == 200:
+                    html_content = response.json().get('parse', {}).get('text', {}).get('*', '')
+                    soup = BeautifulSoup(html_content, 'html.parser')
+                    
+                    # Procura pelo link do time
+                    team_link = soup.find('a', title=re.compile(f"^{re.escape(team_name)}$", re.I))
+                    if not team_link:
+                        team_link = soup.find('a', string=re.compile(f"^{re.escape(team_name)}$", re.I))
+                    
+                    if not team_link:
+                        for span in soup.find_all('span', class_='team-template-text'):
+                            a = span.find('a')
+                            if a and (a.get_text().lower() == team_name.lower() or a.get('title', '').lower() == team_name.lower()):
+                                team_link = a
+                                break
+                    
+                    if team_link:
+                        path = team_link['href']
+                        if not path.startswith('/leagueoflegends/'):
+                            if not path.startswith('/'): path = '/' + path
+                        team_page_url = f"https://liquipedia.net{path}"
 
-            if not team_link:
-                print(f"❌ Time {team_name} não encontrado no portal.")
+            if not team_page_url:
+                print(f"❌ Time {team_name} não encontrado na Liquipedia.")
                 return False
             
-            # A partir do link do time, vamos para a página do time para pegar a logo de alta qualidade
-            team_path = team_link['href']
-            if not team_path.startswith('/leagueoflegends/'):
-                # Se for um link relativo estranho
-                if not team_path.startswith('/'): team_path = '/' + team_path
-            
-            team_page_url = f"https://liquipedia.net{team_path}"
             print(f"🔍 Acessando página do time: {team_page_url}")
             team_response = await client.get(team_page_url, timeout=20)
             team_response.raise_for_status()
             
             team_soup = BeautifulSoup(team_response.text, 'html.parser')
+            infobox = team_soup.find('div', class_='infobox-image') or team_soup.find('table', class_='infobox')
             
-            # A logo costuma estar na infobox
-            logo_img = None
-            infobox = team_soup.find('div', class_='infobox-image')
-            if infobox:
-                logo_img = infobox.find('img')
-            
-            if not logo_img:
-                # Fallback: qualquer imagem grande na infobox
-                infobox_v2 = team_soup.find('table', class_='infobox')
-                if infobox_v2:
-                    logo_img = infobox_v2.find('img')
-
+            if not infobox:
+                print(f"❌ Infobox não encontrada na página de {team_name}")
+                return False
+                
+            logo_img = infobox.find('img')
             if not logo_img:
                 print(f"❌ Logo não encontrada na página de {team_name}")
                 return False
             
-            logo_src = logo_img.get('src')
-            if not logo_src:
-                logo_src = logo_img.get('data-src') # Lazy load backup
-            
+            logo_src = logo_img.get('src') or logo_img.get('data-src')
             if not logo_src:
                 return False
 
-            if logo_src.startswith('/'):
-                logo_url = f"https://liquipedia.net{logo_src}"
-            else:
-                logo_url = logo_src
+            logo_url = f"https://liquipedia.net{logo_src}" if logo_src.startswith('/') else logo_src
             
             # Limpa URL de thumbnail para pegar a original
             if '/thumb/' in logo_url:
-                # https://liquipedia.net/commons/images/thumb/e/e2/LOUD_2025_full_allmode.png/600px-LOUD_2025_full_allmode.png
-                # -> https://liquipedia.net/commons/images/e/e2/LOUD_2025_full_allmode.png
                 logo_url = logo_url.replace('/thumb/', '/')
                 logo_url = '/'.join(logo_url.split('/')[:-1])
 
