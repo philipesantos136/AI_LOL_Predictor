@@ -1330,6 +1330,56 @@ def build_series_section(s1_series, s2_series, t1, t2):
     }
 
 
+def build_side_performance_section(side_data1, side_data2):
+    """Calcula win rate por lado para ambos os times."""
+    def process_data(rows):
+        entries = []
+        # Normaliza Lado para Capitalized
+        for r in rows:
+            s = r['side'].capitalize()
+            wr = (r['wins'] / r['games'] * 100) if r['games'] > 0 else 0
+            entries.append({
+                "side": s,
+                "games": r['games'],
+                "wins": r['wins'],
+                "win_rate": wr
+            })
+        return entries
+        
+    return {
+        "t1": process_data(side_data1),
+        "t2": process_data(side_data2)
+    }
+
+def build_league_context_section(league_context, league_name):
+    """Constrói a seção de baseline da liga."""
+    if not league_context:
+        return None
+        
+    insights = []
+    # Kills
+    if league_context['avg_total_kills'] > 32:
+        insights.append(f"🩸 <b>Liga Sangrenta:</b> A {league_name} tem uma média de {league_context['avg_total_kills']:.1f} abates, favorecendo mercados de <b>Over</b>.")
+    elif league_context['avg_total_kills'] < 26:
+        insights.append(f"🛡️ <b>Liga Conservadora:</b> Média de abates baixa ({league_context['avg_total_kills']:.1f}), favorecendo <b>Under</b>.")
+        
+    # Side Bias
+    blue_wr = league_context['blue_win_rate']
+    if blue_wr > 58:
+        insights.append(f"🔵 <b>Viés de BLUE SIDE:</b> O lado azul vence {blue_wr:.1f}% das vezes nesta liga.")
+    elif blue_wr < 42:
+        insights.append(f"🔴 <b>Viés de RED SIDE:</b> O lado vermelho domina com {(100-blue_wr):.1f}% de WR.")
+        
+    return {
+        "league": league_name,
+        "avg_total_kills": league_context['avg_total_kills'],
+        "blue_win_rate": blue_wr,
+        "avg_duration": league_context['avg_duration'],
+        "total_games_analyzed": league_context['total_games'],
+        "insights": insights
+    }
+
+
 # ============================================================================
 # Main Orchestrator
 # ============================================================================
@@ -1345,6 +1395,8 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
         get_global_baseline_stats,
         get_platinum_champion_stats,
         get_series_stats,
+        get_side_stats,
+        get_league_context,
     )
 
     stats1 = get_team_stats(team1, patches)
@@ -1358,6 +1410,13 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
 
     s1_series = get_series_stats(team1, patches)
     s2_series = get_series_stats(team2, patches)
+
+    s1_side = get_side_stats(team1, patches)
+    s2_side = get_side_stats(team2, patches)
+
+    # Contexto de liga (usando a liga do time 1 como referência)
+    league_name = stats1.get("league", "Unknown")
+    l_context = get_league_context(league_name)
 
     # Platinum layer (same as renderer.py)
     plat1, plat2 = {}, {}
@@ -1425,5 +1484,7 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
         "barons": build_barons_section(stats1, stats2, team1, team2, mult_t1, mult_t2),
         "duration": build_duration_section(stats1, stats2, team1, team2, mult_t1, mult_t2),
         "series": build_series_section(s1_series, s2_series, team1, team2),
+        "side_performance": build_side_performance_section(s1_side, s2_side),
+        "league_context": build_league_context_section(l_context, league_name),
         "ev_finder": build_ev_finder_section(stats1, stats2, team1, team2, mult_t1, mult_t2),
     }
