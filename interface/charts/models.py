@@ -113,15 +113,6 @@ class TimelineSection(BaseModel):
     comments: List[str]
 
 
-class VisionSection(BaseModel):
-    """Vision & map control metrics (wards placed/killed, control wards, vision score)."""
-
-    wards_placed: Dict[str, float]  # {t1: float, t2: float}
-    wards_killed: Dict[str, float]
-    control_wards: Dict[str, float]
-    vision_score: Dict[str, float]
-    explain_text: str
-    comments: List[str]
 
 
 class EconomySection(BaseModel):
@@ -235,7 +226,6 @@ class AnalyticsResponse(BaseModel):
     mlr: MLRSection
     radar: RadarSection
     timeline: TimelineSection
-    vision: VisionSection
     economy: EconomySection
     pace: PaceSection
     winrate: WinRateSection
