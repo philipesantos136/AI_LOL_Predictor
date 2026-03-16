@@ -8,7 +8,6 @@
   import MLRSection from '../../components/analytics/MLRSection.svelte';
   import RadarSection from '../../components/analytics/RadarSection.svelte';
   import TimelineSection from '../../components/analytics/TimelineSection.svelte';
-  import VisionSection from '../../components/analytics/VisionSection.svelte';
   import EconomySection from '../../components/analytics/EconomySection.svelte';
   import PaceSection from '../../components/analytics/PaceSection.svelte';
   import WinRateSection from '../../components/analytics/WinRateSection.svelte';
@@ -358,62 +357,70 @@
     <div class="results-panel flex flex-col gap-6 mt-6 w-full">
       
       <!-- Seções de Largura Total -->
-      <ResultsHeader
-        team1={analyticsData.meta.team1}
-        team2={analyticsData.meta.team2}
-        patchLabel={analyticsData.meta.patch_label}
-        gamesT1={analyticsData.meta.games_t1}
-        gamesT2={analyticsData.meta.games_t2}
-      />
+      <div class="analytics-section">
+        <ResultsHeader
+          team1={analyticsData.meta.team1}
+          team2={analyticsData.meta.team2}
+          patchLabel={analyticsData.meta.patch_label}
+          gamesT1={analyticsData.meta.games_t1}
+          gamesT2={analyticsData.meta.games_t2}
+        />
+      </div>
 
-      <EducationalSection />
+      <div class="analytics-section">
+        <EducationalSection />
+      </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <!-- Coluna Esquerda: Stack de métricas e distribuições -->
         <div class="flex flex-col gap-6 h-full">
-          <EGRSection data={analyticsData.egr} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-          <RadarSection data={analyticsData.radar} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-          <VisionSection data={analyticsData.vision} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-          <PaceSection data={analyticsData.pace} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-          <RecentFormSection data={analyticsData.recent_form} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+          <div class="analytics-section"><EGRSection data={analyticsData.egr} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} /></div>
+          <div class="analytics-section"><RadarSection data={analyticsData.radar} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} /></div>
+          <div class="analytics-section"><PaceSection data={analyticsData.pace} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} /></div>
+          <div class="analytics-section"><RecentFormSection data={analyticsData.recent_form} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} /></div>
           
           {#if analyticsData.dragons && analyticsData.towers && analyticsData.barons}
-            <ObjectivesSection
-              dragons={analyticsData.dragons}
-              towers={analyticsData.towers}
-              barons={analyticsData.barons}
-              team1={analyticsData.meta.team1}
-              team2={analyticsData.meta.team2}
-            />
+            <div class="analytics-section">
+              <ObjectivesSection
+                dragons={analyticsData.dragons}
+                towers={analyticsData.towers}
+                barons={analyticsData.barons}
+                team1={analyticsData.meta.team1}
+                team2={analyticsData.meta.team2}
+              />
+            </div>
           {/if}
         </div>
 
         <!-- Coluna Direita: Stack de métricas e distribuições -->
         <div class="flex flex-col gap-6 h-full">
-          <MLRSection data={analyticsData.mlr} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-          <TimelineSection data={analyticsData.timeline} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-          <EconomySection data={analyticsData.economy} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-          <WinRateSection data={analyticsData.winrate} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+          <div class="analytics-section"><MLRSection data={analyticsData.mlr} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} /></div>
+          <div class="analytics-section"><TimelineSection data={analyticsData.timeline} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} /></div>
+          <div class="analytics-section"><EconomySection data={analyticsData.economy} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} /></div>
+          <div class="analytics-section"><WinRateSection data={analyticsData.winrate} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} /></div>
           
           {#if analyticsData.kills_total && analyticsData.kills_per_team && analyticsData.handicap}
-            <KillsSection
-              killsTotal={analyticsData.kills_total}
-              killsPerTeam={analyticsData.kills_per_team}
-              handicap={analyticsData.handicap}
-              team1={analyticsData.meta.team1}
-              team2={analyticsData.meta.team2}
-            />
+            <div class="analytics-section">
+              <KillsSection
+                killsTotal={analyticsData.kills_total}
+                killsPerTeam={analyticsData.kills_per_team}
+                handicap={analyticsData.handicap}
+                team1={analyticsData.meta.team1}
+                team2={analyticsData.meta.team2}
+              />
+            </div>
           {/if}
-
           {#if analyticsData.duration}
-            <DurationSection data={analyticsData.duration} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+            <div class="analytics-section"><DurationSection data={analyticsData.duration} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} /></div>
           {/if}
         </div>
       </div>
 
       <!-- EV Finder (Largura Total) -->
       {#if analyticsData.ev_finder}
-        <EVFinderSection data={analyticsData.ev_finder} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+        <div class="analytics-section">
+          <EVFinderSection data={analyticsData.ev_finder} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
+        </div>
       {/if}
 
       <footer class="text-center text-slate-500 text-sm py-8 border-t border-slate-800 mt-4">
