@@ -87,6 +87,7 @@
       <rect bind:this={bars[i * 2 + 1]}
         x={gx + barW + 4} y={padding.top + chartHeight} width={barW} height="0"
         fill="#ef4444" rx="2"
+        role="img" aria-label="{team2} {lbl}: {t2Values[i]}"
         style="cursor:pointer; filter: drop-shadow(0 0 5px rgba(239,68,68,0.5))"
         onmouseenter={(e) => showTooltip(e, lbl, team2, t2Values[i], '#ef4444')}
         onmouseleave={hideTooltip} />
