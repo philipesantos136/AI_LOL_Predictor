@@ -98,6 +98,7 @@
         height="0"
         fill={color}
         opacity="0.8"
+        role="img" aria-label="Frequency for range {(minVal + i * binWidth).toFixed(1)} to {(minVal + (i + 1) * binWidth).toFixed(1)}: {freq} games"
         style="cursor: pointer; filter: drop-shadow(0 0 3px {color})"
         onmouseenter={(e) => showTooltip(e, i)}
         onmouseleave={hideTooltip}
