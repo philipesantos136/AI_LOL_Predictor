@@ -154,15 +154,15 @@ def get_gold_team_stats(team_name, patches=None):
                 AVG(golddiffat15) as avg_golddiffat15,
                 AVG(xpdiffat15) as avg_xpdiffat15,
                 AVG(csdiffat15) as avg_csdiffat15,
-                (AVG(golddiffat15) + AVG(xpdiffat15) * 2 + AVG(csdiffat15) * 20) / 3 AS egdi_score,
+                COALESCE((AVG(golddiffat15) + AVG(xpdiffat15) * 2 + AVG(csdiffat15) * 20) / 3, 0) AS egdi_score,
                 
                 -- Throw Rate (Perder jogo com > 2000g de vantagem aos 15)
-                SUM(CASE WHEN golddiffat15 > 2000 AND result = '0' THEN 1.0 ELSE 0.0 END) / 
-                NULLIF(SUM(CASE WHEN golddiffat15 > 2000 THEN 1.0 ELSE 0.0 END), 0) * 100.0 as throw_rate,
+                COALESCE(SUM(CASE WHEN golddiffat15 > 2000 AND result = '0' THEN 1.0 ELSE 0.0 END) / 
+                NULLIF(SUM(CASE WHEN golddiffat15 > 2000 THEN 1.0 ELSE 0.0 END), 0) * 100.0, 0) as throw_rate,
                 
                 -- Comeback Rate (Ganhar jogo com < -2000g de desvantagem aos 15)
-                SUM(CASE WHEN golddiffat15 < -2000 AND result = '1' THEN 1.0 ELSE 0.0 END) / 
-                NULLIF(SUM(CASE WHEN golddiffat15 < -2000 THEN 1.0 ELSE 0.0 END), 0) * 100.0 as comeback_rate,
+                COALESCE(SUM(CASE WHEN golddiffat15 < -2000 AND result = '1' THEN 1.0 ELSE 0.0 END) / 
+                NULLIF(SUM(CASE WHEN golddiffat15 < -2000 THEN 1.0 ELSE 0.0 END), 0) * 100.0, 0) as comeback_rate,
                 
                 AVG(CAST(result AS INTEGER)) * 100.0 as win_rate
             FROM match_data_silver
