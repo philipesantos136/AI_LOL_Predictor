@@ -116,8 +116,12 @@
     errorMsg = '';
     analyticsData = null;
     
+    // Auto-resolve typed teams if not explicitly selected
+    if (!time1 && q1 && teams.includes(q1)) time1 = q1;
+    if (!time2 && q2 && teams.includes(q2)) time2 = q2;
+
     if (!time1 || !time2) {
-      errorMsg = 'Selecione os dois times vermelhos e amarelos.';
+      errorMsg = 'Selecione dois times válidos na lista de busca.';
       return;
     }
     if (time1 === time2) {
@@ -261,9 +265,8 @@
         </div>
       </div>
 
-    <!-- Patches -->
     <div class="mb-6">
-      <label class="block text-sm font-semibold text-slate-300 mb-2">📅 Versões Filtradas (Por Padrão: Últimos 4)</label>
+      <span class="block text-sm font-semibold text-slate-300 mb-2">📅 Versões Filtradas (Por Padrão: Últimos 4)</span>
       <div class="flex flex-wrap gap-2">
         {#each patches as p}
           <button 
@@ -289,7 +292,7 @@
            <div class="grid grid-cols-2 lg:grid-cols-5 gap-6">
              {#each roles as role}
                <div class="flex flex-col items-center bg-[#0a101a] p-3 rounded-xl border border-[#1e40af] border-opacity-30">
-                 <label class="block text-xs font-bold text-blue-300 uppercase tracking-widest mb-3">{role}</label>
+                 <span class="block text-xs font-bold text-blue-300 uppercase tracking-widest mb-3">{role}</span>
                  <!-- Image Preview -->
                  <div class="w-16 h-16 bg-[#0f172a] border border-[#1e293b] rounded-lg overflow-hidden flex items-center justify-center mb-3 shadow-inner">
                    {#if t1_champs[role]}
@@ -298,7 +301,7 @@
                      <span class="text-xl text-slate-700 font-bold opacity-50">?</span>
                    {/if}
                  </div>
-                 <select bind:value={t1_champs[role]} class="w-full bg-[#1e293b] text-xs border border-[#334155] rounded p-2 text-white outline-none focus:ring-1 focus:ring-blue-500 transition-colors">
+                 <select bind:value={t1_champs[role]} aria-label="Blue side {role}" class="w-full bg-[#1e293b] text-xs border border-[#334155] rounded p-2 text-white outline-none focus:ring-1 focus:ring-blue-500 transition-colors">
                    <option value="">Nenhum</option>
                    {#each champions as c} 
                      {#if c} <option value={c}>{c}</option> {/if}
@@ -315,7 +318,7 @@
            <div class="grid grid-cols-2 lg:grid-cols-5 gap-6">
              {#each roles as role}
                <div class="flex flex-col items-center bg-[#0a101a] p-3 rounded-xl border border-[#991b1b] border-opacity-30">
-                 <label class="block text-xs font-bold text-red-300 uppercase tracking-widest mb-3">{role}</label>
+                 <span class="block text-xs font-bold text-red-300 uppercase tracking-widest mb-3">{role}</span>
                  <!-- Image Preview -->
                  <div class="w-16 h-16 bg-[#0f172a] border border-[#1e293b] rounded-lg overflow-hidden flex items-center justify-center mb-3 shadow-inner">
                    {#if t2_champs[role]}
@@ -324,7 +327,7 @@
                      <span class="text-xl text-slate-700 font-bold opacity-50">?</span>
                    {/if}
                  </div>
-                 <select bind:value={t2_champs[role]} class="w-full bg-[#1e293b] text-xs border border-[#334155] rounded p-2 text-white outline-none focus:ring-1 focus:ring-red-500 transition-colors">
+                 <select bind:value={t2_champs[role]} aria-label="Red side {role}" class="w-full bg-[#1e293b] text-xs border border-[#334155] rounded p-2 text-white outline-none focus:ring-1 focus:ring-red-500 transition-colors">
                    <option value="">Nenhum</option>
                    {#each champions as c} 
                      {#if c} <option value={c}>{c}</option> {/if}
