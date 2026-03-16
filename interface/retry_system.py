@@ -10,7 +10,10 @@ e logging detalhado de todas as operações.
 from typing import Optional, Dict, Any
 from dataclasses import dataclass
 import time
+import asyncio
 import requests
+import httpx
+import orjson
 import logging
 
 
@@ -21,6 +24,39 @@ class RetryConfig:
     base_delay: float = 2.0  # segundos
     max_delay: float = 60.0
     backoff_factor: float = 2.0
+
+
+class AsyncHTTPClient:
+    """
+    Singleton AsyncHTTPClient com connection pooling.
+    
+    Mantém uma conexão persistente para reuse entre requisições,
+    reduzindo latência e overhead de rede.
+    """
+    _client: httpx.AsyncClient | None = None
+    
+    @classmethod
+    def get_client(cls, headers: dict = None) -> httpx.AsyncClient:
+        """Retorna ou cria o cliente HTTP com connection pooling."""
+        if cls._client is None or cls._client.is_closed:
+            cls._client = httpx.AsyncClient(
+                timeout=httpx.Timeout(10.0, connect=5.0),
+                limits=httpx.Limits(
+                    max_keepalive_connections=20,
+                    max_connections=100,
+                    keepalive_expiry=30.0
+                ),
+                headers=headers or {},
+                follow_redirects=True,
+            )
+        return cls._client
+    
+    @classmethod
+    async def close(cls):
+        """Fecha o cliente HTTP."""
+        if cls._client and not cls._client.is_closed:
+            await cls._client.aclose()
+            cls._client = None
 
 
 class RetrySystem:
@@ -104,7 +140,7 @@ class RetrySystem:
                             "response_time_ms": round(response_time_ms, 2)
                         }
                     )
-                    return response.json()
+                    return orjson.loads(response.content)
                 
                 # Erro 400 - tentar sem parâmetro específico
                 elif response.status_code == 400 and retry_without_param and retry_without_param in params:
@@ -203,6 +239,61 @@ class RetrySystem:
             }
         )
         
+        return None
+    
+    async def async_fetch_with_retry(
+        self,
+        url: str,
+        params: Dict[str, Any] = None,
+        headers: Dict[str, str] = None,
+        timeout: int = 10,
+        retry_without_param: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Executa requisição HTTP assíncrona com httpx e retry automático.
+        Usa connection pooling para melhor performance.
+        """
+        params = params or {}
+        headers = headers or {}
+        last_error = None
+        
+        self._total_requests += 1
+        
+        # Usa cliente com connection pooling (singleton)
+        client = AsyncHTTPClient.get_client(headers)
+        
+        for attempt in range(1, self.config.max_attempts + 1):
+            try:
+                start_time = time.time()
+                
+                self.logger.debug(
+                    f"[Async] Tentativa {attempt}/{self.config.max_attempts} para {url}",
+                    extra={"url": url, "params": params}
+                )
+                
+                response = await client.get(url, params=params, timeout=timeout)
+                response_time_ms = (time.time() - start_time) * 1000
+                
+                if response.status_code == 200:
+                    self._successful_requests += 1
+                    return orjson.loads(response.content)
+                
+                elif response.status_code == 400 and retry_without_param and retry_without_param in params:
+                    self.logger.debug(f"Erro 400, removendo {retry_without_param}")
+                    params = {k: v for k, v in params.items() if k != retry_without_param}
+                    continue
+                else:
+                    last_error = f"HTTP {response.status_code}"
+            except httpx.RequestError as e:
+                last_error = f"RequestError: {str(e)}"
+            except Exception as e:
+                last_error = f"Error: {str(e)}"
+            
+            if attempt < self.config.max_attempts:
+                delay = self._calculate_delay(attempt)
+                await asyncio.sleep(delay)
+                
+        self.logger.error(f"Falha total em {url}: {last_error}")
         return None
     
     def get_stats(self) -> dict:
