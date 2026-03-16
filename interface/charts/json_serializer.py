@@ -1361,7 +1361,6 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
         "mlr": build_mlr_section(stats1, stats2, team1, team2),
         "radar": build_radar_section(stats1, stats2, team1, team2, gold_t1, gold_t2),
         "timeline": build_timeline_section(stats1, stats2, team1, team2, mult_t1, mult_t2),
-        "vision": build_vision_section(stats1, stats2, team1, team2),
         "economy": build_economy_section(stats1, stats2, team1, team2, gold_t1, gold_t2),
         "pace": build_pace_section(stats1, stats2, team1, team2),
         "winrate": build_winrate_section(stats1, stats2, team1, team2),
