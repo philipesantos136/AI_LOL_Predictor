@@ -103,7 +103,7 @@ async def get_live_games() -> list:
             timeout=10,
         )
         if not data: return []
-        events = data.get("schedule", {}).get("events", [])
+        events = (data.get("data", {}) if "data" in data else data).get("schedule", {}).get("events", [])
         result = []
         
         # Manter controle de quais match_ids do schedule já foram usados para evitar colisões
@@ -265,7 +265,7 @@ async def get_schedule_today() -> list:
             timeout=10,
         )
         if not data: return []
-        events = data.get("schedule", {}).get("events", [])
+        events = (data.get("data", {}) if "data" in data else data).get("schedule", {}).get("events", [])
         
         today = datetime.now(timezone.utc).date()
         result = []
@@ -989,7 +989,7 @@ async def _render_scheduled_live_match(s: dict) -> str:
             timeout=10,
         )
         if not data: return "⚠️ Erro ao buscar detalhes"
-        event_data = data.get("event", {})
+        event_data = (data.get("data") or data).get("event", {})
         games = event_data.get("match", {}).get("games", [])
         
         game_id = None
@@ -1146,11 +1146,12 @@ async def _fetch_match_from_event_details(s: dict) -> dict | None:
         timeout=10,
     )
     if not data: return None
-    event_data = data.get("event", {})
+    event_data = (data.get("data") or data).get("event", {})
     match_data = event_data.get("match", {})
     games = match_data.get("games", [])
     teams = match_data.get("teams", [])
-    league_name = s.get("league") or data.get("league", {}).get("name", "")
+    inner_data = data.get("data") or data
+    league_name = s.get("league") or inner_data.get("league", {}).get("name", "")
 
     # Se não há games, o match_id provavelmente não é da Riot API
     if not games and not teams:
