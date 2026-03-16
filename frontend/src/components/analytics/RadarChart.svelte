@@ -27,7 +27,7 @@
   const centerY = (height - 50) / 2 + 20; // shift up to leave room for legend at bottom
   const radius = 120;
   const levels = 5;
-  const angleStep = 360 / labels.length;
+  const angleStep = $derived(360 / labels.length);
 
   function polarToCartesian(angle: number, distance: number) {
     const rad = (angle - 90) * (Math.PI / 180);
@@ -125,6 +125,8 @@
       {@const pt = polarToCartesian(angleStep * i, (val / 100) * radius)}
       <circle bind:this={dotEls[i]}
         cx={pt.x} cy={pt.y} r="5" fill="#3b82f6"
+        role="img"
+        aria-label="{labels[i]} indicator for {team1}"
         style="filter: drop-shadow(0 0 4px rgba(59,130,246,0.9)); cursor: pointer"
         onmouseenter={(e) => showTooltip(e, i)}
         onmouseleave={hideTooltip} />
@@ -135,6 +137,8 @@
       {@const pt = polarToCartesian(angleStep * i, (val / 100) * radius)}
       <circle bind:this={dotEls[labels.length + i]}
         cx={pt.x} cy={pt.y} r="5" fill="#ef4444"
+        role="img"
+        aria-label="{labels[i]} indicator for {team2}"
         style="filter: drop-shadow(0 0 4px rgba(239,68,68,0.9)); cursor: pointer"
         onmouseenter={(e) => showTooltip(e, i)}
         onmouseleave={hideTooltip} />
