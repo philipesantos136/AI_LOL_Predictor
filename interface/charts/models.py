@@ -212,6 +212,29 @@ class EVFinderSection(BaseModel):
     joint_card: EVFinderTeamCard
 
 
+class SeriesStatEntry(BaseModel):
+    """Detailed stats for a specific game number in a series."""
+
+    game: int
+    matches: int
+    avg_kills: float
+    avg_deaths: float
+    avg_dragons: float
+    avg_barons: float
+    avg_towers: float
+    avg_duration_min: float
+    win_rate: float
+
+
+class SeriesSection(BaseModel):
+    """Breakdown of performance by game number in a series (Game 1, Game 2, etc.)."""
+
+    t1_series: List[SeriesStatEntry]
+    t2_series: List[SeriesStatEntry]
+    explain_text: str
+    comments: List[str]
+
+
 class AnalyticsResponse(BaseModel):
     """
     Top-level response model for POST /api/analytics/insights.
@@ -237,4 +260,5 @@ class AnalyticsResponse(BaseModel):
     towers: Optional[DistributionSection] = None
     barons: Optional[DistributionSection] = None
     duration: Optional[DistributionSection] = None
+    series: Optional[SeriesSection] = None
     ev_finder: Optional[EVFinderSection] = None
