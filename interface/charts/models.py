@@ -212,6 +212,22 @@ class EVFinderSection(BaseModel):
     joint_card: EVFinderTeamCard
 
 
+class SideStatEntry(BaseModel):
+    side: str
+    games: int
+    wins: int
+    win_rate: float
+
+
+class LeagueContextSection(BaseModel):
+    league: str
+    avg_total_kills: float
+    blue_win_rate: float
+    avg_duration: float
+    total_games_analyzed: int
+    insights: List[str]
+
+
 class SeriesStatEntry(BaseModel):
     """Detailed stats for a specific game number in a series."""
 
@@ -261,4 +277,6 @@ class AnalyticsResponse(BaseModel):
     barons: Optional[DistributionSection] = None
     duration: Optional[DistributionSection] = None
     series: Optional[SeriesSection] = None
+    side_performance: Optional[Dict[str, List[SideStatEntry]]] = None
+    league_context: Optional[LeagueContextSection] = None
     ev_finder: Optional[EVFinderSection] = None
