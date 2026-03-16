@@ -943,16 +943,14 @@ def gen_timeline_chart(s1, s2, t1, t2, mult1=None, mult2=None):
 
 def gen_radar_dna(s1, s2, t1, t2):
     """Radar (Spider) Chart mapeando o DNA do time."""
-    categories = ['Win Rate', 'EGR Score (Early)', 'MLR Score (Late)', 'Visão (VSPM)', 'Economia (EGPM)', 'Ação (KPM)']
+    categories = ['Win Rate', 'EGR Score (Early)', 'MLR Score (Late)', 'Ação (KPM)']
     
     def calc_radar(stats):
         wr = stats.get("win_rate", 0)
         egr = (stats.get("fb_rate", 0) + stats.get("fd_rate", 0)) / 2
         mlr = min((stats.get("avg_barons", 0) + stats.get("avg_inhibitors", 0) * 1.5 + stats.get("avg_towers", 0) / 4) * 20, 100)
-        vis = min(stats.get("visionscore", 0) / 3.5 * 100, 100) # Norm 3.5 VSPM
-        eco = min(stats.get("cspm", 0) / 35 * 100, 100) # Proxy norm
         kpm = min(stats.get("avg_kpm", 0) / 1.0 * 100, 100) # Norm 1.0 kpm
-        return [wr, egr, mlr, vis, eco, kpm]
+        return [wr, egr, mlr, kpm]
 
     fig = go.Figure()
     for stats, team, color in [(s1, t1, "rgba(59,130,246,0.3)"), (s2, t2, "rgba(239,68,68,0.3)")]:
@@ -978,27 +976,23 @@ def gen_radar_dna(s1, s2, t1, t2):
     # MLR: aligned with EV Finder formula (barons + inhibitors + towers/5) / 3 * 20
     mlr_1 = min((s1.get("avg_barons", 0) + s1.get("avg_inhibitors", 0) + s1.get("avg_towers", 0) / 5) / 3 * 20, 100)
     mlr_2 = min((s2.get("avg_barons", 0) + s2.get("avg_inhibitors", 0) + s2.get("avg_towers", 0) / 5) / 3 * 20, 100)
-    vis_1 = min(s1.get("visionscore", 0) / 3.5 * 100, 100)
-    vis_2 = min(s2.get("visionscore", 0) / 3.5 * 100, 100)
     kpm_1 = min(s1.get("avg_kpm", 0) / 1.0 * 100, 100)
     kpm_2 = min(s2.get("avg_kpm", 0) / 1.0 * 100, 100)
-    eco_1 = min(s1.get("cspm", 0) / 35 * 100, 100)
-    eco_2 = min(s2.get("cspm", 0) / 35 * 100, 100)
+
     # Identify team profiles using EV-aligned metrics
-    for team, egr_v, mlr_v, vis_v, kpm_v, eco_v in [(t1, egr_1, mlr_1, vis_1, kpm_1, eco_1), (t2, egr_2, mlr_2, vis_2, kpm_2, eco_2)]:
+    for team, egr_v, mlr_v, kpm_v in [(t1, egr_1, mlr_1, kpm_1), (t2, egr_2, mlr_2, kpm_2)]:
         if egr_v > 60 and kpm_v > 60:
             comments.append(f'⚔️ <b>{team} tem perfil AGRESSIVO</b> (EGR {egr_v:.0f}%, KPM {kpm_v:.0f}%). Busca jogos caóticos e rápidos. Favoreça <b>Over em kills</b> e <b>Under em duração</b> quando este time joga.')
-        elif mlr_v > 60 and vis_v > 60:
-            comments.append(f'🧠 <b>{team} tem perfil CONTROLADO</b> (MLR {mlr_v:.0f}%, Visão {vis_v:.0f}%). Joga por objetivos e controle de mapa. Favoreça <b>Over em duração</b> e <b>Over em Barões</b>.')
-        elif eco_v > 70 and kpm_v < 40:  # Economy high, KPM low
-            comments.append(f'💰 <b>{team} é um time FARM-HEAVY</b> (Economia {eco_v:.0f}%, Ação apenas {kpm_v:.0f}%). Acumula recursos mas evita lutas. Jogos tendem a ser mais longos e com menos kills.')
+        elif mlr_v > 60:
+            comments.append(f'🧠 <b>{team} tem perfil CONTROLADO</b> (MLR {mlr_v:.0f}%). Joga por objetivos e controle de mapa. Favoreça <b>Over em duração</b> e <b>Over em Barões</b>.')
+
     # Profile clash using EV-aligned EGR/MLR
-    if egr_1 > 55 and kpm_1 > 55 and mlr_2 > 55 and vis_2 > 55:
+    if egr_1 > 55 and kpm_1 > 55 and mlr_2 > 55:
         comments.append(f'💥 <b>Duelo de estilos!</b> {t1} (agressivo/early) vs {t2} (controlado/late). A partida depende de quem impõe o ritmo. Se {t1} não dominar o early, {t2} tende a virar. Janela de aposta live nos 15min.')
-    elif egr_2 > 55 and kpm_2 > 55 and mlr_1 > 55 and vis_1 > 55:
+    elif egr_2 > 55 and kpm_2 > 55 and mlr_1 > 55:
         comments.append(f'💥 <b>Duelo de estilos!</b> {t2} (agressivo/early) vs {t1} (controlado/late). A partida depende de quem impõe o ritmo. Se {t2} não dominar o early, {t1} tende a virar. Janela de aposta live nos 15min.')
     return (fig_to_html(fig) + 
-            explain("O <b>Gráfico de Radar</b> é o padrão-ouro para ler o DNA dos times. Um time esticado em <i>EGR e Ação</i> busca jogos caóticos e curtos. Um dominando <i>MLR e Visão</i> joga pelas lutas de objetivos amplas.")
+            explain("O <b>Gráfico de Radar</b> é o padrão-ouro para ler o DNA dos times. Um time esticado em <i>EGR e Ação</i> busca jogos caóticos e curtos. Um dominando <i>MLR</i> joga pelas lutas de objetivos amplas.")
             + data_comment(comments))
 
 def gen_vision_control(s1, s2, t1, t2):
