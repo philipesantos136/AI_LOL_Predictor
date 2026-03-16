@@ -213,3 +213,5 @@ frontend/dist/
 # Residuals / Dev Temp
 tmp/
 api_debug.json
+
+docs/
