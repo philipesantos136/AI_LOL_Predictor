@@ -1,7 +1,9 @@
 import uvicorn
+import orjson
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import sqlite3
@@ -19,7 +21,19 @@ GETLIVE_URL = "https://esports-api.lolesports.com/persisted/gw/getLive?hl=pt-BR"
 
 health_monitor = HealthMonitor(check_url=GETLIVE_URL, headers=LIVE_HEADERS)
 
-app = FastAPI(title="AI LoL Predictor API", version="1.0")
+app = FastAPI(
+    title="AI LoL Predictor API",
+    version="1.0",
+    default_response_class=ORJSONResponse
+)
+
+# Helper function for orjson responses with numpy/dataclass support
+def orjson_response(data: Any) -> ORJSONResponse:
+    """Custom response using orjson with extra serialization options."""
+    import orjson
+    return ORJSONResponse(
+        content=orjson.loads(orjson.dumps(data, option=orjson.OPT_SERIALIZE_NUMPY))
+    )
 
 # Serve champion images
 champ_dir = Path(__file__).parent / "data" / "champs"
@@ -47,9 +61,9 @@ async def startup_event():
 
 
 @app.get("/api/health")
-def health_check():
+async def health_check():
     """Retorna o status de saúde da API do LoL Esports via HealthMonitor."""
-    status = health_monitor.get_status()
+    status = await health_monitor.get_status()
     response: Dict[str, Any] = {
         "is_healthy": status.is_healthy,
         "last_check": status.last_check.isoformat(),
@@ -62,13 +76,13 @@ def health_check():
     return response
 
 @app.get("/api/metrics")
-def get_metrics():
+async def get_metrics():
     """Retorna métricas do sistema."""
     from interface.live_service import _cache_layer, _retry_system
 
     cache_stats = _cache_layer.get_stats()
     retry_stats = _retry_system.get_stats()
-    health_status = health_monitor.get_status()
+    health_status = await health_monitor.get_status()
 
     return {
         "cache": cache_stats,
@@ -80,24 +94,24 @@ def get_metrics():
     }
 
 @app.get("/api/live/games", response_model=List[Dict[str, Any]])
-def get_live_games():
+async def get_live_games():
     """
     Returns the currently live games dynamically from LoL Esports or Aureom API.
     """
     try:
-        live_games = live_service.get_live_games()
+        live_games = await live_service.get_live_games()
         return live_games
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/live/match/{match_id}", response_model=Dict[str, Any])
-def get_match_by_id(match_id: str):
+async def get_match_by_id(match_id: str):
     """
     Returns data for a specific match by match_id or game_id.
     Searches live games, today's schedule, and getEventDetails (including completed matches).
     """
     try:
-        data = live_service.get_match_data_by_id(match_id)
+        data = await live_service.get_match_data_by_id(match_id)
         if not data:
             raise HTTPException(status_code=404, detail="Partida não encontrada")
         return data
@@ -107,12 +121,12 @@ def get_match_by_id(match_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/live/today", response_model=List[Dict[str, Any]])
-def get_today_games():
+async def get_today_games():
     """
     Returns the scheduled/completed games for today from LoL Esports API.
     """
     try:
-        today_games = live_service.get_schedule_today()
+        today_games = await live_service.get_schedule_today()
         return today_games
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -166,13 +180,23 @@ def get_champions():
     return {"champions": [""] + campeoes if campeoes else ["Nenhum campeão encontrado"]}
 
 @app.get("/api/analytics/team_logo/{team_name}")
-def get_team_logo_endpoint(team_name: str):
-    # Check local cache only — logos are served from data/logos/
+async def get_team_logo_endpoint(team_name: str):
+    # Check local cache first
     logo_filename = f"{team_name.replace(' ', '_')}.png"
     logo_path = Path(__file__).parent / "data" / "logos" / logo_filename
     
     if logo_path.exists():
         return {"url": f"/logos/{logo_filename}"}
+    
+    # Lazy download from Liquipedia if not found locally
+    try:
+        from interface.logo_downloader import download_team_logo_liquipedia
+        success = await download_team_logo_liquipedia(team_name)
+        if success and logo_path.exists():
+            return {"url": f"/logos/{logo_filename}"}
+    except Exception as e:
+        print(f"Erro ao tentar baixar logo: {e}")
+        
     return {"url": None}
 
 @app.post("/api/analytics/insights", response_model=AnalyticsResponse)
