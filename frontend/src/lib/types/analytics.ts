@@ -181,6 +181,22 @@ export interface SeriesSection {
   comments: string[];
 }
 
+export interface SideStatEntry {
+  side: string;
+  games: number;
+  wins: number;
+  win_rate: number;
+}
+
+export interface LeagueContextSection {
+  league: string;
+  avg_total_kills: number;
+  blue_win_rate: number;
+  avg_duration: number;
+  total_games_analyzed: number;
+  insights: string[];
+}
+
 export interface AnalyticsResponse {
   meta: {
     team1: string;
@@ -207,5 +223,7 @@ export interface AnalyticsResponse {
   barons?: DistributionSection;
   duration?: DistributionSection;
   series?: SeriesSection;
+  side_performance?: Record<string, SideStatEntry[]>;
+  league_context?: LeagueContextSection;
   ev_finder?: EVFinderSection;
 }
