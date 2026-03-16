@@ -16,6 +16,8 @@
   import ObjectivesSection from '../../components/analytics/ObjectivesSection.svelte';
   import DurationSection from '../../components/analytics/DurationSection.svelte';
   import SeriesSection from '../../components/analytics/SeriesSection.svelte';
+  import SidePerformanceSection from '../../components/analytics/SidePerformanceSection.svelte';
+  import LeagueContextSection from '../../components/analytics/LeagueContextSection.svelte';
   import EVFinderSection from '../../components/analytics/EVFinderSection.svelte';
 
   let teams: string[] = $state([]);
@@ -372,11 +374,20 @@
         <EducationalSection />
       </div>
 
+      {#if analyticsData.league_context}
+        <div class="analytics-section">
+          <LeagueContextSection data={analyticsData.league_context} />
+        </div>
+      {/if}
+
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <!-- Coluna Esquerda: Stack de métricas e distribuições -->
         <div class="flex flex-col gap-6 h-full">
           <div class="analytics-section"><EGRSection data={analyticsData.egr} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} /></div>
           <div class="analytics-section"><RadarSection data={analyticsData.radar} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} /></div>
+          {#if analyticsData.side_performance}
+            <div class="analytics-section"><SidePerformanceSection data={analyticsData.side_performance} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} /></div>
+          {/if}
           <div class="analytics-section"><PaceSection data={analyticsData.pace} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} /></div>
           <div class="analytics-section"><RecentFormSection data={analyticsData.recent_form} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} /></div>
           
