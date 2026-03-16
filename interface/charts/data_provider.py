@@ -299,3 +299,59 @@ def get_series_stats(team_name, patches=None):
     except Exception as e:
         print(f"  ⚠️ Erro ao consultar Series Stats ({team_name}): {e}")
         return []
+
+
+def get_side_stats(team_name, patches=None):
+    """Retorna vitórias e jogos por lado (Blue/Red) para um time."""
+    db_path = get_db_path()
+    patch_clause, patch_params = build_patch_clause(patches)
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        base_where = f"position='team' AND teamname = ?{patch_clause}"
+        params = [team_name] + patch_params
+
+        query = f"""
+            SELECT 
+                side,
+                COUNT(*) as games,
+                SUM(CASE WHEN result='1' THEN 1 ELSE 0 END) as wins
+            FROM match_data_silver
+            WHERE {base_where}
+            GROUP BY side
+        """
+        c.execute(query, params)
+        rows = c.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    except Exception as e:
+        print(f"  ⚠️ Erro ao consultar Side Stats ({team_name}): {e}")
+        return []
+
+
+def get_league_context(league_name):
+    """Busca o baseline da liga (média de abates, side bias)."""
+    db_path = get_db_path()
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        query = """
+            SELECT 
+                AVG(teamkills + teamdeaths) as avg_total_kills,
+                AVG(CASE WHEN side='Blue' AND result='1' THEN 1.0 WHEN side='Blue' THEN 0.0 END) * 100 as blue_win_rate,
+                AVG(gamelength) / 60.0 as avg_duration,
+                COUNT(*) / 2 as total_games
+            FROM match_data_silver
+            WHERE position='team' AND league = ?
+        """
+        c.execute(query, (league_name,))
+        row = c.fetchone()
+        conn.close()
+        return dict(row) if row and row['total_games'] > 0 else None
+    except Exception as e:
+        print(f"  ⚠️ Erro ao consultar League Context ({league_name}): {e}")
+        return None
