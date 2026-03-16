@@ -26,12 +26,12 @@
   const chartW = width - pad.left - pad.right;
   const secH = (height - pad.top - pad.bottom) / 3;
 
-  const allGold = [...timelineData.gold_diff_t1, ...timelineData.gold_diff_t2];
-  const allCs = [...timelineData.cs_diff_t1, ...timelineData.cs_diff_t2];
-  const allXp = [...timelineData.xp_diff_t1, ...timelineData.xp_diff_t2];
-  const maxGold = Math.max(...allGold.map(Math.abs), 1) * 1.2;
-  const maxCs = Math.max(...allCs.map(Math.abs), 1) * 1.2;
-  const maxXp = Math.max(...allXp.map(Math.abs), 1) * 1.2;
+  const allGold = $derived([...timelineData.gold_diff_t1, ...timelineData.gold_diff_t2]);
+  const allCs = $derived([...timelineData.cs_diff_t1, ...timelineData.cs_diff_t2]);
+  const allXp = $derived([...timelineData.xp_diff_t1, ...timelineData.xp_diff_t2]);
+  const maxGold = $derived(Math.max(...allGold.map(Math.abs), 1) * 1.2);
+  const maxCs = $derived(Math.max(...allCs.map(Math.abs), 1) * 1.2);
+  const maxXp = $derived(Math.max(...allXp.map(Math.abs), 1) * 1.2);
 
   const goldY = pad.top;
   const csY = pad.top + secH;
@@ -94,6 +94,7 @@
     {#each timelineData.minutes as _, i}
       <circle cx={ptX(i)} cy={ptY(timelineData.gold_diff_t1[i], goldY, maxGold)} r="6"
         fill="#3b82f6" opacity="0" style="cursor:pointer"
+        role="img" aria-label="Gold Diff at {timelineData.minutes[i]}min"
         onmouseenter={(e) => showTip(e, i, 'Gold Diff', timelineData.gold_diff_t1[i], timelineData.gold_diff_t2[i], 'g')}
         onmouseleave={hideTip}
         class="hover:opacity-100 transition-opacity" />
@@ -114,6 +115,7 @@
     {#each timelineData.minutes as _, i}
       <circle cx={ptX(i)} cy={ptY(timelineData.cs_diff_t1[i], csY, maxCs)} r="6"
         fill="#3b82f6" opacity="0" style="cursor:pointer"
+        role="img" aria-label="CS Diff at {timelineData.minutes[i]}min"
         onmouseenter={(e) => showTip(e, i, 'CS Diff', timelineData.cs_diff_t1[i], timelineData.cs_diff_t2[i], 'cs')}
         onmouseleave={hideTip}
         class="hover:opacity-100 transition-opacity" />
@@ -134,6 +136,7 @@
     {#each timelineData.minutes as _, i}
       <circle cx={ptX(i)} cy={ptY(timelineData.xp_diff_t1[i], xpY, maxXp)} r="6"
         fill="#3b82f6" opacity="0" style="cursor:pointer"
+        role="img" aria-label="XP Diff at {timelineData.minutes[i]}min"
         onmouseenter={(e) => showTip(e, i, 'XP Diff', timelineData.xp_diff_t1[i], timelineData.xp_diff_t2[i], 'xp')}
         onmouseleave={hideTip}
         class="hover:opacity-100 transition-opacity" />
