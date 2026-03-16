@@ -27,8 +27,8 @@ async def download_team_logo_liquipedia(team_name: str) -> bool:
         "Accept-Encoding": "gzip"
     }
     
-    async def get_team_page_via_search(name: str, client: httpx.AsyncClient) -> str:
-        """Usa API de busca para encontrar o nome correto da página do time."""
+    async def get_team_page_via_search(name: str, client: httpx.AsyncClient) -> tuple[str, str]:
+        """Usa API de busca para encontrar o nome correto e URL da página do time."""
         async def _search(q: str):
             try:
                 url = f"https://liquipedia.net/leagueoflegends/api.php?action=opensearch&search={q}&limit=5&format=json"
@@ -37,37 +37,37 @@ async def download_team_logo_liquipedia(team_name: str) -> bool:
                     data = res.json()
                     titles, urls = data[1], data[3]
                     for i, title in enumerate(titles):
-                        if q.lower() in title.lower(): return urls[i]
-                    if urls: return urls[0]
+                        if q.lower() in title.lower(): return title, urls[i]
+                    if urls: return titles[0], urls[0]
             except: pass
-            return None
+            return None, None
 
         # 1. Tenta nome completo
-        url = await _search(name)
-        if url: return url
+        title, url = await _search(name)
+        if title: return title, url
 
         # 2. Tenta sem "Team" no início
         if name.lower().startswith("team "):
-            url = await _search(name[5:])
-            if url: return url
+            title, url = await _search(name[5:])
+            if title: return title, url
 
-        # 3. Tenta apenas as duas primeiras palavras (para casos de fusão/patrocínio)
+        # 3. Tenta apenas as duas primeiras palavras
         parts = name.split()
         if len(parts) > 2:
-            url = await _search(" ".join(parts[:2]))
-            if url: return url
+            title, url = await _search(" ".join(parts[:2]))
+            if title: return title, url
             
-        return None
+        return None, None
 
     try:
         async with httpx.AsyncClient(headers=headers, follow_redirects=True) as client:
             print(f"🔍 Buscando {team_name} via API Liquipedia...")
             
-            # Estratégia 1: Busca Direta via Opensearch (mais robusto)
-            team_page_url = await get_team_page_via_search(team_name, client)
+            # Estratégia 1: Busca Direta via Opensearch
+            team_title, team_page_url = await get_team_page_via_search(team_name, client)
             
-            # Estratégia 2: Fallback para Portal:Teams se a busca falhar
-            if not team_page_url:
+            # Estratégia 2: Fallback para Portal:Teams (já usa API de parse)
+            if not team_title:
                 print(f"⚠️ Busca falhou para {team_name}. Tentando portal de times...")
                 portal_url = "https://liquipedia.net/leagueoflegends/api.php?action=parse&page=Portal:Teams&format=json"
                 response = await client.get(portal_url, timeout=20)
@@ -75,43 +75,44 @@ async def download_team_logo_liquipedia(team_name: str) -> bool:
                 if response.status_code == 200:
                     html_content = response.json().get('parse', {}).get('text', {}).get('*', '')
                     soup = BeautifulSoup(html_content, 'html.parser')
-                    
-                    # Procura pelo link do time
                     team_link = soup.find('a', title=re.compile(f"^{re.escape(team_name)}$", re.I))
                     if not team_link:
                         team_link = soup.find('a', string=re.compile(f"^{re.escape(team_name)}$", re.I))
                     
-                    if not team_link:
-                        for span in soup.find_all('span', class_='team-template-text'):
-                            a = span.find('a')
-                            if a and (a.get_text().lower() == team_name.lower() or a.get('title', '').lower() == team_name.lower()):
-                                team_link = a
-                                break
-                    
                     if team_link:
-                        path = team_link['href']
-                        if not path.startswith('/leagueoflegends/'):
-                            if not path.startswith('/'): path = '/' + path
-                        team_page_url = f"https://liquipedia.net{path}"
+                        team_title = team_link.get('title')
+                        # Se não tiver title, tenta extrair do href
+                        if not team_title:
+                            team_title = team_link['href'].split('/')[-1]
 
-            if not team_page_url:
+            if not team_title:
                 print(f"❌ Time {team_name} não encontrado na Liquipedia.")
                 return False
             
-            print(f"🔍 Acessando página do time: {team_page_url}")
-            team_response = await client.get(team_page_url, timeout=20)
-            team_response.raise_for_status()
+            # AGORA: Uso da API action=parse para pegar o conteúdo da página do time sem 403
+            print(f"🔍 Parseando página do time via API: {team_title}")
+            parse_url = f"https://liquipedia.net/leagueoflegends/api.php?action=parse&page={team_title}&format=json"
+            parse_response = await client.get(parse_url, timeout=20)
             
-            team_soup = BeautifulSoup(team_response.text, 'html.parser')
+            if parse_response.status_code != 200:
+                print(f"❌ Falha ao parsear API para {team_title} (Status {parse_response.status_code})")
+                return False
+                
+            html_content = parse_response.json().get('parse', {}).get('text', {}).get('*', '')
+            if not html_content:
+                print(f"❌ Conteúdo vazio na API de parse para {team_title}")
+                return False
+
+            team_soup = BeautifulSoup(html_content, 'html.parser')
             infobox = team_soup.find('div', class_='infobox-image') or team_soup.find('table', class_='infobox')
             
             if not infobox:
-                print(f"❌ Infobox não encontrada na página de {team_name}")
+                print(f"❌ Infobox não encontrada (via API) na página de {team_name}")
                 return False
                 
             logo_img = infobox.find('img')
             if not logo_img:
-                print(f"❌ Logo não encontrada na página de {team_name}")
+                print(f"❌ Logo não encontrada na infobox de {team_name}")
                 return False
             
             logo_src = logo_img.get('src') or logo_img.get('data-src')
