@@ -1,9 +1,8 @@
 import uvicorn
 import orjson
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import sqlite3
@@ -21,19 +20,25 @@ GETLIVE_URL = "https://esports-api.lolesports.com/persisted/gw/getLive?hl=pt-BR"
 
 health_monitor = HealthMonitor(check_url=GETLIVE_URL, headers=LIVE_HEADERS)
 
+class CustomORJSONResponse(Response):
+    media_type = "application/json"
+
+    def render(self, content: Any) -> bytes:
+        return orjson.dumps(
+            content, 
+            option=orjson.OPT_SERIALIZE_NUMPY | orjson.OPT_INDENT_2
+        )
+
 app = FastAPI(
     title="AI LoL Predictor API",
     version="1.0",
-    default_response_class=ORJSONResponse
+    default_response_class=CustomORJSONResponse
 )
 
 # Helper function for orjson responses with numpy/dataclass support
-def orjson_response(data: Any) -> ORJSONResponse:
+def orjson_response(data: Any) -> CustomORJSONResponse:
     """Custom response using orjson with extra serialization options."""
-    import orjson
-    return ORJSONResponse(
-        content=orjson.loads(orjson.dumps(data, option=orjson.OPT_SERIALIZE_NUMPY))
-    )
+    return CustomORJSONResponse(content=data)
 
 # Serve champion images
 champ_dir = Path(__file__).parent / "data" / "champs"
