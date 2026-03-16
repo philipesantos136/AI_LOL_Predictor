@@ -159,42 +159,35 @@ def build_radar_section(s1, s2, t1, t2, g1=None, g2=None):
         wr = stats.get("win_rate", 0)
         egr = (stats.get("fb_rate", 0) + stats.get("fd_rate", 0) + stats.get("fherald_rate", 0)) / 3
         mlr = min((stats.get("avg_barons", 0) + stats.get("avg_inhibitors", 0) + stats.get("avg_towers", 0) / 5) / 3 * 20, 100)
-        vis = min(stats.get("visionscore", 0) / 3.5 * 100, 100)
-        eco = min(stats.get("cspm", 0) / 35 * 100, 100)
         kpm = min(stats.get("avg_kpm", 0) / 1.0 * 100, 100)
-        return [wr, egr, mlr, vis, eco, kpm]
+        return [wr, egr, mlr, kpm]
 
     t1_vals = calc_radar(s1)
     t2_vals = calc_radar(s2)
-    wr_1, egr_1, mlr_1, vis_1, eco_1, kpm_1 = t1_vals
-    wr_2, egr_2, mlr_2, vis_2, eco_2, kpm_2 = t2_vals
+    wr_1, egr_1, mlr_1, kpm_1 = t1_vals
+    wr_2, egr_2, mlr_2, kpm_2 = t2_vals
 
     comments = []
 
     # --- Archetype detection (lowered thresholds to fire more often) ---
-    for team, wr_v, egr_v, mlr_v, vis_v, kpm_v, eco_v in [
-        (t1, wr_1, egr_1, mlr_1, vis_1, kpm_1, eco_1),
-        (t2, wr_2, egr_2, mlr_2, vis_2, kpm_2, eco_2),
+    for team, wr_v, egr_v, mlr_v, kpm_v in [
+        (t1, wr_1, egr_1, mlr_1, kpm_1),
+        (t2, wr_2, egr_2, mlr_2, kpm_2),
     ]:
         if egr_v > 55 and kpm_v > 50:
             comments.append(
                 f'⚔️ <b>{team} tem perfil AGRESSIVO</b> (EGR {egr_v:.0f}%, KPM {kpm_v:.0f}%). '
                 f'Busca jogos caóticos e rápidos. Favoreça <b>Over em kills</b> e <b>Under em duração</b>.'
             )
-        elif mlr_v > 50 and vis_v > 50:
+        elif mlr_v > 50:
             comments.append(
-                f'🧠 <b>{team} tem perfil CONTROLADO</b> (MLR {mlr_v:.0f}%, Visão {vis_v:.0f}%). '
+                f'🧠 <b>{team} tem perfil CONTROLADO</b> (MLR {mlr_v:.0f}%). '
                 f'Joga por objetivos e controle de mapa. Favoreça <b>Over em duração</b> e <b>Over em Barões</b>.'
-            )
-        elif eco_v > 60 and kpm_v < 45:
-            comments.append(
-                f'💰 <b>{team} é um time FARM-HEAVY</b> (Economia {eco_v:.0f}%, Ação apenas {kpm_v:.0f}%). '
-                f'Acumula recursos mas evita lutas. Jogos tendem a ser mais longos e com menos kills.'
             )
         else:
             # Generic comment always fires as fallback
             dominant_dim = max(
-                [("EGR", egr_v), ("MLR", mlr_v), ("Visão", vis_v), ("Economia", eco_v), ("KPM", kpm_v)],
+                [("EGR", egr_v), ("MLR", mlr_v), ("KPM", kpm_v)],
                 key=lambda x: x[1]
             )
             comments.append(
@@ -203,12 +196,12 @@ def build_radar_section(s1, s2, t1, t2, g1=None, g2=None):
             )
 
     # --- Style clash detection ---
-    if egr_1 > 50 and kpm_1 > 45 and mlr_2 > 50 and vis_2 > 45:
+    if egr_1 > 50 and kpm_1 > 45 and mlr_2 > 50:
         comments.append(
             f'💥 <b>Duelo de estilos!</b> {t1} (agressivo/early) vs {t2} (controlado/late). '
             f'Se {t1} não dominar o early, {t2} tende a virar. Janela de aposta live nos 15min.'
         )
-    elif egr_2 > 50 and kpm_2 > 45 and mlr_1 > 50 and vis_1 > 45:
+    elif egr_2 > 50 and kpm_2 > 45 and mlr_1 > 50:
         comments.append(
             f'💥 <b>Duelo de estilos!</b> {t2} (agressivo/early) vs {t1} (controlado/late). '
             f'Se {t2} não dominar o early, {t1} tende a virar. Janela de aposta live nos 15min.'
@@ -247,12 +240,12 @@ def build_radar_section(s1, s2, t1, t2, g1=None, g2=None):
             )
 
     return {
-        "labels": ["Win Rate", "EGR Score (Early)", "MLR Score (Late)", "Visão (VSPM)", "Economia (EGPM)", "Ação (KPM)"],
+        "labels": ["Win Rate", "EGR Score (Early)", "MLR Score (Late)", "Ação (KPM)"],
         "t1_values": t1_vals,
         "t2_values": t2_vals,
         "explain_text": (
             "O <b>Gráfico de Radar</b> é o padrão-ouro para ler o DNA dos times. Um time esticado em <i>EGR e Ação</i> "
-            "busca jogos caóticos e curtos. Um dominando <i>MLR e Visão</i> joga pelas lutas de objetivos amplas."
+            "busca jogos caóticos e curtos. Um dominando <i>MLR</i> joga pelas lutas de objetivos amplas."
         ),
         "comments": comments,
     }
