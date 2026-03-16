@@ -81,9 +81,9 @@ class MLRSection(BaseModel):
 
 
 class RadarSection(BaseModel):
-    """Radar/spider chart data for Team DNA (6 tactical dimensions)."""
+    """Radar/spider chart data for Team DNA (4 tactical dimensions)."""
 
-    labels: List[str]  # ["Win Rate", "EGR Score", "MLR Score", "Visão", "Economia", "Ação"]
+    labels: List[str]  # ["Win Rate", "EGR Score", "MLR Score", "Ação"]
     t1_values: List[float]
     t2_values: List[float]
     explain_text: str
