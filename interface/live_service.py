@@ -7,10 +7,11 @@ API de referência: https://github.com/vickz84259/lolesports-api-docs
 Inspirado em: https://github.com/Aureom/live-lol-esports
 """
 
-import requests
+import httpx
 import random
 import time
 import os
+import asyncio
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 
@@ -46,6 +47,7 @@ class _ContextFilter(logging.Filter):
 # Silencia logs de bibliotecas externas
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("interface.retry_system").setLevel(logging.WARNING)
 
 logging.basicConfig(
@@ -88,20 +90,20 @@ def get_iso_date_multiple_of_10() -> str:
 
 
 # ─── Funções de acesso à API ──────────────────────────────────────────────────
-def get_live_games() -> list:
+async def get_live_games() -> list:
     """Retorna lista de jogos em andamento com metadados dos times."""
     try:
         # Busca schedule de hoje como referência caso faltem dados no getLive
-        today_sched = get_schedule_today()
+        today_sched = await get_schedule_today()
         
-        r = requests.get(
-            f"{API_URL_PERSISTED}/getLive",
+        data = await _retry_system.async_fetch_with_retry(
+            url=f"{API_URL_PERSISTED}/getLive",
             params={"hl": "pt-BR"},
             headers=HEADERS,
             timeout=10,
         )
-        r.raise_for_status()
-        events = r.json().get("data", {}).get("schedule", {}).get("events", [])
+        if not data: return []
+        events = data.get("schedule", {}).get("events", [])
         result = []
         
         # Manter controle de quais match_ids do schedule já foram usados para evitar colisões
@@ -253,17 +255,17 @@ def get_live_games() -> list:
         logger.error(f"Erro ao buscar partidas ao vivo: {e}", exc_info=True)
         return []
 
-def get_schedule_today() -> list:
+async def get_schedule_today() -> list:
     """Retorna lista de todas as partidas agendadas para o dia de hoje (UTC)."""
     try:
-        r = requests.get(
-            f"{API_URL_PERSISTED}/getSchedule",
+        data = await _retry_system.async_fetch_with_retry(
+            url=f"{API_URL_PERSISTED}/getSchedule",
             params={"hl": "pt-BR"},
             headers=HEADERS,
             timeout=10,
         )
-        r.raise_for_status()
-        events = r.json().get("data", {}).get("schedule", {}).get("events", [])
+        if not data: return []
+        events = data.get("schedule", {}).get("events", [])
         
         today = datetime.now(timezone.utc).date()
         result = []
@@ -309,7 +311,7 @@ def get_schedule_today() -> list:
         return []
 
 
-def get_game_window(game_id: str):
+async def get_game_window(game_id: str):
     """Retorna o último frame de window (stats de time e jogadores) com cache e retry."""
     cache_key = f"window_{game_id}"
     cached = _cache_layer.get(cache_key)
@@ -320,8 +322,8 @@ def get_game_window(game_id: str):
     try:
         date = get_iso_date_multiple_of_10()
         
-        # Use RetrySystem.fetch_with_retry
-        data = _retry_system.fetch_with_retry(
+        # Use RetrySystem.async_fetch_with_retry
+        data = await _retry_system.async_fetch_with_retry(
             url=f"{API_URL_LIVE}/window/{game_id}",
             params={"hl": "pt-BR", "startingTime": date, "_": _get_cache_buster()},
             headers=HEADERS,
@@ -348,7 +350,7 @@ def get_game_window(game_id: str):
         return None
 
 
-def get_game_details(game_id: str, timestamp: str = None):
+async def get_game_details(game_id: str, timestamp: str = None):
     """Retorna o último frame de details (items dos jogadores) com cache e retry."""
     cache_key = f"details_{game_id}_{timestamp}" if timestamp else f"details_{game_id}"
     cached = _cache_layer.get(cache_key)
@@ -361,8 +363,8 @@ def get_game_details(game_id: str, timestamp: str = None):
         if timestamp:
             params["startingTime"] = timestamp
         
-        # Use RetrySystem.fetch_with_retry
-        data = _retry_system.fetch_with_retry(
+        # Use RetrySystem.async_fetch_with_retry
+        data = await _retry_system.async_fetch_with_retry(
             url=f"{API_URL_LIVE}/details/{game_id}",
             params=params,
             headers=HEADERS,
@@ -380,7 +382,7 @@ def get_game_details(game_id: str, timestamp: str = None):
         # Fallback: Se retornou sucesso mas sem frames (comum se o startingTime for futuro), tenta sem startingTime
         if not frames and timestamp:
             logger.debug(f"Details {game_id} retornou vazio para timestamp {timestamp}, tentando sem startingTime.", extra={"game_id": game_id})
-            data = _retry_system.fetch_with_retry(
+            data = await _retry_system.async_fetch_with_retry(
                 url=f"{API_URL_LIVE}/details/{game_id}",
                 params={"hl": "pt-BR", "_": _get_cache_buster()},
                 headers=HEADERS,
@@ -588,21 +590,21 @@ def _render_team_table(team_name: str, participants: list, meta_parts: list,
 
 
 # ─── Renderizador principal ───────────────────────────────────────────────────
-def render_live_match(game_info: dict) -> str:
+async def render_live_match(game_info: dict) -> str:
     """Busca os dados mais recentes e retorna HTML completo da view ao vivo."""
     game_id   = game_info["game_id"]
     team_blue = game_info["team_blue"]
     team_red  = game_info["team_red"]
     league    = game_info["league"]
 
-    window_data  = get_game_window(game_id)
+    window_data  = await get_game_window(game_id)
     
     # Busca detalhes (itens) usando o timestamp exato do frame
     ts = None
     if window_data and window_data.get("frame"):
         ts = window_data["frame"].get("rfc460Timestamp")
     
-    details_data = get_game_details(game_id, timestamp=ts)
+    details_data = await get_game_details(game_id, timestamp=ts)
 
     if not window_data or not window_data.get("frame"):
         return (
@@ -969,7 +971,7 @@ def render_live_dashboard(live_games: list, today_games: list, pandascore_matche
     
     return "".join(html_parts)
 
-def _render_scheduled_live_match(s: dict) -> str:
+async def _render_scheduled_live_match(s: dict) -> str:
     """Busca o gameId real usando getEventDetails e tenta renderizar a partida."""
     match_id = s.get("match_id")
     if not match_id:
@@ -980,15 +982,15 @@ def _render_scheduled_live_match(s: dict) -> str:
         )
         
     try:
-        r = requests.get(
-            f"{API_URL_PERSISTED}/getEventDetails",
+        data = await _retry_system.async_fetch_with_retry(
+            url=f"{API_URL_PERSISTED}/getEventDetails",
             params={"hl": "pt-BR", "id": match_id},
             headers=HEADERS,
             timeout=10,
         )
-        r.raise_for_status()
-        data = r.json().get("data", {}).get("event", {})
-        games = data.get("match", {}).get("games", [])
+        if not data: return "⚠️ Erro ao buscar detalhes"
+        event_data = data.get("event", {})
+        games = event_data.get("match", {}).get("games", [])
         
         game_id = None
         game_number = 1
@@ -1020,7 +1022,7 @@ def _render_scheduled_live_match(s: dict) -> str:
             "team_blue": s["team_blue"],
             "team_red": s["team_red"],
         }
-        return render_live_match(mock_game)
+        return await render_live_match(mock_game)
     except Exception as e:
         logger.error(f"Erro ao buscar detalhes da partida agendada {match_id}: {e}", exc_info=True,
                      extra={"match_id": match_id})
@@ -1031,7 +1033,7 @@ def _render_scheduled_live_match(s: dict) -> str:
         )
 
 # ─── Helpers para o app.py ────────────────────────────────────────────────────
-def render_live_by_choice(choice: str, live_cache: list, today_cache: list = None) -> str:
+async def render_live_by_choice(choice: str, live_cache: list, today_cache: list = None) -> str:
     """Dado o label selecionado, devolve o HTML da partida correspondente ou do dashboard."""
     if not choice or choice == "🌐 Visão Geral (Dashboard)":
         return render_live_dashboard(live_cache, today_cache or [])
@@ -1050,15 +1052,15 @@ def render_live_by_choice(choice: str, live_cache: list, today_cache: list = Non
         r = g.get("team_red", {}).get("code", "?")
         if (b == b_target and r == r_target) or (b == r_target and r == b_target):
             if g.get("game_id") == "unknown":
-                return _render_scheduled_live_match(g)
-            return render_live_match(g)
+                return await _render_scheduled_live_match(g)
+            return await render_live_match(g)
             
     # 2. Tenta puxar dos jogos agendados que não aparecem no feed live
     for s in (today_cache or []):
         b = s.get("team_blue", {}).get("code", "?")
         r = s.get("team_red", {}).get("code", "?")
         if (b == b_target and r == r_target) or (b == r_target and r == b_target):
-            return _render_scheduled_live_match(s)
+            return await _render_scheduled_live_match(s)
             
     # Fallback final
     return render_live_dashboard(live_cache, today_cache or [])
@@ -1108,7 +1110,7 @@ def is_match_finished(game_data: dict) -> bool:
         return True
 
     return False
-def get_match_data_by_id(match_id: str) -> dict | None:
+async def get_match_data_by_id(match_id: str) -> dict | None:
     """
     Busca dados completos de uma partida pelo match_id usando getEventDetails.
     Funciona para partidas ao vivo, agendadas e finalizadas.
@@ -1116,36 +1118,36 @@ def get_match_data_by_id(match_id: str) -> dict | None:
     # Sempre passa por _fetch_match_from_event_details para ter state correto
     # Primeiro tenta enriquecer com dados do schedule (times, liga)
     try:
-        today = get_schedule_today()
+        today = await get_schedule_today()
         for s in today:
             if s.get("match_id") == match_id:
-                return _fetch_match_from_event_details(s)
+                return await _fetch_match_from_event_details(s)
     except Exception:
         pass
-
+    
     # Fallback: busca direto no getEventDetails sem dados do schedule
     try:
         dummy = {"match_id": match_id, "league": "", "team_blue": {}, "team_red": {}}
-        return _fetch_match_from_event_details(dummy)
+        return await _fetch_match_from_event_details(dummy)
     except Exception:
         return None
 
 
-def _fetch_match_from_event_details(s: dict) -> dict | None:
+async def _fetch_match_from_event_details(s: dict) -> dict | None:
     """Busca dados de uma partida via getEventDetails e enriquece com window data."""
     match_id = s.get("match_id")
     if not match_id:
         return None
 
-    r = requests.get(
-        f"{API_URL_PERSISTED}/getEventDetails",
+    data = await _retry_system.async_fetch_with_retry(
+        url=f"{API_URL_PERSISTED}/getEventDetails",
         params={"hl": "pt-BR", "id": match_id},
         headers=HEADERS,
         timeout=10,
     )
-    r.raise_for_status()
-    data = r.json().get("data", {}).get("event", {})
-    match_data = data.get("match", {})
+    if not data: return None
+    event_data = data.get("event", {})
+    match_data = event_data.get("match", {})
     games = match_data.get("games", [])
     teams = match_data.get("teams", [])
     league_name = s.get("league") or data.get("league", {}).get("name", "")
@@ -1218,11 +1220,9 @@ def _fetch_match_from_event_details(s: dict) -> dict | None:
         "strategy": strategy,
     }
 
-    # --- MODIFICAÇÃO CRÍTICA: SEMPRE tenta enriquecer com telemetria ---
-    # Motivo: O feed getEventDetails (persisted) costuma atrasar em relação ao livestatsv1.
-    # Mesmo se o estado for 'unstarted', a partida já pode estar 'in_game' no real-time.
-    # Mesmo se for 'completed', queremos as estatísticas finais.
-    enriched = _enrich_match_with_window(game_info)
+    # Even if unstarted, the match might already be 'in_game' in real-time.
+    # Even if completed, we want final stats.
+    enriched = await _enrich_match_with_window(game_info)
     
     # Se conseguimos dados em tempo real, confiamos mais no estado do frame
     if enriched.get("game_state") in ("in_game", "paused"):
@@ -1233,34 +1233,26 @@ def _fetch_match_from_event_details(s: dict) -> dict | None:
     return enriched
 
 
-def _enrich_match_with_window(game_info: dict) -> dict:
+async def _enrich_match_with_window(game_info: dict) -> dict:
     """Adiciona dados de telemetria (kills, gold, campeões) ao dict da partida."""
     game_id = game_info.get("game_id", "unknown")
     result = dict(game_info)
 
     if game_id == "unknown":
         return result
-
-    # Para partidas finalizadas, não passa startingTime — a API retorna o último frame disponível
-    # Para partidas ao vivo, usa o timestamp atual arredondado
+    
     is_completed = game_info.get("state") == "completed"
 
     if is_completed:
-        # Busca direto sem startingTime nem cache_buster
-        try:
-            response = requests.get(
-                f"{API_URL_LIVE}/window/{game_id}",
-                params={"hl": "pt-BR"},
-                headers=HEADERS,
-                timeout=10,
-            )
-            if response.status_code != 200:
-                return result
-            data = response.json()
-        except Exception:
-            return result
+        # Busca direto sem startingTime
+        data = await _retry_system.async_fetch_with_retry(
+            url=f"{API_URL_LIVE}/window/{game_id}",
+            params={"hl": "pt-BR"},
+            headers=HEADERS,
+            timeout=10,
+        )
     else:
-        data = _retry_system.fetch_with_retry(
+        data = await _retry_system.async_fetch_with_retry(
             url=f"{API_URL_LIVE}/window/{game_id}",
             params={"hl": "pt-BR", "startingTime": get_iso_date_multiple_of_10(), "_": _get_cache_buster()},
             headers=HEADERS,
@@ -1268,10 +1260,9 @@ def _enrich_match_with_window(game_info: dict) -> dict:
             retry_without_param="startingTime"
         )
         
-        # Fallback: Se retornar vazio com timestamp recente, tenta sem timestamp (pode trazer o início, mas é melhor que nada)
+        # Fallback
         if not data or not data.get("frames"):
-            logger.debug(f"Nada encontrado com startingTime para {game_id}, tentando sem.", extra={"game_id": game_id})
-            data = _retry_system.fetch_with_retry(
+            data = await _retry_system.async_fetch_with_retry(
                 url=f"{API_URL_LIVE}/window/{game_id}",
                 params={"hl": "pt-BR", "_": _get_cache_buster()},
                 headers=HEADERS,
@@ -1295,7 +1286,7 @@ def _enrich_match_with_window(game_info: dict) -> dict:
     
     # ─── Buscar Detalhes de Itens (Real-time) ───
     ts = frame.get("rfc460Timestamp")
-    details_data = get_game_details(game_id, timestamp=ts)
+    details_data = await get_game_details(game_id, timestamp=ts)
     detail_blue = []
     detail_red  = []
     if details_data:
@@ -1392,10 +1383,10 @@ def create_polling_service(game_id: str, match_id: str):
     # Referencia mutavel para o servico (preenchida apos criacao)
     service_ref = [None]
 
-    def _polling_callback():
+    async def _polling_callback():
         """Callback que verifica estado e para polling quando partida finaliza."""
         # Busca dados atuais do game
-        window_data = get_game_window(game_id)
+        window_data = await get_game_window(game_id)
 
         if window_data is None:
             logger.debug(
@@ -1418,7 +1409,7 @@ def create_polling_service(game_id: str, match_id: str):
             # Para o polling
             svc = service_ref[0]
             if svc is not None:
-                svc.stop()
+                await svc.stop()
 
     service = PollingService(
         fetch_callback=_polling_callback,
