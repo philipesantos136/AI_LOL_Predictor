@@ -74,18 +74,18 @@
         <tbody>
           <tr>
             <td>EGDI</td>
-            <td class="t1-val">{data.gold_layer.t1.egdi.toFixed(2)}</td>
-            <td class="t2-val">{data.gold_layer.t2.egdi.toFixed(2)}</td>
+            <td class="t1-val">{(data.gold_layer.t1.egdi ?? 0).toFixed(2)}</td>
+            <td class="t2-val">{(data.gold_layer.t2.egdi ?? 0).toFixed(2)}</td>
           </tr>
           <tr>
             <td>Throw Rate</td>
-            <td class="t1-val">{data.gold_layer.t1.throw_rate.toFixed(1)}%</td>
-            <td class="t2-val">{data.gold_layer.t2.throw_rate.toFixed(1)}%</td>
+            <td class="t1-val">{(data.gold_layer.t1.throw_rate ?? 0).toFixed(1)}%</td>
+            <td class="t2-val">{(data.gold_layer.t2.throw_rate ?? 0).toFixed(1)}%</td>
           </tr>
           <tr>
             <td>Comeback Rate</td>
-            <td class="t1-val">{data.gold_layer.t1.comeback_rate.toFixed(1)}%</td>
-            <td class="t2-val">{data.gold_layer.t2.comeback_rate.toFixed(1)}%</td>
+            <td class="t1-val">{(data.gold_layer.t1.comeback_rate ?? 0).toFixed(1)}%</td>
+            <td class="t2-val">{(data.gold_layer.t2.comeback_rate ?? 0).toFixed(1)}%</td>
           </tr>
         </tbody>
       </table>
