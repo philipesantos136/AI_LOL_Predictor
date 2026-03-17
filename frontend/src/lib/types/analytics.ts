@@ -197,6 +197,15 @@ export interface LeagueContextSection {
   insights: string[];
 }
 
+export interface ObjectiveCorrelations {
+  fb_wr: number;
+  fd_wr: number;
+  fbaron_wr: number;
+  fherald_wr: number;
+  large_lead_wr: number;
+  soul_wr: number;
+}
+
 export interface AnalyticsResponse {
   meta: {
     team1: string;
@@ -225,5 +234,6 @@ export interface AnalyticsResponse {
   series?: SeriesSection;
   side_performance?: Record<string, SideStatEntry[]>;
   league_context?: LeagueContextSection;
+  objective_correlations?: ObjectiveCorrelations;
   ev_finder?: EVFinderSection;
 }
