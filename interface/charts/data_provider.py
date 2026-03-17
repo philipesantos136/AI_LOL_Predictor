@@ -62,7 +62,9 @@ def get_team_stats(team_name, patches=None):
                 AVG(wardsplaced), AVG(wardskilled), AVG(controlwardsbought), AVG(visionscore),
                 AVG(cspm), AVG(earnedgoldshare),
                 AVG(xpat10), AVG(xpat15), AVG(xpat20), AVG(xpat25),
-                AVG(xpdiffat10), AVG(xpdiffat15), AVG(xpdiffat20), AVG(xpdiffat25)
+                AVG(xpdiffat10), AVG(xpdiffat15), AVG(xpdiffat20), AVG(xpdiffat25),
+                AVG(CASE WHEN firsttower=1 THEN 1.0 ELSE 0.0 END),
+                AVG(CASE WHEN firstinhib=1 THEN 1.0 ELSE 0.0 END)
             FROM match_data_silver WHERE {base_where}
         """, params)
 
@@ -99,6 +101,9 @@ def get_team_stats(team_name, patches=None):
             # XP
             "xpat10": row[45] or 0, "xpat15": row[46] or 0, "xpat20": row[47] or 0, "xpat25": row[48] or 0,
             "xpdiffat10": row[49] or 0, "xpdiffat15": row[50] or 0, "xpdiffat20": row[51] or 0, "xpdiffat25": row[52] or 0,
+            
+            # First Tower / Inhib
+            "ft_rate": (row[53] or 0) * 100, "fi_rate": (row[54] or 0) * 100,
         }
 
         # Históricos para distribuições
