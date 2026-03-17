@@ -34,8 +34,8 @@ export interface BarData {
 }
 
 export interface EGRSection {
-  t1_values: { fb: number; fd: number; fh: number };
-  t2_values: { fb: number; fd: number; fh: number };
+  t1_values: { fb: number; fd: number; fh: number; fbn: number; ft: number; fi: number };
+  t2_values: { fb: number; fd: number; fh: number; fbn: number; ft: number; fi: number };
   egr_score_t1: number;
   egr_score_t2: number;
   explain_text: string;
@@ -43,8 +43,8 @@ export interface EGRSection {
 }
 
 export interface MLRSection {
-  t1: { fbaron_rate: number; avg_barons: number; avg_inhibitors: number; avg_towers: number };
-  t2: { fbaron_rate: number; avg_barons: number; avg_inhibitors: number; avg_towers: number };
+  t1: Record<string, number>;
+  t2: Record<string, number>;
   explain_text: string;
   comments: string[];
 }
