@@ -5,6 +5,31 @@ Toda leitura de dados passa por aqui. Nenhum outro módulo acessa o banco direta
 
 import sqlite3
 import os
+import json
+
+
+def get_team_rank(team_name):
+    """Retorna o Global Power Ranking (GPR) do time a partir de data/gpr_rankings.json."""
+    try:
+        json_path = os.path.join("data", "gpr_rankings.json")
+        if not os.path.exists(json_path):
+            return None
+            
+        with open(json_path, "r", encoding="utf-8") as f:
+            rankings = json.load(f)
+            
+        # Busca exata ou parcial (case insensitive)
+        team_name_lower = team_name.lower()
+        for item in rankings:
+            gpr_team = item["team"].lower()
+            # Se for contido (ex: "T1" em "T1 Esports") ou o contrário
+            if team_name_lower in gpr_team or gpr_team in team_name_lower:
+                return item["rank"]
+                
+        return None
+    except Exception as e:
+        print(f"  ⚠️ Erro ao buscar rank GPR ({team_name}): {e}")
+        return None
 
 
 def get_db_path():
