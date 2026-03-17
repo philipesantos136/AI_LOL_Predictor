@@ -1397,6 +1397,7 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
         get_series_stats,
         get_side_stats,
         get_league_context,
+        get_objective_win_correlations,
     )
 
     stats1 = get_team_stats(team1, patches)
@@ -1417,6 +1418,8 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
     # Contexto de liga (usando a liga do time 1 como referência)
     league_name = stats1.get("league", "Unknown")
     l_context = get_league_context(league_name)
+
+    obj_corrs = get_objective_win_correlations(patches)
 
     # Platinum layer (same as renderer.py)
     plat1, plat2 = {}, {}
@@ -1486,5 +1489,6 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
         "series": build_series_section(s1_series, s2_series, team1, team2),
         "side_performance": build_side_performance_section(s1_side, s2_side),
         "league_context": build_league_context_section(l_context, league_name),
+        "objective_correlations": obj_corrs,
         "ev_finder": build_ev_finder_section(stats1, stats2, team1, team2, mult_t1, mult_t2),
     }
