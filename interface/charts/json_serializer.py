@@ -97,23 +97,27 @@ def build_educational_section():
 
 
 def build_egr_section(s1, s2, t1, t2):
-    """Returns EGRSection dict."""
+    """Returns EGRSection dict with Early Game metrics."""
     fb1, fb2 = s1["fb_rate"], s2["fb_rate"]
     fd1, fd2 = s1["fd_rate"], s2["fd_rate"]
     fh1, fh2 = s1["fherald_rate"], s2["fherald_rate"]
-    egr1 = (fb1 + fd1 + fh1) / 3
-    egr2 = (fb2 + fd2 + fh2) / 3
+    fbn1, fbn2 = s1.get("fbaron_rate", 0), s2.get("fbaron_rate", 0)
+    ft1, ft2 = s1.get("ft_rate", 0), s2.get("ft_rate", 0)
+    fi1, fi2 = s1.get("fi_rate", 0), s2.get("fi_rate", 0)
+    
+    egr1 = (fb1 + fd1 + fh1 + ft1 + fi1) / 5
+    egr2 = (fb2 + fd2 + fh2 + ft2 + fi2) / 5
 
     comments = []
     for team, e_val in [(t1, egr1), (t2, egr2)]:
         if e_val > 60:
-            comments.append(f'⚡ <b>{team} tem domínio early game ({e_val:.0f}% EGR).</b> Favorito a FB/FD.')
+            comments.append(f'⚡ <b>{team} tem domínio early game ({e_val:.0f}% EGR).</b> Favorito a FB/FD/FT.')
         elif e_val < 40:
-            comments.append(f'⚠️ <b>{team} tem EGR baixo ({e_val:.0f}%).</b> Costuma começar atrás.')
+            comments.append(f'⚠️ <b>{team} tem EGR baixo ({e_val:.0f}%).</b> Costuma começar atrás nos objetivos iniciais.')
 
     return {
-        "t1_values": {"fb": fb1, "fd": fd1, "fh": fh1},
-        "t2_values": {"fb": fb2, "fd": fd2, "fh": fh2},
+        "t1_values": {"fb": fb1, "fd": fd1, "fh": fh1, "fbn": fbn1, "ft": ft1, "fi": fi1},
+        "t2_values": {"fb": fb2, "fd": fd2, "fh": fh2, "fbn": fbn2, "ft": ft2, "fi": fi2},
         "egr_score_t1": egr1,
         "egr_score_t2": egr2,
         "explain_text": "O modelo de <b>EGR</b> demonstra que o time que conquista esses prêmios iniciais cria snowball de ouro.",
@@ -136,18 +140,8 @@ def build_mlr_section(s1, s2, t1, t2):
             comments.append(f'👑 <b>{team} é completo:</b> forte no early e no late.')
 
     return {
-        "t1": {
-            "fbaron_rate": s1["fbaron_rate"],
-            "avg_barons": s1["avg_barons"],
-            "avg_inhibitors": s1["avg_inhibitors"],
-            "avg_towers": s1["avg_towers"],
-        },
-        "t2": {
-            "fbaron_rate": s2["fbaron_rate"],
-            "avg_barons": s2["avg_barons"],
-            "avg_inhibitors": s2["avg_inhibitors"],
-            "avg_towers": s2["avg_towers"],
-        },
+        "t1": {},
+        "t2": {},
         "explain_text": "O modelo <b>MLR</b> mostra como o time fecha o jogo no Mid-Late Game.",
         "comments": comments,
     }
