@@ -188,11 +188,11 @@
         <!-- Time 1 Selection -->
         <div class="flex flex-col items-center gap-4 relative">
           <!-- Logo Time 1 -->
-          <div class="flex h-32 w-32 items-center justify-center rounded-2xl border border-slate-700 bg-[#1E293B] p-2 shadow-2xl transition-transform hover:scale-105">
+          <div class="flex h-64 w-64 items-center justify-center rounded-2xl border border-slate-700 bg-[#1E293B] p-2 shadow-2xl transition-transform hover:scale-105">
             {#if t1_logo}
-              <img src={t1_logo} alt="Logo T1" class="h-28 w-28 object-contain" />
+              <img src={t1_logo} alt="Logo T1" class="h-60 w-60 object-contain" />
             {:else}
-              <span class="text-xl font-bold text-slate-500 uppercase tracking-widest opacity-30">Blue</span>
+              <span class="text-3xl font-bold text-slate-500 uppercase tracking-widest opacity-30">Blue</span>
             {/if}
           </div>
 
@@ -231,11 +231,11 @@
         <!-- Time 2 Selection -->
         <div class="flex flex-col items-center gap-4 relative">
           <!-- Logo Time 2 -->
-          <div class="flex h-32 w-32 items-center justify-center rounded-2xl border border-slate-700 bg-[#1E293B] p-2 shadow-2xl transition-transform hover:scale-105">
+          <div class="flex h-64 w-64 items-center justify-center rounded-2xl border border-slate-700 bg-[#1E293B] p-2 shadow-2xl transition-transform hover:scale-105">
             {#if t2_logo}
-              <img src={t2_logo} alt="Logo T2" class="h-28 w-28 object-contain" />
+              <img src={t2_logo} alt="Logo T2" class="h-60 w-60 object-contain" />
             {:else}
-              <span class="text-xl font-bold text-slate-500 uppercase tracking-widest opacity-30">Red</span>
+              <span class="text-3xl font-bold text-slate-500 uppercase tracking-widest opacity-30">Red</span>
             {/if}
           </div>
 
