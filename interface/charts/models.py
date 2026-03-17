@@ -228,6 +228,15 @@ class LeagueContextSection(BaseModel):
     insights: List[str]
 
 
+class ObjectiveCorrelations(BaseModel):
+    fb_wr: float
+    fd_wr: float
+    fbaron_wr: float
+    fherald_wr: float
+    large_lead_wr: float
+    soul_wr: float
+
+
 class SeriesStatEntry(BaseModel):
     """Detailed stats for a specific game number in a series."""
 
@@ -279,4 +288,5 @@ class AnalyticsResponse(BaseModel):
     series: Optional[SeriesSection] = None
     side_performance: Optional[Dict[str, List[SideStatEntry]]] = None
     league_context: Optional[LeagueContextSection] = None
+    objective_correlations: Optional[ObjectiveCorrelations] = None
     ev_finder: Optional[EVFinderSection] = None
