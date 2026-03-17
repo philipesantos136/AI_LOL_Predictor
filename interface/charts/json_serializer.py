@@ -42,12 +42,16 @@ def _rate_prob(data, cond):
 # Section Builders
 # ============================================================================
 
+from .data_provider import get_team_rank
+
 def build_meta_section(s1, s2, t1, t2, patches):
-    """Returns MetaSection dict."""
+    """Returns MetaSection dict with GPR ranks."""
     patch_label = ", ".join(patches) if patches and "Todos" not in patches else "Todos os patches"
     return {
         "team1": t1,
         "team2": t2,
+        "gpr_t1": get_team_rank(t1),
+        "gpr_t2": get_team_rank(t2),
         "patch_label": patch_label,
         "games_t1": s1["total_games"],
         "games_t2": s2["total_games"],

@@ -17,6 +17,8 @@ class MetaSection(BaseModel):
 
     team1: str
     team2: str
+    gpr_t1: Optional[int] = None
+    gpr_t2: Optional[int] = None
     patch_label: str
     games_t1: int
     games_t2: int
