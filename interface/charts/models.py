@@ -61,9 +61,9 @@ class BarData(BaseModel):
 
 
 class EGRSection(BaseModel):
-    """Early-Game Rating proxy (First Blood %, First Dragon %, First Herald %)."""
+    """Early-Game Rating proxy (First Blood %, First Dragon %, First Herald %, FBN%, FT%, FI%)."""
 
-    t1_values: Dict[str, float]  # {fb: float, fd: float, fh: float}
+    t1_values: Dict[str, float]  # {fb, fd, fh, fbn, ft, fi}
     t2_values: Dict[str, float]
     egr_score_t1: float
     egr_score_t2: float
@@ -72,10 +72,10 @@ class EGRSection(BaseModel):
 
 
 class MLRSection(BaseModel):
-    """Mid/Late Rating proxy (FBN%, Barões AVG, Inibidores AVG, Torres AVG)."""
+    """Mid/Late Rating simplified (Barões/Inibidores/Torres AVG removidos)."""
 
-    t1: Dict[str, float]  # {fbaron_rate, avg_barons, avg_inhibitors, avg_towers}
-    t2: Dict[str, float]
+    t1: Dict[str, float] = {}
+    t2: Dict[str, float] = {}
     explain_text: str
     comments: List[str]
 
