@@ -186,24 +186,26 @@
     <!-- Teams Selection -->
       <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
         <!-- Time 1 Selection -->
-        <div class="flex flex-col gap-2 relative">
-          <label for="team1-input" class="flex items-center gap-2 text-sm font-semibold text-[#90CDF4]">
-            <span class="h-3 w-3 rounded-sm bg-blue-500"></span>
-            Time 1 (Blue Side)
-          </label>
-          <div class="flex items-center gap-3">
-             <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-[#1E293B] p-1 shadow-inner">
-              {#if t1_logo}
-                <img src={t1_logo} alt="Logo T1" class="h-10 w-10 object-contain" />
-              {:else}
-                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Blue</span>
-              {/if}
-            </div>
+        <div class="flex flex-col items-center gap-4 relative">
+          <!-- Logo Time 1 -->
+          <div class="flex h-32 w-32 items-center justify-center rounded-2xl border border-slate-700 bg-[#1E293B] p-2 shadow-2xl transition-transform hover:scale-105">
+            {#if t1_logo}
+              <img src={t1_logo} alt="Logo T1" class="h-28 w-28 object-contain" />
+            {:else}
+              <span class="text-xl font-bold text-slate-500 uppercase tracking-widest opacity-30">Blue</span>
+            {/if}
+          </div>
+
+          <div class="w-full flex flex-col gap-2">
+            <label for="team1-input" class="flex items-center gap-2 text-sm font-semibold text-[#90CDF4]">
+              <span class="h-3 w-3 rounded-sm bg-blue-500"></span>
+              Time 1 (Blue Side)
+            </label>
             <div class="relative w-full">
               <input 
                 id="team1-input"
                 type="text"
-                placeholder="Busque o time (ex: love)..."
+                placeholder="Busque o time (ex: LOUD)..."
                 bind:value={q1}
                 onfocus={() => showList1 = true}
                 onblur={() => setTimeout(() => showList1 = false, 200)}
@@ -227,19 +229,21 @@
         </div>
 
         <!-- Time 2 Selection -->
-        <div class="flex flex-col gap-2 relative">
-          <label for="team2-input" class="flex items-center gap-2 text-sm font-semibold text-[#F56565]">
-            <span class="h-3 w-3 rounded-sm bg-red-500"></span>
-            Time 2 (Red Side)
-          </label>
-          <div class="flex items-center gap-3">
-            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-[#1E293B] p-1 shadow-inner">
-              {#if t2_logo}
-                <img src={t2_logo} alt="Logo T2" class="h-10 w-10 object-contain" />
-              {:else}
-                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Red</span>
-              {/if}
-            </div>
+        <div class="flex flex-col items-center gap-4 relative">
+          <!-- Logo Time 2 -->
+          <div class="flex h-32 w-32 items-center justify-center rounded-2xl border border-slate-700 bg-[#1E293B] p-2 shadow-2xl transition-transform hover:scale-105">
+            {#if t2_logo}
+              <img src={t2_logo} alt="Logo T2" class="h-28 w-28 object-contain" />
+            {:else}
+              <span class="text-xl font-bold text-slate-500 uppercase tracking-widest opacity-30">Red</span>
+            {/if}
+          </div>
+
+          <div class="w-full flex flex-col gap-2">
+            <label for="team2-input" class="flex items-center gap-2 text-sm font-semibold text-[#F56565]">
+              <span class="h-3 w-3 rounded-sm bg-red-500"></span>
+              Time 2 (Red Side)
+            </label>
             <div class="relative w-full">
               <input 
                 id="team2-input"
