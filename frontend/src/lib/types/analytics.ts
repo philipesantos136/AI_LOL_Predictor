@@ -210,6 +210,8 @@ export interface AnalyticsResponse {
   meta: {
     team1: string;
     team2: string;
+    gpr_t1?: number;
+    gpr_t2?: number;
     patch_label: string;
     games_t1: number;
     games_t2: number;

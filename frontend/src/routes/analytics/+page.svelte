@@ -37,6 +37,8 @@
 
   let t1_logo = $state("");
   let t2_logo = $state("");
+  let t1_rank = $state<number | null>(null);
+  let t2_rank = $state<number | null>(null);
 
   let analyticsData: AnalyticsResponse | null = $state(null);
   let loading = $state(false);
@@ -99,9 +101,13 @@
     if (time1 && time1 !== "Rode o Pipeline Primeiro" && time1 !== "Erro ao carregar times") {
       fetch(`http://localhost:8000/api/analytics/team_logo/${encodeURIComponent(time1)}`)
         .then(r => r.json())
-        .then(data => t1_logo = data.url ? `http://localhost:8000${data.url}` : "");
+        .then(data => {
+          t1_logo = data.url ? `http://localhost:8000${data.url}` : "";
+          t1_rank = data.rank;
+        });
     } else {
       t1_logo = "";
+      t1_rank = null;
     }
   });
 
@@ -109,9 +115,13 @@
     if (time2 && time2 !== "Rode o Pipeline Primeiro" && time2 !== "Erro ao carregar times") {
       fetch(`http://localhost:8000/api/analytics/team_logo/${encodeURIComponent(time2)}`)
         .then(r => r.json())
-        .then(data => t2_logo = data.url ? `http://localhost:8000${data.url}` : "");
+        .then(data => {
+          t2_logo = data.url ? `http://localhost:8000${data.url}` : "";
+          t2_rank = data.rank;
+        });
     } else {
       t2_logo = "";
+      t2_rank = null;
     }
   });
 
@@ -188,11 +198,21 @@
         <!-- Time 1 Selection -->
         <div class="flex flex-col items-center gap-4 relative">
           <!-- Logo Time 1 -->
-          <div class="flex h-64 w-64 items-center justify-center rounded-2xl border border-slate-700 bg-[#1E293B] p-2 shadow-2xl transition-transform hover:scale-105">
-            {#if t1_logo}
-              <img src={t1_logo} alt="Logo T1" class="h-60 w-60 object-contain" />
-            {:else}
-              <span class="text-3xl font-bold text-slate-500 uppercase tracking-widest opacity-30">Blue</span>
+          <div class="relative group">
+            <div class="flex h-64 w-64 items-center justify-center rounded-2xl border border-slate-700 bg-[#1E293B] p-2 shadow-2xl transition-transform hover:scale-105">
+              {#if t1_logo}
+                <img src={t1_logo} alt="Logo T1" class="h-60 w-60 object-contain" />
+              {:else}
+                <span class="text-3xl font-bold text-slate-500 uppercase tracking-widest opacity-30">Blue</span>
+              {/if}
+            </div>
+            
+            {#if t1_rank}
+              <div class="absolute -top-4 -right-12 lg:-right-20">
+                <span class="text-4xl lg:text-6xl font-black text-slate-500 opacity-40 select-none rotate-6 block">
+                  #{t1_rank}
+                </span>
+              </div>
             {/if}
           </div>
 
@@ -231,11 +251,21 @@
         <!-- Time 2 Selection -->
         <div class="flex flex-col items-center gap-4 relative">
           <!-- Logo Time 2 -->
-          <div class="flex h-64 w-64 items-center justify-center rounded-2xl border border-slate-700 bg-[#1E293B] p-2 shadow-2xl transition-transform hover:scale-105">
-            {#if t2_logo}
-              <img src={t2_logo} alt="Logo T2" class="h-60 w-60 object-contain" />
-            {:else}
-              <span class="text-3xl font-bold text-slate-500 uppercase tracking-widest opacity-30">Red</span>
+          <div class="relative group">
+            <div class="flex h-64 w-64 items-center justify-center rounded-2xl border border-slate-700 bg-[#1E293B] p-2 shadow-2xl transition-transform hover:scale-105">
+              {#if t2_logo}
+                <img src={t2_logo} alt="Logo T2" class="h-60 w-60 object-contain" />
+              {:else}
+                <span class="text-3xl font-bold text-slate-500 uppercase tracking-widest opacity-30">Red</span>
+              {/if}
+            </div>
+
+            {#if t2_rank}
+              <div class="absolute -top-4 -right-12 lg:-right-20">
+                <span class="text-4xl lg:text-6xl font-black text-slate-500 opacity-40 select-none rotate-6 block">
+                  #{t2_rank}
+                </span>
+              </div>
             {/if}
           </div>
 
