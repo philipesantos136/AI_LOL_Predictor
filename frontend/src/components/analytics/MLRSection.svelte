@@ -15,40 +15,6 @@
 <div class="section-card">
   <h3 class="section-title">🏰 MLR Proxy — Mid/Late Rating</h3>
 
-  <div class="table-wrapper">
-    <table class="mlr-table">
-      <thead>
-        <tr>
-          <th class="metric-col">Métrica</th>
-          <th class="t1-col">{team1}</th>
-          <th class="t2-col">{team2}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="metric-name">FBN% (First Baron)</td>
-          <td class="t1-val">{data.t1.fbaron_rate.toFixed(1)}%</td>
-          <td class="t2-val">{data.t2.fbaron_rate.toFixed(1)}%</td>
-        </tr>
-        <tr>
-          <td class="metric-name">Barões AVG</td>
-          <td class="t1-val">{data.t1.avg_barons.toFixed(2)}</td>
-          <td class="t2-val">{data.t2.avg_barons.toFixed(2)}</td>
-        </tr>
-        <tr>
-          <td class="metric-name">Inibidores AVG</td>
-          <td class="t1-val">{data.t1.avg_inhibitors.toFixed(2)}</td>
-          <td class="t2-val">{data.t2.avg_inhibitors.toFixed(2)}</td>
-        </tr>
-        <tr>
-          <td class="metric-name">Torres AVG</td>
-          <td class="t1-val">{data.t1.avg_towers.toFixed(2)}</td>
-          <td class="t2-val">{data.t2.avg_towers.toFixed(2)}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
   <ExplainBox text={data.explain_text} />
   <DataCommentBox comments={data.comments} />
 </div>
