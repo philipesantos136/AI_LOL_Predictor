@@ -1280,52 +1280,7 @@ def build_ev_finder_section(s1, s2, t1, t2, mult1, mult2):
 
 
 
-def build_series_section(s1_series, s2_series, t1, t2):
-    """Returns SeriesSection dict with insights per game number."""
-    comments = []
-    
-    # Analisa tendências de abates no Mapa 5 (pico de emoção/decisão)
-    t1_g5 = next((x for x in s1_series if x['game'] == 5), None)
-    t2_g5 = next((x for x in s2_series if x['game'] == 5), None)
-    
-    if t1_g5 and t2_g5:
-        # Soma das médias de abates no jogo 5
-        g5_kills = t1_g5['avg_kills'] + t2_g5['avg_kills']
-        
-        # Média geral de todos os jogos para comparação
-        def calc_overall_kills(series):
-            total_k = sum(x['avg_kills'] * x['matches'] for x in series)
-            total_m = sum(x['matches'] for x in series)
-            return total_k / total_m if total_m > 0 else 0
-            
-        overall_k1 = calc_overall_kills(s1_series)
-        overall_k2 = calc_overall_kills(s2_series)
-        overall_total_k = overall_k1 + overall_k2
-        
-        if overall_total_k > 0:
-            diff_pct = ((g5_kills / overall_total_k) - 1) * 100
-            if diff_pct > 10:
-                comments.append(f"🔥 <b>Tendência de MAPA 5:</b> O quinto jogo desta série tende a ser <b>{diff_pct:.1f}%</b> mais sangrento ({g5_kills:.1f} abates) que a média geral ({overall_total_k:.1f}). Ótimo para <b>Over Kills</b>.")
-            elif diff_pct < -10:
-                comments.append(f"🧊 <b>Tendência de MAPA 5:</b> O jogo decisivo tende a ser <b>{abs(diff_pct):.1f}%</b> mais passivo ({g5_kills:.1f} abates) que a média geral ({overall_total_k:.1f}). Times jogam com mais medo de errar.")
 
-    # Tendência de duração no Mapa 1 (estatística comum)
-    t1_g1 = next((x for x in s1_series if x['game'] == 1), None)
-    t2_g1 = next((x for x in s2_series if x['game'] == 1), None)
-    if t1_g1 and t2_g1:
-        avg_dur_g1 = (t1_g1['avg_duration_min'] + t2_g1['avg_duration_min']) / 2
-        if avg_dur_g1 > 35:
-            comments.append(f"⏳ <b>Mapa 1 Longo:</b> As partidas de abertura tendem a ser extensas ({avg_dur_g1:.1f} min).")
-
-    return {
-        "t1_series": s1_series,
-        "t2_series": s2_series,
-        "explain_text": (
-            "Análise de performance por <b>Número do Mapa</b>. Jogos decisivos (Mapa 5) ou de abertura (Mapa 1) "
-            "frequentemente apresentam desvios estatísticos em relação à média do time devido à pressão ou estratégias específicas."
-        ),
-        "comments": comments
-    }
 
 
 def build_side_performance_section(side_data1, side_data2):
@@ -1392,7 +1347,6 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
         get_gold_team_stats,
         get_global_baseline_stats,
         get_platinum_champion_stats,
-        get_series_stats,
         get_side_stats,
         get_league_context,
         get_objective_win_correlations,
@@ -1407,8 +1361,7 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
     gold_t1 = get_gold_team_stats(team1, patches)
     gold_t2 = get_gold_team_stats(team2, patches)
 
-    s1_series = get_series_stats(team1, patches)
-    s2_series = get_series_stats(team2, patches)
+
 
     s1_side = get_side_stats(team1, patches)
     s2_side = get_side_stats(team2, patches)
@@ -1484,7 +1437,7 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
         "towers": build_towers_section(stats1, stats2, team1, team2, mult_t1, mult_t2),
         "barons": build_barons_section(stats1, stats2, team1, team2, mult_t1, mult_t2),
         "duration": build_duration_section(stats1, stats2, team1, team2, mult_t1, mult_t2),
-        "series": build_series_section(s1_series, s2_series, team1, team2),
+
         "side_performance": build_side_performance_section(s1_side, s2_side),
         "league_context": build_league_context_section(l_context, league_name),
         "objective_correlations": obj_corrs,

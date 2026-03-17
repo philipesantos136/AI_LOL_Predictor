@@ -162,24 +162,7 @@ export interface EVFinderSection {
   joint_card: EVFinderTeamCard;
 }
 
-export interface SeriesStatEntry {
-  game: number;
-  matches: number;
-  avg_kills: number;
-  avg_deaths: number;
-  avg_dragons: number;
-  avg_barons: number;
-  avg_towers: number;
-  avg_duration_min: number;
-  win_rate: number;
-}
 
-export interface SeriesSection {
-  t1_series: SeriesStatEntry[];
-  t2_series: SeriesStatEntry[];
-  explain_text: string;
-  comments: string[];
-}
 
 export interface SideStatEntry {
   side: string;
@@ -233,7 +216,6 @@ export interface AnalyticsResponse {
   towers?: DistributionSection;
   barons?: DistributionSection;
   duration?: DistributionSection;
-  series?: SeriesSection;
   side_performance?: Record<string, SideStatEntry[]>;
   league_context?: LeagueContextSection;
   objective_correlations?: ObjectiveCorrelations;

@@ -239,27 +239,7 @@ class ObjectiveCorrelations(BaseModel):
     soul_wr: float
 
 
-class SeriesStatEntry(BaseModel):
-    """Detailed stats for a specific game number in a series."""
 
-    game: int
-    matches: int
-    avg_kills: float
-    avg_deaths: float
-    avg_dragons: float
-    avg_barons: float
-    avg_towers: float
-    avg_duration_min: float
-    win_rate: float
-
-
-class SeriesSection(BaseModel):
-    """Breakdown of performance by game number in a series (Game 1, Game 2, etc.)."""
-
-    t1_series: List[SeriesStatEntry]
-    t2_series: List[SeriesStatEntry]
-    explain_text: str
-    comments: List[str]
 
 
 class AnalyticsResponse(BaseModel):
@@ -287,7 +267,6 @@ class AnalyticsResponse(BaseModel):
     towers: Optional[DistributionSection] = None
     barons: Optional[DistributionSection] = None
     duration: Optional[DistributionSection] = None
-    series: Optional[SeriesSection] = None
     side_performance: Optional[Dict[str, List[SideStatEntry]]] = None
     league_context: Optional[LeagueContextSection] = None
     objective_correlations: Optional[ObjectiveCorrelations] = None

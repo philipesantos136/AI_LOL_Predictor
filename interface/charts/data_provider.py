@@ -290,45 +290,7 @@ def get_platinum_champion_stats(team_name, champion):
         return {"team_stats": None, "world_stats": None}
 
 
-def get_series_stats(team_name, patches=None):
-    """
-    Agrega estatísticas por número do jogo (1, 2, 3, 4, 5) em uma série.
-    Útil para identificar tendências em jogos decisivos (ex: jogo 5 tem mais abates).
-    """
-    db_path = get_db_path()
-    patch_clause, patch_params = build_patch_clause(patches)
-    try:
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-        c = conn.cursor()
-        
-        base_where = f"position='team' AND teamname = ?{patch_clause}"
-        params = [team_name] + patch_params
 
-        query = f"""
-            SELECT 
-                game,
-                COUNT(gameid) as matches,
-                AVG(teamkills) as avg_kills,
-                AVG(teamdeaths) as avg_deaths,
-                AVG(dragons) as avg_dragons,
-                AVG(barons) as avg_barons,
-                AVG(towers) as avg_towers,
-                AVG(gamelength) / 60.0 as avg_duration_min,
-                AVG(CASE WHEN result='1' THEN 1.0 ELSE 0.0 END) * 100.0 as win_rate
-            FROM match_data_silver
-            WHERE {base_where}
-            GROUP BY game
-            ORDER BY game
-        """
-        c.execute(query, params)
-        rows = c.fetchall()
-        conn.close()
-        
-        return [dict(row) for row in rows]
-    except Exception as e:
-        print(f"  ⚠️ Erro ao consultar Series Stats ({team_name}): {e}")
-        return []
 
 
 def get_side_stats(team_name, patches=None):
