@@ -355,3 +355,55 @@ def get_league_context(league_name):
     except Exception as e:
         print(f"  ⚠️ Erro ao consultar League Context ({league_name}): {e}")
         return None
+
+
+def get_objective_win_correlations(patches=None):
+    """Calcula a correlação global entre o primeiro objetivo e a vitória final."""
+    db_path = get_db_path()
+    patch_clause, patch_params = build_patch_clause(patches)
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        # Win rates por primeiro objetivo
+        query1 = f"""
+            SELECT 
+                AVG(CASE WHEN firstblood = 1 AND result = '1' THEN 1.0 WHEN firstblood = 1 THEN 0.0 END) * 100 as fb_wr,
+                AVG(CASE WHEN firstdragon = 1 AND result = '1' THEN 1.0 WHEN firstdragon = 1 THEN 0.0 END) * 100 as fd_wr,
+                AVG(CASE WHEN firstbaron = 1 AND result = '1' THEN 1.0 WHEN firstbaron = 1 THEN 0.0 END) * 100 as fbaron_wr,
+                AVG(CASE WHEN firstherald = 1 AND result = '1' THEN 1.0 WHEN firstherald = 1 THEN 0.0 END) * 100 as fherald_wr
+            FROM match_data_silver
+            WHERE position='team'{patch_clause}
+        """
+        c.execute(query1, patch_params)
+        row1 = dict(c.fetchone())
+        
+        # Conversão de Vantagem de Ouro (Large Lead > 2k aos 15m)
+        query2 = f"""
+            SELECT AVG(CASE WHEN golddiffat15 > 2000 AND result = '1' THEN 1.0 WHEN golddiffat15 > 2000 THEN 0.0 END) * 100 as large_lead_wr
+            FROM match_data_silver
+            WHERE position='team'{patch_clause} AND golddiffat15 IS NOT NULL
+        """
+        c.execute(query2, patch_params)
+        row2 = c.fetchone()
+        
+        # Soul Win Rate (4 dragões)
+        query3 = f"""
+            SELECT AVG(CASE WHEN dragons >= 4 AND result = '1' THEN 1.0 WHEN dragons >= 4 THEN 0.0 END) * 100 as soul_wr
+            FROM match_data_silver
+            WHERE position='team'{patch_clause}
+        """
+        c.execute(query3, patch_params)
+        row3 = c.fetchone()
+        
+        conn.close()
+        
+        # Merge results
+        res = row1
+        res['large_lead_wr'] = row2['large_lead_wr'] if row2 else 0
+        res['soul_wr'] = row3['soul_wr'] if row3 else 0
+        return res
+    except Exception as e:
+        print(f"  ⚠️ Erro ao consultar Correlações de Objetivos: {e}")
+        return None
