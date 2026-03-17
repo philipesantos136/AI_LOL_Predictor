@@ -190,19 +190,22 @@ async def get_team_logo_endpoint(team_name: str):
     logo_filename = f"{team_name.replace(' ', '_')}.png"
     logo_path = Path(__file__).parent / "data" / "logos" / logo_filename
     
+    from interface.charts.data_provider import get_team_rank
+    rank = get_team_rank(team_name)
+    
     if logo_path.exists():
-        return {"url": f"/logos/{logo_filename}"}
+        return {"url": f"/logos/{logo_filename}", "rank": rank}
     
     # Lazy download from Liquipedia if not found locally
     try:
         from interface.logo_downloader import download_team_logo_liquipedia
         success = await download_team_logo_liquipedia(team_name)
         if success and logo_path.exists():
-            return {"url": f"/logos/{logo_filename}"}
+            return {"url": f"/logos/{logo_filename}", "rank": rank}
     except Exception as e:
         print(f"Erro ao tentar baixar logo: {e}")
         
-    return {"url": None}
+    return {"url": None, "rank": rank}
 
 @app.post("/api/analytics/insights", response_model=AnalyticsResponse)
 def generate_insights_api(req: InsightRequest):
