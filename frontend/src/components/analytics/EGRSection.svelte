@@ -15,6 +15,9 @@
     { label: 'First Blood%', t1: data.t1_values.fb, t2: data.t2_values.fb },
     { label: 'First Dragon%', t1: data.t1_values.fd, t2: data.t2_values.fd },
     { label: 'First Herald%', t1: data.t1_values.fh, t2: data.t2_values.fh },
+    { label: 'FBN% (First Baron)', t1: data.t1_values.fbn, t2: data.t2_values.fbn },
+    { label: 'First Tower%', t1: data.t1_values.ft, t2: data.t2_values.ft },
+    { label: 'First Inhibitor%', t1: data.t1_values.fi, t2: data.t2_values.fi },
   ]);
 
   function barWidth(value: number, t1: number, t2: number): string {
