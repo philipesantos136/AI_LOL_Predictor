@@ -18,6 +18,7 @@
   import SeriesSection from '../../components/analytics/SeriesSection.svelte';
   import SidePerformanceSection from '../../components/analytics/SidePerformanceSection.svelte';
   import LeagueContextSection from '../../components/analytics/LeagueContextSection.svelte';
+  import WinConditionsSection from '../../components/analytics/WinConditionsSection.svelte';
   import EVFinderSection from '../../components/analytics/EVFinderSection.svelte';
 
   let teams: string[] = $state([]);
@@ -377,6 +378,12 @@
       {#if analyticsData.league_context}
         <div class="analytics-section">
           <LeagueContextSection data={analyticsData.league_context} />
+        </div>
+      {/if}
+
+      {#if analyticsData.objective_correlations}
+        <div class="analytics-section">
+          <WinConditionsSection data={analyticsData.objective_correlations} />
         </div>
       {/if}
 
