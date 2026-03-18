@@ -72,7 +72,8 @@ def _gen_winner_entries(stats, team, n, fb, fd, fh, m_team):
         f"Win Rate histórico: {wr:.1f}%. Projeção c/ Draft: {adj_wr:.1f}%. "
         f"EGR Proxy Score (FB%+FD%+HLD%)/3: {egr_score:.0f}%. "
         f"MLR Proxy (Barões+Inibs+Torres): {mlr_indicators:.2f}. "
-        f"Score Combinado: {combined_score:.0f}%.<br><br><b>💡 Conselho do Draft:</b> Sinergias escolhidas alteram a Força de Early Game em <b>{avg_early_m:.2f}x</b>. "
+        f"Score Combinado: {combined_score:.0f}%.",
+        f"<b>💡 Conselho do Draft:</b> Sinergias escolhidas alteram a Força de Early Game em <b>{avg_early_m:.2f}x</b>. "
         f"Se o time domina o Early E fecha jogos, as chances reais de vitória divergem do WR bruto.")]
 
 
@@ -94,9 +95,10 @@ def _gen_over_kills_entries(stats, team, kills, avg_k, egpm_data, dpm_data, mult
             dpm_avg = sum(float_list(dpm_data)) / len(float_list(dpm_data)) if float_list(dpm_data) else 0
             entries.append(bet_line(team, "Over Kills", f"{line:.1f}{adj_text}", prob_o, cnt,
                 f"Em {sum(1 for v in adj_kills if v > line)} simulações ajustadas (de {cnt} reais), a projeção passa de {line:.1f}. "
-                f"Multiplicador do draft: <b>{mult:.2f}x</b>. Média Histórica {avg_k:.1f} ➡️ <b>{avg_adj:.1f} proj</b>.<br><br>"
+                f"Multiplicador do draft: <b>{mult:.2f}x</b>. Média Histórica {avg_k:.1f} ➡️ <b>{avg_adj:.1f} proj</b>.<br>"
                 f"KPM: {stats['avg_kpm']:.2f}, CKPM: {stats['avg_ckpm']:.2f}. "
-                f"EGPM ({egpm_avg:.0f}/min) e DPM ({dpm_avg:.0f}/min)."))
+                f"EGPM ({egpm_avg:.0f}/min) e DPM ({dpm_avg:.0f}/min).",
+                f"Apostas em Over dependem de confrontos agressivos (Combate Constante). Se o Draft favorece <b>Pick-offs</b> ou <b>Teamfights</b> frequentes, o 'Over' se torna mais provável."))
     return entries
 
 
@@ -118,8 +120,8 @@ def _gen_handicap_entries(stats, team, adj_kd, hist_kd, m_team, m_opp):
             sign = "+" if hc >= 0 else ""
             entries.append(bet_line(team, "Handicap", f"{sign}{hc:.1f} kills{adj_text}", prob_hc, cnt,
                 f"Calculado usando as kills ajustadas pelo draft (Este time: {m_team:.2f}x, Inimigo: {m_opp:.2f}x). "
-                f"Diff Histórica Média: {st_kd['avg']:+.1f} ➡️ <b>Projeção c/ Draft: {sum(adj_kd)/len(adj_kd):+.1f}</b>.<br><br>"
-                f"{'Linha conservadora (negativa).' if hc < 0 else 'Linha agressiva — precisa de domínio.'}"))
+                f"Diff Histórica Média: {st_kd['avg']:+.1f} ➡️ <b>Projeção c/ Draft: {sum(adj_kd)/len(adj_kd):+.1f}</b>.",
+                f"Handicaps negativos exigem que o time não apenas vença, mas <b>atropele (stomp)</b>. Verifique se o Draft tem alto potencial de snowball."))
     return entries
 
 def _gen_first_to_x_kills(stats, team, opp_stats, n, m_team):
@@ -149,12 +151,12 @@ def _gen_first_to_x_kills(stats, team, opp_stats, n, m_team):
     adj_text = f" <span style='color:#c4b5fd;font-size:0.75rem;' title='Multiplicador do Draft KPM/FB: {m_k:.2f}x'>✨ Draft</span>" if (m_k != 1.0 or m_fb != 1.0) else ""
 
     entries.append(bet_line(team, "Corrida Abates", f"Primeiro a 5 Kills{adj_text}", prob_5, n,
-        f"Estimativa Proxy para os primeiros abates do jogo. {math_base}"
-        "<b>💡 Conselho do Draft:</b> Multiplicadores de kills e First Blood da composição influenciam fortemente a primeira fase da rota."))
+        f"Estimativa Proxy para os primeiros abates do jogo. {math_base}",
+        "<b>Dica:</b> Times com composições de <b>Early Game forte</b> ou <b>Invades</b> planejados costumam vencer essa corrida."))
     
     entries.append(bet_line(team, "Corrida Abates", f"Primeiro a 10 Kills{adj_text}", prob_10, n,
-        f"Estimativa Proxy para a transição para o Mid Game. {math_base}"
-        "<b>💡 Conselho do Draft:</b> KPM da composição acelera essa corrida frente a oponentes passivos."))
+        f"Estimativa Proxy para a transição para o Mid Game. {math_base}",
+        "<b>Dica:</b> Ideal para observar após os primeiros Dragões e Arautos, onde as lutas de transição ocorrem."))
     
     entries.append(bet_line(team, "Corrida Abates", f"Primeiro a 15 Kills{adj_text}", prob_15, n,
         f"Estimativa Proxy (Perto do End Game). {math_base}"))
@@ -186,7 +188,8 @@ def _gen_joint_totals(arr1, arr2, market, lines_func, explain_text, m1=1.0, m2=1
         if prob_adj is not None and prob_adj > 5:
             entries.append(bet_line("Partida", market, f"Over {line}{adj_text}", prob_adj, cnt,
                 f"Soma do histórico ajustado pelo impacto dos campeões (T1: {m1:.2f}x, T2: {m2:.2f}x). "
-                f"Média Histórica Pura: {avg_base:.1f} ➡️ <b>Projeção c/ Draft: {avg_adj:.1f}</b>.<br><br>{explain_text}"))
+                f"Média Histórica Pura: {avg_base:.1f} ➡️ <b>Projeção c/ Draft: {avg_adj:.1f}</b>.",
+                f"<b>Janela:</b> {explain_text}"))
     return entries
 
 # ============================================================================
@@ -228,13 +231,13 @@ def gen_betting_recommendations(s1, s2, t1, t2, mult1=None, mult2=None):
 
         adj_fb_text = f" <span style='color:#c4b5fd;font-size:0.75rem;'>✨ Draft ({stats['fb_rate']*m_t_fb:.0f}%)</span>" if m_t_fb != 1.0 else ""
         entries.append(bet_line(team, "First Blood", f"Sim{adj_fb_text}", min(stats["fb_rate"] * m_t_fb, 98), n, 
-            f"FB% histórico de {team}: {stats['fb_rate']:.0f}% em {n} jogos. Projeção c/ Draft: <b>{stats['fb_rate']*m_t_fb:.0f}%</b>.<br><br>"
-            f"<b>💡 Conselho do Draft:</b> Um Multiplicador de FB de {m_t_fb:.2f}x sinaliza um early game {'poderoso.' if m_t_fb >= 1 else 'defensivo.'}"))
+            f"FB% histórico de {team}: {stats['fb_rate']:.0f}% em {n} jogos. Projeção c/ Draft: <b>{stats['fb_rate']*m_t_fb:.0f}%</b>.",
+            f"Um Multiplicador de FB de {m_t_fb:.2f}x sinaliza um early game {'poderoso.' if m_t_fb >= 1 else 'defensivo.'}"))
 
         adj_fd_text = f" <span style='color:#c4b5fd;font-size:0.75rem;'>✨ Draft ({stats['fd_rate']*m_t_fd:.0f}%)</span>" if m_t_fd != 1.0 else ""
         entries.append(bet_line(team, "First Dragon", f"Sim{adj_fd_text}", min(stats["fd_rate"] * m_t_fd, 98), n, 
-            f"FD% de {team}: {stats['fd_rate']:.0f}% em {n} jogos. Projeção c/ Draft: <b>{stats['fd_rate']*m_t_fd:.0f}%</b>.<br><br>"
-            f"<b>💡 Conselho do Draft:</b> Multiplicador de {m_t_fd:.2f}x indica que a composição tem {'ferramentas absurdas para prioridade no Bot/Rio.' if m_t_fd >= 1 else 'dependência de escalar bot.'}"))
+            f"FD% de {team}: {stats['fd_rate']:.0f}% em {n} jogos. Projeção c/ Draft: <b>{stats['fd_rate']*m_t_fd:.0f}%</b>.",
+            f"Indica se a composição tem prioridade no Bot/Rio ({m_t_fd:.2f}x). Se for baixo, o time pode ceder o primeiro dragão para escalar."))
 
         entries = [e for e in entries if e]
         if entries:
@@ -281,8 +284,8 @@ def gen_betting_recommendations(s1, s2, t1, t2, mult1=None, mult2=None):
                 adj_text = f" <span style='color:#c4b5fd;font-size:0.75rem;' title='Ajuste Médio Draft: {m_avg_dur:.2f}x'>✨ Draft ({adj_dur_avg:.1f} proj)</span>"
             if prob_do is not None and prob_do > 5:
                 joint_entries.append(bet_line(f"Partida", "Over Duração", f"{dl}min{adj_text}", prob_do, cnt,
-                    f"Dur. Média Histórica pura: {st_dur['avg']:.1f}min ➡️ <b>Projeção c/ Draft: {adj_dur_avg:.1f}min</b>.<br><br>"
-                    f"Apostas conjuntas calculadas baseadas na união das durações projetadas de todas as partidas."))
+                    f"Dur. Média Histórica pura: {st_dur['avg']:.1f}min ➡️ <b>Projeção c/ Draft: {adj_dur_avg:.1f}min</b>.",
+                    f"<b>Dica:</b> Drafts de <b>Late Game (Scaling)</b> aumentam a chance de Over. Fique atento a times com alto potencial de <b>Waveclear</b> que podem segurar o jogo."))
 
     if joint_entries:
         categories.append((f"⚔️ {t1} vs {t2} (Estimativas de Jogo)", "#f59e0b", joint_entries, JOINT_MARKETS))
