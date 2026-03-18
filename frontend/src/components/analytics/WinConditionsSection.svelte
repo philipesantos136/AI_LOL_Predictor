@@ -8,12 +8,12 @@
   let { data }: Props = $props();
 
   const conditions = $derived([
-    { label: 'Primeiro Barão', value: data.fbaron_wr, icon: '👑', color: '#a78bfa', desc: 'Conquista do 1º Barão' },
-    { label: 'Primeira Soul (4 Drags)', value: data.soul_wr, icon: '🔥', color: '#f97316', desc: 'Acúmulo de 4 Dragões' },
-    { label: 'Vantagem Ouro (2k @15m)', value: data.large_lead_wr, icon: '💰', color: '#eab308', desc: 'Lead > 2k gold aos 15 min' },
-    { label: 'Primeiro Arauto', value: data.fherald_wr, icon: '👾', color: '#c084fc', desc: 'Conquista do 1º Arauto' },
-    { label: 'Primeiro Dragão', value: data.fd_wr, icon: '🐉', color: '#fb923c', desc: 'Conquista do 1º Dragão' },
-    { label: 'First Blood', value: data.fb_wr, icon: '🩸', color: '#f87171', desc: 'Primeiro Abate da Partida' },
+    { label: 'Primeiro Barão', value: data.fbaron_wr, icon: '👑', color: '#a78bfa', desc: 'Times que fazem o 1º Barão vencem ' + data.fbaron_wr.toFixed(1) + '% das vezes.' },
+    { label: 'Primeira Soul', value: data.soul_wr, icon: '🔥', color: '#f97316', desc: 'Times que conquistam a Soul vencem ' + data.soul_wr.toFixed(1) + '% das vezes.' },
+    { label: 'Vantagem Ouro (2k @15m)', value: data.large_lead_wr, icon: '💰', color: '#eab308', desc: 'Times com +2k de ouro aos 15m vencem ' + data.large_lead_wr.toFixed(1) + '% das vezes.' },
+    { label: 'Primeiro Arauto', value: data.fherald_wr, icon: '👾', color: '#c084fc', desc: 'Quem faz o 1º Arauto vence ' + data.fherald_wr.toFixed(1) + '% das vezes.' },
+    { label: 'Primeiro Dragão', value: data.fd_wr, icon: '🐉', color: '#fb923c', desc: 'Quem faz o 1º Dragão vence ' + data.fd_wr.toFixed(1) + '% das vezes.' },
+    { label: 'First Blood', value: data.fb_wr, icon: '🩸', color: '#f87171', desc: 'Quem faz o First Blood vence ' + data.fb_wr.toFixed(1) + '% das vezes.' },
   ]);
 </script>
 
