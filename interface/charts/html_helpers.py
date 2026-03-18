@@ -219,6 +219,27 @@ INSIGHTS_CSS = """
     border: 1px solid rgba(255, 255, 255, 0.03);
 }
 .bet-detail b { color: #60a5fa; }
+.formula-box {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 8px;
+    padding: 10px;
+    margin: 12px 0;
+    font-family: 'Courier New', monospace;
+    color: #4ade80;
+    font-size: 0.9rem;
+    text-align: center;
+}
+.tips-box {
+    background: rgba(59, 130, 246, 0.05);
+    border-left: 3px solid #3b82f6;
+    border-radius: 4px 8px 8px 4px;
+    padding: 12px;
+    margin-top: 12px;
+    font-size: 0.85rem;
+    color: #cbd5e1;
+}
+.tips-box b { color: #60a5fa; }
 </style>
 """
 
@@ -419,12 +440,15 @@ def risk_tier(prob):
     return ("high", "🔴 Alto Risco")
 
 
-def bet_line(team, market, line, prob, data_points, explanation):
+def bet_line(team, market, line, prob, data_points, explanation, tips=""):
     """Gera um card de aposta com details/summary nativo (funciona sem JS)."""
     if prob is None or prob <= 0:
         return ""
     odd = 100 / prob
     tier, label = risk_tier(prob)
+    
+    tips_html = f'<div class="tips-box"><b>💡 Janela de Aposta:</b><br>{tips}</div>' if tips else ""
+    
     return (
         f'<div class="bet-entry bet-grid-item bet-{tier}">'
         f'<details>'
@@ -435,8 +459,9 @@ def bet_line(team, market, line, prob, data_points, explanation):
         f'<b>Time:</b> {team}<br>'
         f'<b>Probabilidade Empírica:</b> {prob:.1f}% (baseada em {data_points} jogos reais)<br>'
         f'<b>Odd Justa (matemática):</b> 1 / ({prob:.1f}% / 100) = <b>{odd:.2f}</b><br>'
-        f'<b>Classificação de Risco:</b> {label}<br><br>'
-        f'<b>💡 Por que esse risco?</b><br>{explanation}<br><br>'
-        f'<b>📐 Fórmula:</b> Odd = 100 / Prob%. Se a casa oferece odd &gt; {odd:.2f}, há <b>Expected Value positivo (+EV)</b>.'
+        f'<b>Classificação de Risco:</b> {label}<br>'
+        f'<div class="formula-box">Odd = 100 / Prob% = 100 / {prob:.1f}% = {odd:.2f}x</div>'
+        f'<b>📖 Explicação do Risco:</b><br>{explanation}<br>'
+        f'{tips_html}'
         f'</div></details></div>'
     )
