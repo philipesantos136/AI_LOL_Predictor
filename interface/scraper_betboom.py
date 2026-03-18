@@ -39,65 +39,85 @@ class BetBoomScraper:
         except:
             print("Not logged in. Proceeding to login...")
 
-        # Handle modals first
+        # Handlers for initial state
         try:
-            # Age verification
+            # First, check if there's a logout button or profile to see if we're ALREADY logged in
+            # This is faster than trying to login
+            balance_selector = "div.styles_controlBtn__TH_0O span, .bb-A__, .bb-F__, .bb-G__"
+            try:
+                await page.wait_for_selector(balance_selector, timeout=3000)
+                print("✅ Já está logado. Pulando login.")
+                return
+            except:
+                pass
+
+            # If not logged in, proceed. Check for modals first
             age_btn = page.locator('button:has-text("Sim, eu tenho 18 anos ou mais")')
             if await age_btn.is_visible():
                 await age_btn.click()
             
-            # Cookies
             cookie_btn = page.locator('button:has-text("OK")')
             if await cookie_btn.is_visible():
                 await cookie_btn.click()
-        except:
-            pass
+        except Exception as e:
+            print(f"⚠️ Erro ao tratar modais iniciais: {e}")
 
         # Click login button
         try:
-            # New selectors from subagent
-            # 1. Login button on main page
+            print("🔍 Procurando botão de login...")
             login_btn = page.locator('a[href*="modal=%7B%22type%22%3A%22auth%22"], button:has-text("Fazer login"), .bb-y_')
-            await login_btn.first.wait_for(state="visible", timeout=10000)
+            await login_btn.first.wait_for(state="visible", timeout=15000)
             await login_btn.first.click(force=True)
+            print("👆 Clique no botão de login realizado.")
             
-            # small delay for modal
-            await asyncio.sleep(2)
+            await page.wait_for_timeout(3000) # Wait for animation
 
             # 2. Email tab
-            email_tab = page.locator('div.styles_labelText__BqfmI:has-text("Por e-mail"), div:has-text("Por e-mail"), button:has-text("Por e-mail")')
-            if await email_tab.count() > 0:
-                await email_tab.first.click()
+            print("📧 Selecionando aba de e-mail...")
+            email_tab = page.locator('div.styles_labelText__BqfmI:has-text("Por e-mail"), button:has-text("Por e-mail")')
             
-            # Handle possible registration modal redirect
+            # Check if modal redirect happened (registration modal instead of login)
             reg_modal_login = page.locator('text="Eu tenho uma conta Entrar"')
             if await reg_modal_login.is_visible():
+                print("🔄 Detectado modal de registro. Mudando para login...")
                 await page.click('span:has-text("Entrar"), a:has-text("Entrar"), .bb-V_')
-                # Try clicking email tab again if it changed
-                if await email_tab.count() > 0:
-                    await email_tab.first.click()
+                await page.wait_for_timeout(2000)
 
+            await email_tab.first.wait_for(state="attached", timeout=10000)
+            await email_tab.first.click(force=True)
+            
             # 3. Fill credentials
+            print("📝 Preenchendo credenciais...")
             email_input = page.locator('input[placeholder="Insira seu e-mail"], input[type="text"], input[placeholder*="email"]')
-            await email_input.wait_for(state="visible", timeout=10000)
-            await email_input.fill(BETBOOM_EMAIL)
+            await email_input.first.wait_for(state="visible", timeout=10000)
+            await email_input.first.fill(BETBOOM_EMAIL)
             
             password_input = page.locator('input[placeholder="Senha"], input[type="password"], input[placeholder*="senha"]')
-            await password_input.fill(BETBOOM_PASSWORD)
+            await password_input.first.fill(BETBOOM_PASSWORD)
             
             # 4. Submit button
+            print("🚀 Enviando formulário...")
             submit_btn = page.locator('button.styles_submitBtn__OyhuH, button[type="submit"]:has-text("Entrar"), .bb-V_ >> text="Entrar"')
-            if await submit_btn.is_visible():
-                await submit_btn.click()
-            else:
-                await page.keyboard.press("Enter")
+            await submit_btn.first.click(force=True)
             
             # 5. Wait for login to complete (Success indicator)
-            await page.wait_for_selector("div.styles_controlBtn__TH_0O span, .bb-A__, .bb-F__, .bb-G__", timeout=20000)
+            print("⏳ Aguardando confirmação de login (saldo/perfil)...")
+            await page.wait_for_selector(balance_selector, timeout=25000)
+            print("🎉 Login confirmado com sucesso!")
             
             # Save state
             await self.context.storage_state(path=str(STORAGE_STATE))
-            print("Login successful and state saved.")
+            print("💾 Estado da sessão salvo.")
+        except Exception as e:
+            print(f"❌ Falha no processo de login: {e}")
+            await page.screenshot(path="login_error.png")
+            # Salvar HTML para depuração se falhar
+            try:
+                html_content = await page.content()
+                with open("login_error_debug.html", "w", encoding="utf-8") as f:
+                    f.write(html_content)
+            except: pass
+            raise e
         except Exception as e:
             print(f"Login failure: {e}")
             await page.screenshot(path="login_error.png")
@@ -126,31 +146,75 @@ class BetBoomScraper:
 
         # Extract odds
         odds_data = {}
-        
-        # Helper to find market groups and their buttons
-        # Markets are in containers with titles
-        market_containers = await page.query_selector_all(".bb-_c.bb-as")
-        
-        for container in market_containers:
-            title_node = await container.query_selector(".bb-X_") # Header of the market group
-            if not title_node: continue
-            
-            title = (await title_node.inner_text()).strip()
-            
-            buttons = await container.query_selector_all("button.bb-N_.bb-Ms.bb-Ps")
-            market_odds = []
-            for btn in buttons:
-                try:
-                    labels = await btn.query_selector_all("div")
-                    if len(labels) >= 2:
-                        label = (await labels[0].inner_text()).strip()
-                        value = (await labels[1].inner_text()).strip()
-                        market_odds.append({"label": label, "value": value})
-                except:
-                    continue
-            
-            if market_odds:
-                odds_data[title] = market_odds
+                # Wait for either containers or buttons
+        try:
+            await page.wait_for_selector(".bb-_c, button.bb-N_", timeout=15000)
+            print("Odds elements detected.")
+        except Exception as e:
+            print(f"Odds elements not found. Saving debug screenshot.")
+            await page.screenshot(path="scrape_error.png")
+            return {}
+
+        # Click "Todos" filter if possible
+        try:
+            todos_filter = page.locator('div.bb-f__:has-text("Todos"), button:has-text("Todos"), .bb-f__ >> text="Todos"')
+            if await todos_filter.count() > 0:
+                await todos_filter.first.click(force=True)
+                await page.wait_for_timeout(2000)
+        except: pass
+
+        # Robust extraction using evaluate
+        odds_data = await page.evaluate("""
+            () => {
+                const results = {};
+                // Market headers have this class (from subagent debug)
+                const headers = document.querySelectorAll('.bb-_c.bb-as');
+                
+                headers.forEach(header => {
+                    const title = header.innerText.trim();
+                    const market_odds = [];
+                    
+                    // The odds are siblings that follow the header
+                    let next = header.nextElementSibling;
+                    
+                    // Markets are usually grouped in blocks or siblings until the next header
+                    // We'll look for buttons specifically
+                    while (next && !next.classList.contains('bb-as')) {
+                        // Find all buttons in this section
+                        const buttons = next.querySelectorAll('button.bb-N_');
+                        buttons.forEach(btn => {
+                            const divs = btn.querySelectorAll('div');
+                            if (divs.length >= 2) {
+                                let label = divs[0].innerText.trim();
+                                const value = divs[1].innerText.trim();
+                                
+                                // Check for line value (e.g. 21.5 in Total kills) which might be a sibling text node
+                                // In the 3-column layout (Menos | 21.5 | Mais)
+                                // We check if there's a text element before/after the button that looks like a number
+                                market_odds.push({ label, value });
+                            }
+                        });
+                        
+                        // Also look for line values in the parent container of buttons
+                        const lineElements = next.querySelectorAll('div.bb-M_'); // Potential class for lines
+                        lineElements.forEach(le => {
+                            const lineText = le.innerText.trim();
+                            if (lineText && !isNaN(parseFloat(lineText))) {
+                                market_odds.push({ type: 'line', value: lineText });
+                            }
+                        });
+
+                        next = next.nextElementSibling;
+                        if (!next) break;
+                    }
+                    
+                    if (market_odds.length > 0) {
+                        results[title] = market_odds;
+                    }
+                });
+                return results;
+            }
+        """)
 
         await page.close()
         return odds_data
@@ -203,7 +267,21 @@ async def get_betboom_data(team1: str, team2: str, url: str = None):
         
         if url:
             odds = await scraper.scrape_match(url)
-            return {"url": url, "odds": odds}
+            result = {"url": url, "odds": odds}
+            
+            # Save the result to a file as requested
+            # Sanitize team names for filename
+            s_t1 = team1.replace(" ", "_").replace("/", "-")
+            s_t2 = team2.replace(" ", "_").replace("/", "-")
+            filename = f"Odds_{s_t1}vs{s_t2}.json"
+            output_path = Path("data") / filename
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(result, f, indent=2, ensure_ascii=False)
+            print(f"📄 Odds salvas em: {output_path}")
+            
+            return result
         else:
             return {"error": "Match URL not found"}
     finally:
