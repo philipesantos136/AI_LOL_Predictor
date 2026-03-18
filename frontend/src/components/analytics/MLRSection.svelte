@@ -15,6 +15,31 @@
 <div class="section-card">
   <h3 class="section-title">🏰 MLR Proxy — Mid/Late Rating</h3>
 
+  <div class="table-wrapper">
+    <table class="mlr-table">
+      <thead>
+        <tr>
+          <th class="metric-col">Métrica</th>
+          <th class="t1-col">{team1}</th>
+          <th class="t2-col">{team2}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {#each Object.keys(data.t1) as metric}
+          <tr>
+            <td class="metric-name">{metric}</td>
+            <td class="t1-val">
+              {metric.includes('Score') ? data.t1[metric].toFixed(0) + '%' : data.t1[metric].toFixed(2)}
+            </td>
+            <td class="t2-val">
+              {metric.includes('Score') ? data.t2[metric].toFixed(0) + '%' : data.t2[metric].toFixed(2)}
+            </td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  </div>
+
   <ExplainBox text={data.explain_text} />
   <DataCommentBox comments={data.comments} />
 </div>
