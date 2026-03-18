@@ -126,14 +126,6 @@ class BetBoomScraper:
         
         await page.close()
 
-    async def scrape_match(self, url: str):
-        if not self.context:
-            await self.init_browser()
-            await self.login()
-
-        page = await self.context.new_page()
-        await page.goto(url)
-        
     async def get_available_tabs(self, page):
         """Retorna uma lista de nomes de abas disponíveis (Partida, Mapa 1, etc)"""
         tabs_elements = await page.locator('button[role="radio"]').all()
@@ -141,7 +133,9 @@ class BetBoomScraper:
         for el in tabs_elements:
             text = await el.inner_text()
             if text:
-                tabs.append(text.strip())
+                text = text.strip()
+                if text != "Todos": # Ignorar a aba "Todos"
+                    tabs.append(text)
         return tabs
 
     async def extract_current_tab_odds(self, page):
@@ -194,9 +188,10 @@ class BetBoomScraper:
             await self.login()
 
         page = await self.context.new_page()
+        print(f"🌐 Navegando para: {url}")
         await page.goto(url)
         
-        # Aguardar carregamento inicial
+        # Aguardar carregamento inicial das abas
         try:
             await page.wait_for_selector('button[role="radio"]', timeout=15000)
         except:
@@ -211,35 +206,44 @@ class BetBoomScraper:
 
         # 1. Extrair aba "Partida"
         if "Partida" in available_tabs:
-            print("🎯 Extraindo odds da aba 'Partida'...")
+            print("🎯 Selecionando aba 'Partida'...")
             partida_tab = page.locator('button[role="radio"]').filter(has_text="Partida")
             await partida_tab.click()
-            await asyncio.sleep(1.5)
+            await asyncio.sleep(2) # Tempo para os mercados carregarem
+            print("📥 Extraindo odds de 'Partida'...")
             partida_odds = await self.extract_current_tab_odds(page)
             all_odds.update(partida_odds)
         
         # 2. Extrair "Próximo Mapa"
-        # Identificar o menor mapa disponível (Mapa 1, Mapa 2, etc.)
+        # Identificar mapas disponíveis e ordenar numericamente
         map_tabs = [t for t in available_tabs if "Mapa" in t]
         if map_tabs:
-            # Ordenar para pegar o primeiro (ex: Mapa 1)
-            map_tabs.sort()
+            # Ordenação numérica (Mapa 1, Mapa 2, etc)
+            def extract_map_number(t):
+                try: 
+                    return int(''.join(filter(str.isdigit, t)))
+                except: 
+                    return 99
+            
+            map_tabs.sort(key=extract_map_number)
             next_map = map_tabs[0]
-            print(f"🗺️ Extraindo odds do próximo mapa: {next_map}...")
+            
+            print(f"🗺️ Selecionando próximo mapa: {next_map}...")
             mapa_tab = page.locator('button[role="radio"]').filter(has_text=next_map)
             await mapa_tab.click()
-            await asyncio.sleep(1.5)
+            await asyncio.sleep(2) # Tempo para os mercados do mapa carregarem
+            
+            print(f"📥 Extraindo odds de: {next_map}...")
             mapa_odds = await self.extract_current_tab_odds(page)
             
             # Adicionar prefixo do mapa nas chaves para não sobrescrever Partida
             for k, v in mapa_odds.items():
                 all_odds[f"[{next_map}] {k}"] = v
 
+        await page.screenshot(path="debug_scrape_finish.png")
         await page.close()
         return all_odds
 
-        await page.close()
-        return odds_data
 
     async def find_match_url(self, team1: str, team2: str):
         if not self.context:
