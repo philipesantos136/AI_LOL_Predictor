@@ -13,6 +13,8 @@ from interface.charts import generate_charts
 from interface.charts.json_serializer import generate_analytics_json
 from interface.charts.models import AnalyticsResponse
 from interface.health_monitor import HealthMonitor
+from interface.scraper_betboom import get_betboom_data
+
 
 from interface.live_service import HEADERS as LIVE_HEADERS
 
@@ -150,6 +152,12 @@ class InsightRequest(BaseModel):
     t2_mid: str = ""
     t2_adc: str = ""
     t2_sup: str = ""
+    betboom_url: Optional[str] = None
+
+class FullAnalyticsResponse(BaseModel):
+    analytics: AnalyticsResponse
+    betboom: Optional[Dict[str, Any]] = None
+
 
 @app.get("/api/analytics/teams")
 def get_teams():
@@ -268,6 +276,55 @@ def generate_insights_api(req: InsightRequest):
         )
 
     return AnalyticsResponse(**result)
+
+@app.post("/api/analytics/full_match_data", response_model=FullAnalyticsResponse)
+async def generate_full_analytics_api(req: FullAnalyticsRequest):
+    # 1. Get standard analytics (reusing logic from generate_insights_api)
+    champs_t1 = {
+        "Top": req.t1_top if req.t1_top else None,
+        "Jungle": req.t1_jg if req.t1_jg else None,
+        "Mid": req.t1_mid if req.t1_mid else None,
+        "ADC": req.t1_adc if req.t1_adc else None,
+        "Sup": req.t1_sup if req.t1_sup else None,
+    }
+
+    champs_t2 = {
+        "Top": req.t2_top if req.t2_top else None,
+        "Jungle": req.t2_jg if req.t2_jg else None,
+        "Mid": req.t2_mid if req.t2_mid else None,
+        "ADC": req.t2_adc if req.t2_adc else None,
+        "Sup": req.t2_sup if req.t2_sup else None,
+    }
+
+    try:
+        analytics_dict = generate_analytics_json(
+            req.time1, req.time2,
+            patches=req.patches,
+            champs_t1=champs_t1,
+            champs_t2=champs_t2,
+        )
+        if analytics_dict is None:
+            raise HTTPException(status_code=422, detail="Dados insuficientes para análise.")
+        
+        analytics_response = AnalyticsResponse(**analytics_dict)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro na análise: {str(e)}")
+
+    # 2. Get BetBoom data
+    betboom_data = None
+    try:
+        # We try to get betboom data in parallel or sequentially. 
+        # Since it's a slow browser operation, we await it here.
+        betboom_data = await get_betboom_data(req.time1, req.time2, req.betboom_url)
+    except Exception as e:
+        print(f"Erro ao buscar dados BetBoom: {e}")
+        betboom_data = {"error": str(e)}
+
+    return FullAnalyticsResponse(
+        analytics=analytics_response,
+        betboom=betboom_data
+    )
+
 
 if __name__ == "__main__":
     print("🚀 Starting AI LoL Predictor API on http://localhost:8000")
