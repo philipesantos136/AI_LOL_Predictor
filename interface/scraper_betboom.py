@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 import json
+import sys
 
 load_dotenv("c:/Projetos/AI_LOL_Predictor/.env")
 
@@ -257,6 +258,11 @@ class BetBoomScraper:
             await self.playwright.stop()
 
 async def get_betboom_data(team1: str, team2: str, url: str = None):
+    # Ensure Proactor loop on Windows for subprocess support
+    if sys.platform == 'win32':
+        import asyncio
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+        
     scraper = BetBoomScraper()
     try:
         await scraper.init_browser()
