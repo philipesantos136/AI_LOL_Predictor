@@ -154,6 +154,8 @@ class InsightRequest(BaseModel):
     t2_sup: str = ""
     betboom_url: Optional[str] = None
 
+FullAnalyticsRequest = InsightRequest
+
 class FullAnalyticsResponse(BaseModel):
     analytics: AnalyticsResponse
     betboom: Optional[Dict[str, Any]] = None
