@@ -144,8 +144,18 @@ def build_mlr_section(s1, s2, t1, t2):
             comments.append(f'👑 <b>{team} é completo:</b> forte no early e no late.')
 
     return {
-        "t1": {},
-        "t2": {},
+        "t1": {
+            "Barões Médios": s1.get("avg_barons", 0),
+            "Inibidores Médios": s1.get("avg_inhibitors", 0),
+            "Torres Médias": s1.get("avg_towers", 0),
+            "MLR Score": mlr1
+        },
+        "t2": {
+            "Barões Médios": s2.get("avg_barons", 0),
+            "Inibidores Médios": s2.get("avg_inhibitors", 0),
+            "Torres Médias": s2.get("avg_towers", 0),
+            "MLR Score": mlr2
+        },
         "explain_text": "O modelo <b>MLR</b> mostra como o time fecha o jogo no Mid-Late Game.",
         "comments": comments,
     }
