@@ -318,10 +318,10 @@ async def get_betboom_data(team1: str, team2: str, url: str = None):
     finally:
         await scraper.close()
 
-if __name__ == "__main__":
     # Test
     async def test():
-        data = await get_betboom_data("Bilibili Gaming", "G2 Esports", "https://betboom.bet.br/esport/league-of-legends/30603/4229073/")
+        data = await get_betboom_data("FearX", "Team Secret Whales")
         print(json.dumps(data, indent=2))
+
     
     asyncio.run(test())

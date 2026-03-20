@@ -7,6 +7,12 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import sqlite3
 from pathlib import Path
+import sys
+import asyncio
+
+# Fix for Playwright/Uvicorn on Windows: NotImplementedError
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 import interface.live_service as live_service
 from interface.charts import generate_charts
@@ -319,8 +325,10 @@ async def generate_full_analytics_api(req: FullAnalyticsRequest):
         # Since it's a slow browser operation, we await it here.
         betboom_data = await get_betboom_data(req.time1, req.time2, req.betboom_url)
     except Exception as e:
+        import traceback
         print(f"Erro ao buscar dados BetBoom: {e}")
-        betboom_data = {"error": str(e)}
+        traceback.print_exc()
+        betboom_data = {"error": f"{type(e).__name__}: {str(e)}"}
 
     return FullAnalyticsResponse(
         analytics=analytics_response,
@@ -329,5 +337,8 @@ async def generate_full_analytics_api(req: FullAnalyticsRequest):
 
 
 if __name__ == "__main__":
+    if sys.platform == 'win32':
+        import asyncio
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
     print("🚀 Starting AI LoL Predictor API on http://localhost:8000")
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True, access_log=False)
+    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=False, access_log=False)
