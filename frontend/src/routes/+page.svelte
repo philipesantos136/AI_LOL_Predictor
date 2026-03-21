@@ -5,6 +5,7 @@
 
   let liveGames: any[] = $state([]);
   let todayGames: any[] = $state([]);
+  let yesterdayGames: any[] = $state([]);
   let loading = $state(true);
   let titleElement: HTMLElement;
   let subtitleElement: HTMLElement;
@@ -19,6 +20,11 @@
       const todayRes = await fetch('http://localhost:8000/api/live/today');
       if (todayRes.ok) {
         todayGames = await todayRes.json();
+      }
+
+      const yesterdayRes = await fetch('http://localhost:8000/api/live/yesterday');
+      if (yesterdayRes.ok) {
+        yesterdayGames = await yesterdayRes.json();
       }
     } catch (e) {
       console.error("Error fetching games:", e);
@@ -54,7 +60,7 @@
     </p>
   </div>
 
-  {#if loading && liveGames.length === 0 && todayGames.length === 0}
+  {#if loading && liveGames.length === 0 && todayGames.length === 0 && yesterdayGames.length === 0}
     <div class="flex h-64 items-center justify-center">
       <div class="text-lg font-medium text-[#64748b] animate-pulse">Carregando partidas...</div>
     </div>
@@ -99,6 +105,28 @@
       {:else}
          <div class="rounded-xl border border-[#1e293b] bg-[#0a1628] p-8 text-center text-sm text-[#64748b]">
           NENHUM OUTRO JOGO ENCONTRADO PARA HOJE
+        </div>
+      {/if}
+    </div>
+
+    <!-- Divider -->
+    <hr class="my-10 border-[#334155]" />
+
+    <!-- JOGOS DE ONTEM -->
+    <div>
+      <h2 class="mb-6 text-center text-lg font-bold tracking-widest text-[#cbd5e1] uppercase">
+        Jogos Encerrados Ontem (<span class="text-purple-400">{yesterdayGames.length}</span>)
+      </h2>
+      
+      {#if yesterdayGames.length > 0}
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {#each yesterdayGames as match}
+              <MatchCard {match} isLive={false} />
+          {/each}
+        </div>
+      {:else}
+         <div class="rounded-xl border border-[#1e293b] bg-[#0a1628] p-8 text-center text-sm text-[#64748b]">
+          NENHUM JOGO RECENTE (ONTEM) FOI ENCONTRADO
         </div>
       {/if}
     </div>
