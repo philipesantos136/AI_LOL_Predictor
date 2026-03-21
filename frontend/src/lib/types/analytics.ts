@@ -188,25 +188,6 @@ export interface PlayerKillStatsSection {
   comments: string[];
 }
 
-export interface CorrectScoreSection {
-  t1_scores: Record<string, number>;
-  t2_scores: Record<string, number>;
-  t1_total_series: number;
-  t2_total_series: number;
-  bet_entries: BetEntryData[];
-  explain_text: string;
-  comments: string[];
-}
-
-export interface MapHandicapSection {
-  t1_map_diffs: number[];
-  t2_map_diffs: number[];
-  t1_total_series: number;
-  t2_total_series: number;
-  bet_entries: BetEntryData[];
-  explain_text: string;
-  comments: string[];
-}
 
 export interface TowersPerTeamSection {
   t1_histogram: number[];
@@ -279,7 +260,5 @@ export interface AnalyticsResponse {
   ev_finder?: EVFinderSection;
   top_ckpm?: TopCkpmEntry[];
   player_kill_stats?: PlayerKillStatsSection;
-  correct_score?: CorrectScoreSection;
-  map_handicap?: MapHandicapSection;
   towers_per_team?: TowersPerTeamSection;
 }
