@@ -247,12 +247,64 @@ async def get_live_games() -> list:
                         "league":      s["league"],
                         "team_blue":   s["team_blue"],
                         "team_red":    s["team_red"],
+                        "games":       s.get("games", [])
                     })
                     used_schedule_match_ids.add(s["match_id"])
 
         return result
     except Exception as e:
         logger.error(f"Erro ao buscar partidas ao vivo: {e}", exc_info=True)
+        return []
+
+async def get_games_yesterday() -> list:
+    """Retorna lista de partidas finalizadas de ontem."""
+    try:
+        data = await _retry_system.async_fetch_with_retry(
+            url=f"{API_URL_PERSISTED}/getCompletedEvents",
+            params={"hl": "pt-BR"},
+            headers=HEADERS,
+            timeout=10,
+        )
+        if not data: return []
+        events = (data.get("data", {}) if "data" in data else data).get("schedule", {}).get("events", [])
+        
+        yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
+        result = []
+        
+        for ev in events:
+            if not ev.get("match"):
+                continue
+            match = ev["match"]
+            teams = match.get("teams", [])
+            if len(teams) < 2:
+                continue
+            
+            start_time_str = ev.get("startTime", "")
+            if not start_time_str:
+                continue
+                
+            try:
+                event_date_str = start_time_str.split("T")[0]
+                event_date = datetime.strptime(event_date_str, "%Y-%m-%d").date()
+                if event_date != yesterday:
+                    continue
+            except Exception:
+                continue
+            
+            result.append({
+                "match_id":    match.get("id", ""),
+                "state":       ev.get("state", "completed"),
+                "league":      ev.get("league", {}).get("name", ""),
+                "team_blue":   teams[0],
+                "team_red":    teams[1],
+                "start_time":  start_time_str,
+                "strategy":    match.get("strategy", {}),
+                "games":       match.get("games", []),
+            })
+            
+        return result
+    except Exception as e:
+        logger.error(f"Erro ao buscar partidas de ontem: {e}", exc_info=True)
         return []
 
 async def get_schedule_today() -> list:
@@ -303,6 +355,7 @@ async def get_schedule_today() -> list:
                 "team_red":    teams[1],
                 "start_time":  start_time_str,
                 "strategy":    match.get("strategy", {}),
+                "games":       match.get("games", []),
             })
             
         return result
