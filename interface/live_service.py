@@ -1300,7 +1300,7 @@ async def _enrich_match_with_window(game_info: dict) -> dict:
     game_id = game_info.get("game_id", "unknown")
     result = dict(game_info)
 
-    if game_id == "unknown":
+    if game_id == "unknown" or game_info.get("state") == "unstarted":
         return result
     
     is_completed = game_info.get("state") == "completed"

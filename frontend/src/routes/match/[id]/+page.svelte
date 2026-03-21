@@ -151,6 +151,31 @@
       <p class="text-slate-400">Os dados da Riot API ainda não estão disponíveis para este ID ou a partida expirou.</p>
       <button onclick={fetchDetails} class="mt-8 px-6 py-2 bg-red-900/20 hover:bg-red-900/40 border border-red-900/50 rounded-lg text-red-400 transition-colors">Tentar Novamente</button>
     </div>
+  {:else if matchData.state === 'unstarted'}
+    <div class="max-w-3xl mx-auto bg-[#0a0f1a] p-12 rounded-2xl border border-blue-900/30 text-center shadow-2xl fade-in">
+      <div class="flex justify-center items-center gap-8 mb-8">
+          <div class="flex flex-col items-center">
+             <div class="w-20 h-20 bg-[#1e293b] rounded-2xl p-2 shadow-inner flex items-center justify-center">
+                 <img src={matchData.team_blue?.image || ''} class="max-w-full max-h-full object-contain" alt="Logo Blue" onerror={handleImageError}>
+             </div>
+             <span class="mt-4 font-black tracking-widest text-[#90CDF4] text-xl">{matchData.team_blue?.code}</span>
+          </div>
+          <div class="text-3xl font-black text-slate-700 italic px-4">VS</div>
+          <div class="flex flex-col items-center">
+             <div class="w-20 h-20 bg-[#1e293b] rounded-2xl p-2 shadow-inner flex items-center justify-center">
+                 <img src={matchData.team_red?.image || ''} class="max-w-full max-h-full object-contain" alt="Logo Red" onerror={handleImageError}>
+             </div>
+             <span class="mt-4 font-black tracking-widest text-[#FC8181] text-xl">{matchData.team_red?.code}</span>
+          </div>
+      </div>
+      <div class="text-5xl mb-6">⏳</div>
+      <h2 class="text-2xl font-bold text-blue-200 mb-2">A partida ainda não começou...</h2>
+      <p class="text-slate-400">Esta partida está agendada mas os jogadores ainda não subiram no palco. Fique de olho, os dados vão aparecer aqui em tempo real!</p>
+      
+      <div class="mt-8 pt-6 border-t border-slate-800">
+         <span class="text-xs font-black tracking-widest uppercase text-slate-500">Liga: {matchData.league}</span>
+      </div>
+    </div>
   {:else}
     <div class="max-w-7xl mx-auto space-y-6">
       
