@@ -269,27 +269,6 @@ class PlayerKillStatsSection(BaseModel):
     comments: List[str]
 
 
-class CorrectScoreSection(BaseModel):
-    """Frequência de placares exatos em séries MD3/MD5."""
-    t1_scores: Dict[str, int]  # {"2:0": 5, "2:1": 3, ...}
-    t2_scores: Dict[str, int]
-    t1_total_series: int
-    t2_total_series: int
-    bet_entries: List[BetEntryData]
-    explain_text: str
-    comments: List[str]
-
-
-class MapHandicapSection(BaseModel):
-    """Cobertura de handicap de mapas (-1.5, +1.5 etc)."""
-    t1_map_diffs: List[int]
-    t2_map_diffs: List[int]
-    t1_total_series: int
-    t2_total_series: int
-    bet_entries: List[BetEntryData]
-    explain_text: str
-    comments: List[str]
-
 
 class TowersPerTeamSection(BaseModel):
     """Torres Over/Under por time individual."""
@@ -333,7 +312,5 @@ class AnalyticsResponse(BaseModel):
     objective_correlations: Optional[ObjectiveCorrelations] = None
     ev_finder: Optional[EVFinderSection] = None
     player_kill_stats: Optional[PlayerKillStatsSection] = None
-    correct_score: Optional[CorrectScoreSection] = None
-    map_handicap: Optional[MapHandicapSection] = None
     towers_per_team: Optional[TowersPerTeamSection] = None
     top_ckpm: Optional[List[TopCkpmEntry]] = None
