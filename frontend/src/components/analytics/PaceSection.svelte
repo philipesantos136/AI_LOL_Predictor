@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PaceSection } from '$lib/types/analytics';
+  import type { PaceSection, TopCkpmEntry } from '$lib/types/analytics';
   import ExplainBox from '../analytics/ExplainBox.svelte';
   import DataCommentBox from '../analytics/DataCommentBox.svelte';
 
@@ -7,9 +7,10 @@
     data: PaceSection;
     team1: string;
     team2: string;
+    top_ckpm?: TopCkpmEntry[];
   }
 
-  let { data, team1, team2 }: Props = $props();
+  let { data, team1, team2, top_ckpm }: Props = $props();
 
   function barWidth(value: number, t1: number, t2: number): string {
     const max = Math.max(t1, t2, 1);
@@ -58,6 +59,21 @@
         <span class="bar-value">{data.kpm.t2.toFixed(2)}</span>
       </div>
     </div>
+    
+    {#if top_ckpm && top_ckpm.length > 0}
+      <div class="metric-block mt-4">
+        <div class="metric-header text-amber-500">🏆 Global Top 10 CKPM </div>
+        <div class="bg-slate-800/50 rounded-lg border border-slate-700 p-3 mt-1 text-sm grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+          {#each top_ckpm.slice(0, 10) as rank, i}
+             <div class="flex justify-between items-center border-b border-slate-700/50 pb-1 last:border-0 last:pb-0">
+               <span class="text-slate-400 font-bold w-6">#{i + 1}</span>
+               <span class="text-slate-200 flex-1 truncate px-2" title={rank.teamname}>{rank.teamname}</span>
+               <span class="text-blue-400 font-bold">{rank.avg_ckpm.toFixed(3)}</span>
+             </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
   </div>
 
   <ExplainBox text={data.explain_text} />

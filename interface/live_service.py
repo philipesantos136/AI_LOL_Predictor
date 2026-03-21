@@ -1163,7 +1163,7 @@ def is_match_finished(game_data: dict) -> bool:
         return True
 
     return False
-async def get_match_data_by_id(match_id: str) -> dict | None:
+async def get_match_data_by_id(match_id: str, requested_game_id: str = None) -> dict | None:
     """
     Busca dados completos de uma partida pelo match_id usando getEventDetails.
     Funciona para partidas ao vivo, agendadas e finalizadas.
@@ -1174,19 +1174,19 @@ async def get_match_data_by_id(match_id: str) -> dict | None:
         today = await get_schedule_today()
         for s in today:
             if s.get("match_id") == match_id:
-                return await _fetch_match_from_event_details(s)
+                return await _fetch_match_from_event_details(s, requested_game_id)
     except Exception:
         pass
     
     # Fallback: busca direto no getEventDetails sem dados do schedule
     try:
         dummy = {"match_id": match_id, "league": "", "team_blue": {}, "team_red": {}}
-        return await _fetch_match_from_event_details(dummy)
+        return await _fetch_match_from_event_details(dummy, requested_game_id)
     except Exception:
         return None
 
 
-async def _fetch_match_from_event_details(s: dict) -> dict | None:
+async def _fetch_match_from_event_details(s: dict, requested_game_id: str = None) -> dict | None:
     """Busca dados de uma partida via getEventDetails e enriquece com window data."""
     match_id = s.get("match_id")
     if not match_id:
@@ -1216,22 +1216,30 @@ async def _fetch_match_from_event_details(s: dict) -> dict | None:
 
     match_state = match_data.get("state", s.get("state", "unknown"))
 
-    # Escolhe o game ativo: inProgress, ou próximo após completed
+    # Escolhe o game ativo: requested, ou inProgress, ou último completado
     game_id = "unknown"
     game_number = 1
     
     current_game = None
-    for g in games:
-        if g.get("state") == "inProgress":
-            current_game = g
-            break
-    
+    if requested_game_id:
+        for g in games:
+            if str(g.get("id")) == str(requested_game_id):
+                current_game = g
+                break
+                
     if not current_game:
-        # Se nenhum em progresso, pega o próximo após os completados
-        comp_count = sum(1 for g in games if g.get("state") == "completed")
-        idx = min(comp_count, len(games) - 1) if games else 0
-        if games:
-            current_game = games[idx]
+        for g in games:
+            if g.get("state") == "inProgress":
+                current_game = g
+                break
+                
+    if not current_game:
+        # Se nenhum em progresso, pega o último completado (ignora unneeded)
+        completed_games = [g for g in games if g.get("state") == "completed"]
+        if completed_games:
+            current_game = completed_games[-1]
+        elif games:
+            current_game = games[0]
             
     if current_game:
         game_id = current_game.get("id", "unknown")

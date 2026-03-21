@@ -4,6 +4,7 @@
   import gsap from 'gsap';
 
   let matchId = $page.params.id;
+  let gameId = $page.url.searchParams.get('gameId');
   let matchData: any = $state(null);
   let loading = $state(true);
 
@@ -12,7 +13,9 @@
 
   async function fetchDetails() {
     try {
-      const res = await fetch(`http://localhost:8000/api/live/match/${matchId}`);
+      let url = `http://localhost:8000/api/live/match/${matchId}`;
+      if (gameId) url += `?game_id=${gameId}`;
+      const res = await fetch(url);
       if (res.ok) {
         matchData = await res.json();
       } else {

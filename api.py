@@ -118,13 +118,14 @@ async def get_live_games():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/live/match/{match_id}", response_model=Dict[str, Any])
-async def get_match_by_id(match_id: str):
+async def get_match_by_id(match_id: str, game_id: Optional[str] = None):
     """
-    Returns data for a specific match by match_id or game_id.
+    Returns data for a specific match by match_id.
+    Takes an optional game_id query param to target a specific map in a BO3/BO5.
     Searches live games, today's schedule, and getEventDetails (including completed matches).
     """
     try:
-        data = await live_service.get_match_data_by_id(match_id)
+        data = await live_service.get_match_data_by_id(match_id, requested_game_id=game_id)
         if not data:
             raise HTTPException(status_code=404, detail="Partida não encontrada")
         return data

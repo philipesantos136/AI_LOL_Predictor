@@ -113,7 +113,7 @@
          {#if game.state === "completed" || game.state === "inProgress"}
             <button
                class="z-10 rounded bg-[#1E222D] border border-slate-700 px-3 py-1.5 text-xs font-semibold text-[#90CDF4] transition-colors hover:bg-slate-700 hover:text-white"
-               onclick={(e) => { e.preventDefault(); window.location.href = `/match/${game.id}`; }}
+               onclick={(e) => { e.preventDefault(); window.location.href = `/match/${matchId}?gameId=${game.id}`; }}
             >
                Mapa {idx + 1}
             </button>

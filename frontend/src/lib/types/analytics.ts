@@ -162,6 +162,63 @@ export interface EVFinderSection {
   joint_card: EVFinderTeamCard;
 }
 
+export interface TopCkpmEntry {
+  teamname: string;
+  avg_ckpm: number;
+  games: number;
+}
+
+export interface PlayerKillStatsEntry {
+  playername: string;
+  position: string;
+  avg_kills: number;
+  avg_deaths: number;
+  avg_assists: number;
+  min_kills: number;
+  max_kills: number;
+  games: number;
+  kills_history: number[];
+  bet_entries: BetEntryData[];
+}
+
+export interface PlayerKillStatsSection {
+  t1_players: PlayerKillStatsEntry[];
+  t2_players: PlayerKillStatsEntry[];
+  explain_text: string;
+  comments: string[];
+}
+
+export interface CorrectScoreSection {
+  t1_scores: Record<string, number>;
+  t2_scores: Record<string, number>;
+  t1_total_series: number;
+  t2_total_series: number;
+  bet_entries: BetEntryData[];
+  explain_text: string;
+  comments: string[];
+}
+
+export interface MapHandicapSection {
+  t1_map_diffs: number[];
+  t2_map_diffs: number[];
+  t1_total_series: number;
+  t2_total_series: number;
+  bet_entries: BetEntryData[];
+  explain_text: string;
+  comments: string[];
+}
+
+export interface TowersPerTeamSection {
+  t1_histogram: number[];
+  t2_histogram: number[];
+  t1_stats?: StatsBadgeData;
+  t2_stats?: StatsBadgeData;
+  t1_bet_entries: BetEntryData[];
+  t2_bet_entries: BetEntryData[];
+  explain_text: string;
+  comments: string[];
+}
+
 
 
 export interface SideStatEntry {
@@ -220,4 +277,9 @@ export interface AnalyticsResponse {
   league_context?: LeagueContextSection;
   objective_correlations?: ObjectiveCorrelations;
   ev_finder?: EVFinderSection;
+  top_ckpm?: TopCkpmEntry[];
+  player_kill_stats?: PlayerKillStatsSection;
+  correct_score?: CorrectScoreSection;
+  map_handicap?: MapHandicapSection;
+  towers_per_team?: TowersPerTeamSection;
 }
