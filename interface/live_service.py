@@ -1398,7 +1398,10 @@ async def _enrich_match_with_window(game_info: dict) -> dict:
     red_parts = red_frame.get("participants", [])
     
     # ─── Buscar Detalhes de Itens (Real-time) ───
-    ts = frame.get("rfc460Timestamp")
+    # We must use get_iso_date_multiple_of_10() to get a time 60 seconds in the past
+    # because the 'details' stream updates less frequently than the 'window' stream.
+    # Passing the exact 'rfc460Timestamp' from the window frame often requests future data.
+    ts = get_iso_date_multiple_of_10()
     details_data = await get_game_details(game_id, timestamp=ts)
     detail_blue = []
     detail_red  = []
