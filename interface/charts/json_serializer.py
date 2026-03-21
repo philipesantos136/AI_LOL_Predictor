@@ -100,14 +100,22 @@ def build_educational_section():
     }
 
 
-def build_egr_section(s1, s2, t1, t2):
-    """Returns EGRSection dict with Early Game metrics."""
+def build_egr_section(s1, s2, t1, t2, fi_proxy1=None, fi_proxy2=None):
+    """Returns EGRSection dict with Early Game metrics.
+    
+    fi_proxy1/fi_proxy2: dados proxy de first inhibitor (usa inhibitors > 0 como proxy
+    porque a coluna firstinhib está sempre zerada no banco).
+    """
     fb1, fb2 = s1["fb_rate"], s2["fb_rate"]
     fd1, fd2 = s1["fd_rate"], s2["fd_rate"]
     fh1, fh2 = s1["fherald_rate"], s2["fherald_rate"]
     fbn1, fbn2 = s1.get("fbaron_rate", 0), s2.get("fbaron_rate", 0)
     ft1, ft2 = s1.get("ft_rate", 0), s2.get("ft_rate", 0)
-    fi1, fi2 = s1.get("fi_rate", 0), s2.get("fi_rate", 0)
+    
+    # CORREÇÃO Item 9: fi_rate agora usa proxy (% jogos com inhib > 0)
+    # em vez da coluna firstinhib que está sempre zerada no DB
+    fi1 = fi_proxy1.get("inhib_rate", 0) if fi_proxy1 else s1.get("fi_rate", 0)
+    fi2 = fi_proxy2.get("inhib_rate", 0) if fi_proxy2 else s2.get("fi_rate", 0)
     
     egr1 = (fb1 + fd1 + fh1 + ft1 + fi1) / 5
     egr2 = (fb2 + fd2 + fh2 + ft2 + fi2) / 5
@@ -118,13 +126,22 @@ def build_egr_section(s1, s2, t1, t2):
             comments.append(f'⚡ <b>{team} tem domínio early game ({e_val:.0f}% EGR).</b> Favorito a FB/FD/FT.')
         elif e_val < 40:
             comments.append(f'⚠️ <b>{team} tem EGR baixo ({e_val:.0f}%).</b> Costuma começar atrás nos objetivos iniciais.')
+    
+    # Comentário sobre primeiro inibidor corrigido
+    if fi_proxy1 and fi_proxy2:
+        for team, fi_data in [(t1, fi_proxy1), (t2, fi_proxy2)]:
+            rate = fi_data.get("inhib_rate", 0)
+            if rate > 70:
+                comments.append(f'🏠 <b>{team} destrói inibs em {rate:.0f}% dos jogos.</b> Forte fechamento de jogo — indica domínio de mid/late.')
+            elif rate < 40:
+                comments.append(f'⚠️ <b>{team} raramente destrói inibidores ({rate:.0f}%).</b> Dificuldade em avançar para a base inimiga.')
 
     return {
         "t1_values": {"fb": fb1, "fd": fd1, "fh": fh1, "fbn": fbn1, "ft": ft1, "fi": fi1},
         "t2_values": {"fb": fb2, "fd": fd2, "fh": fh2, "fbn": fbn2, "ft": ft2, "fi": fi2},
         "egr_score_t1": egr1,
         "egr_score_t2": egr2,
-        "explain_text": "O modelo de <b>EGR</b> demonstra que o time que conquista esses prêmios iniciais cria snowball de ouro.",
+        "explain_text": "O modelo de <b>EGR</b> demonstra que o time que conquista esses prêmios iniciais cria snowball de ouro. <br><b>Nota:</b> O FI% (First Inhibitor) usa proxy (% de jogos onde o time destruiu ≥1 inibidor) pois a coluna raw não é fornecida pelo Oracle's Elixir.",
         "comments": comments,
     }
 
@@ -1344,6 +1361,290 @@ def build_league_context_section(league_context, league_name):
 
 
 # ============================================================================
+# New Section Builders (BetBoom Coverage Gaps)
+# ============================================================================
+
+def build_player_kill_stats_section(pk_stats1, pk_stats2, t1, t2):
+    """Constrói seção de Over/Under de kills por jogador."""
+    from .html_helpers import calc_stats
+    
+    def process_players(pk_list, team):
+        entries = []
+        if not pk_list:
+            return entries
+        for p in pk_list:
+            kills_hist = p.get('kills_history', [])
+            avg_k = p.get('avg_kills', 0)
+            n = p.get('games', 0)
+            if not kills_hist or n < 3:
+                continue
+            
+            bet_entries = []
+            # Ger linhas Over/Under baseadas na média
+            for line in [max(0.5, round((avg_k - 1) * 2) / 2), 
+                         round(avg_k * 2) / 2, 
+                         round((avg_k + 1) * 2) / 2]:
+                prob_o, cnt = _rate_prob(kills_hist, lambda v, l=line: v > l)
+                if prob_o is not None and prob_o > 5:
+                    e = make_bet_entry(
+                        f"{p['playername']} ({team})", "Over Kills Jogador",
+                        f"{line:.1f} kills", prob_o, cnt,
+                        f"Em {sum(1 for v in kills_hist if v > line)} de {cnt} jogos, {p['playername']} teve > {line:.1f} kills. "
+                        f"Média histórica: {avg_k:.1f}, Min: {p.get('min_kills', 0)}, Max: {p.get('max_kills', 0)}.",
+                    )
+                    if e:
+                        bet_entries.append(e)
+                
+                prob_u = 100 - prob_o if prob_o is not None else None
+                if prob_u is not None and prob_u > 5:
+                    e_u = make_bet_entry(
+                        f"{p['playername']} ({team})", "Under Kills Jogador",
+                        f"{line:.1f} kills", prob_u, cnt,
+                        f"Em {sum(1 for v in kills_hist if v <= line)} de {cnt} jogos, {p['playername']} teve ≤ {line:.1f} kills.",
+                    )
+                    if e_u:
+                        bet_entries.append(e_u)
+            
+            entries.append({
+                "playername": p['playername'],
+                "position": p.get('position', ''),
+                "avg_kills": avg_k,
+                "avg_deaths": p.get('avg_deaths', 0),
+                "avg_assists": p.get('avg_assists', 0),
+                "min_kills": p.get('min_kills', 0),
+                "max_kills": p.get('max_kills', 0),
+                "games": n,
+                "kills_history": [int(k) for k in kills_hist],
+                "bet_entries": bet_entries,
+            })
+        return entries
+    
+    t1_players = process_players(pk_stats1, t1)
+    t2_players = process_players(pk_stats2, t2)
+    
+    comments = []
+    for players, team in [(t1_players, t1), (t2_players, t2)]:
+        if not players:
+            continue
+        # Destaque o jogador mais letal
+        top = max(players, key=lambda p: p['avg_kills'])
+        comments.append(
+            f'🎯 <b>{top["playername"]} ({team}) é o mais letal</b> com média de {top["avg_kills"]:.1f} kills/jogo. '
+            f'Over {round(top["avg_kills"] * 2) / 2:.1f} kills cobre em {sum(1 for v in top["kills_history"] if v > round(top["avg_kills"] * 2) / 2) / max(len(top["kills_history"]), 1) * 100:.0f}% dos jogos.'
+        )
+    
+    return {
+        "t1_players": t1_players,
+        "t2_players": t2_players,
+        "explain_text": (
+            "Estatísticas de abates por jogador permitem apostas de props individuais (Over/Under kills). "
+            "Jogadores de carry (mid/bot) tendem a ter mais kills, enquanto supports/junglers contribuem mais com assists. "
+            "A consistência (desvio padrão baixo) torna as linhas mais previsíveis."
+        ),
+        "comments": comments,
+    }
+
+
+def build_correct_score_section(cs1, cs2, t1, t2):
+    """Constrói seção de frequência de placares exatos."""
+    t1_scores = cs1.get("scores", {}) if cs1 else {}
+    t2_scores = cs2.get("scores", {}) if cs2 else {}
+    t1_total = cs1.get("total_series", 0) if cs1 else 0
+    t2_total = cs2.get("total_series", 0) if cs2 else 0
+    
+    if t1_total == 0 and t2_total == 0:
+        return None
+    
+    bet_entries = []
+    # Gera entradas para placares possíveis
+    possible_scores = ["2:0", "2:1", "1:2", "0:2", "3:0", "3:1", "3:2", "2:3", "1:3", "0:3"]
+    for team, scores, total, name in [(t1, t1_scores, t1_total, t1), (t2, t2_scores, t2_total, t2)]:
+        if total == 0:
+            continue
+        for score in possible_scores:
+            count = scores.get(score, 0)
+            if count > 0:
+                prob = (count / total) * 100
+                e = make_bet_entry(
+                    name, "Placar Exato", score, prob, total,
+                    f"{name} terminou {count} de {total} séries com placar {score} ({prob:.0f}%).",
+                )
+                if e:
+                    bet_entries.append(e)
+    
+    comments = []
+    for team, scores, total in [(t1, t1_scores, t1_total), (t2, t2_scores, t2_total)]:
+        if total < 3:
+            continue
+        # Placar mais comum
+        if scores:
+            top_score = max(scores, key=scores.get)
+            top_count = scores[top_score]
+            comments.append(
+                f'🏆 <b>{team}: placar mais frequente é {top_score}</b> ({top_count} de {total} séries, '
+                f'{top_count/total*100:.0f}%). Use como referência para apostas de resultado exato.'
+            )
+            # 2-0 stomp rate
+            stomp = scores.get("2:0", 0) + scores.get("3:0", 0)
+            if stomp > 0:
+                comments.append(
+                    f'💥 <b>{team} faz stomp (2:0/3:0) em {stomp/total*100:.0f}% das séries.</b> '
+                    f'Se busca valor alto, apostar em resultado exato 2:0 pode pagar bem.'
+                )
+    
+    return {
+        "t1_scores": t1_scores,
+        "t2_scores": t2_scores,
+        "t1_total_series": t1_total,
+        "t2_total_series": t2_total,
+        "bet_entries": bet_entries,
+        "explain_text": (
+            "A distribuição de <b>placares exatos</b> mostra como o time costuma fechar (ou perder) séries. "
+            "Times dominantes tendem a ter mais 2:0/3:0 (stomps), enquanto times inconsistentes vão a 5 jogos com frequência. "
+            "Odds de resultado exato são tipicamente altas e oferecem bom valor se o padrão histórico for consistente."
+        ),
+        "comments": comments,
+    }
+
+
+def build_map_handicap_section(mh1, mh2, t1, t2):
+    """Constrói seção de handicap de mapas."""
+    t1_diffs = mh1.get("map_diffs", []) if mh1 else []
+    t2_diffs = mh2.get("map_diffs", []) if mh2 else []
+    t1_total = mh1.get("total_series", 0) if mh1 else 0
+    t2_total = mh2.get("total_series", 0) if mh2 else 0
+    
+    if t1_total == 0 and t2_total == 0:
+        return None
+    
+    bet_entries = []
+    for team, diffs, total in [(t1, t1_diffs, t1_total), (t2, t2_diffs, t2_total)]:
+        if total < 2:
+            continue
+        # Handicap de mapas: -1.5, -0.5, +0.5, +1.5
+        for hc in [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5]:
+            covered = sum(1 for d in diffs if d > hc)
+            if covered > 0:
+                prob = (covered / total) * 100
+                sign = "+" if hc >= 0 else ""
+                e = make_bet_entry(
+                    team, "Handicap Mapas", f"{sign}{hc:.1f} mapas", prob, total,
+                    f"{team} cobriu handicap {sign}{hc:.1f} em {covered} de {total} séries ({prob:.0f}%). "
+                    f"Média de diff de mapas: {sum(diffs)/len(diffs):+.1f}.",
+                )
+                if e:
+                    bet_entries.append(e)
+    
+    comments = []
+    for team, diffs, total in [(t1, t1_diffs, t1_total), (t2, t2_diffs, t2_total)]:
+        if not diffs or total < 3:
+            continue
+        avg_diff = sum(diffs) / len(diffs)
+        pct_15 = sum(1 for d in diffs if d > 1.5) / len(diffs) * 100
+        if avg_diff > 1:
+            comments.append(
+                f'📈 <b>{team} domina séries (média {avg_diff:+.1f} mapas de diff).</b> '
+                f'Handicap -1.5 cobriu em {pct_15:.0f}% das séries. Time de stomp — considere -1.5 mapas para melhor odd.'
+            )
+        elif avg_diff < -1:
+            pct_p15 = sum(1 for d in diffs if d > -1.5) / len(diffs) * 100
+            comments.append(
+                f'📉 <b>{team} costuma perder séries por margem (média {avg_diff:+.1f}).</b> '
+                f'Handicap +1.5 cobriu em {pct_p15:.0f}% das séries. Proteção viável como underdog.'
+            )
+    
+    return {
+        "t1_map_diffs": t1_diffs,
+        "t2_map_diffs": t2_diffs,
+        "t1_total_series": t1_total,
+        "t2_total_series": t2_total,
+        "bet_entries": bet_entries,
+        "explain_text": (
+            "O <b>handicap de mapas</b> funciona como o handicap de kills, mas para séries inteiras. "
+            "Se você aposta em <b>T1 -1.5 mapas</b>, o time precisa vencer a série com 2+ mapas de vantagem (ex: 2:0 ou 3:0/3:1). "
+            "<b>+1.5 mapas</b> significa que o time pode perder por até 1 mapa de diferença. "
+            "Times dominantes com alto WR tendem a cobrir handicaps negativos com frequência."
+        ),
+        "comments": comments,
+    }
+
+
+def build_towers_per_team_section(s1, s2, t1, t2):
+    """Constrói seção de Over/Under de torres por time individual."""
+    t1_hist = int_list(s1.get("towers_history", []))
+    t2_hist = int_list(s2.get("towers_history", []))
+    st1 = calc_stats(t1_hist) if t1_hist else {}
+    st2 = calc_stats(t2_hist) if t2_hist else {}
+    
+    def make_tower_entries(raw, stats, team):
+        entries = []
+        if not raw or not stats:
+            return entries
+        avg_t = stats["avg"]
+        for lv in [3.5, 5.5, 7.5, 9.5]:
+            prob_o = sum(1 for v in raw if v > lv) / len(raw) * 100
+            e_o = make_bet_entry(
+                team, "Over Torres Time", f"{lv:.1f} torres", prob_o, len(raw),
+                f"Em {sum(1 for v in raw if v > lv)} de {len(raw)} jogos, {team} destruiu > {lv:.1f} torres. "
+                f"Média histórica: {avg_t:.1f}.",
+            )
+            if e_o:
+                entries.append(e_o)
+            
+            prob_u = 100 - prob_o
+            e_u = make_bet_entry(
+                team, "Under Torres Time", f"{lv:.1f} torres", prob_u, len(raw),
+                f"Em {sum(1 for v in raw if v <= lv)} de {len(raw)} jogos, {team} destruiu ≤ {lv:.1f} torres.",
+            )
+            if e_u:
+                entries.append(e_u)
+        return entries
+    
+    t1_bets = make_tower_entries(t1_hist, st1, t1)
+    t2_bets = make_tower_entries(t2_hist, st2, t2)
+    
+    comments = []
+    avg_tw1 = st1.get("avg", 0) if st1 else 0
+    avg_tw2 = st2.get("avg", 0) if st2 else 0
+    for team, avg_tw, raw in [(t1, avg_tw1, t1_hist), (t2, avg_tw2, t2_hist)]:
+        if not raw:
+            continue
+        pct_55 = sum(1 for v in raw if v > 5.5) / len(raw) * 100
+        if avg_tw > 6:
+            comments.append(
+                f'🏰 <b>{team} é uma máquina de destruir torres (média {avg_tw:.1f}).</b> '
+                f'Over 5.5 torres individuais cobriu em {pct_55:.0f}% dos jogos. '
+                f'Excelente valor para Over torres individual do time.'
+            )
+        elif avg_tw < 4:
+            comments.append(
+                f'⚠️ <b>{team} destrói poucas torres (média {avg_tw:.1f}).</b> '
+                f'Under 5.5 torres individuais tem alta probabilidade. Time que não finaliza jogos.'
+            )
+    if abs(avg_tw1 - avg_tw2) > 2 and avg_tw1 > 0 and avg_tw2 > 0:
+        dom = t1 if avg_tw1 > avg_tw2 else t2
+        comments.append(
+            f'📊 <b>Diferença de {abs(avg_tw1-avg_tw2):.1f} torres entre os times.</b> '
+            f'{dom} é muito superior em siege — mercado de torres individuais claramente pendente.'
+        )
+    
+    return {
+        "t1_histogram": [float(v) for v in t1_hist],
+        "t2_histogram": [float(v) for v in t2_hist],
+        "t1_stats": st1 if st1 else None,
+        "t2_stats": st2 if st2 else None,
+        "t1_bet_entries": t1_bets,
+        "t2_bet_entries": t2_bets,
+        "explain_text": (
+            "Torres destruidas <b>por time individual</b> permitem apostas como 'Under/Over X.5 torres do Time A'. "
+            "Times com média alta (>6) são dominantes em siege e tendem a cobrir Over 5.5 com frequência. "
+            "Times com média baixa (<4) frequentemente perdem sem destruir muitas estruturas."
+        ),
+        "comments": comments,
+    }
+
+
+# ============================================================================
 # Main Orchestrator
 # ============================================================================
 
@@ -1360,6 +1661,11 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
         get_side_stats,
         get_league_context,
         get_objective_win_correlations,
+        get_player_kill_stats,
+        get_top_ckpm_teams,
+        get_correct_score_history,
+        get_map_handicap_stats,
+        get_first_inhib_proxy,
     )
 
     stats1 = get_team_stats(team1, patches)
@@ -1381,6 +1687,17 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
     l_context = get_league_context(league_name)
 
     obj_corrs = get_objective_win_correlations(patches)
+
+    # Novos dados (BetBoom Coverage Gaps)
+    pk_stats1 = get_player_kill_stats(team1, patches)
+    pk_stats2 = get_player_kill_stats(team2, patches)
+    top_ckpm = get_top_ckpm_teams()
+    cs_history1 = get_correct_score_history(team1, patches)
+    cs_history2 = get_correct_score_history(team2, patches)
+    mh_stats1 = get_map_handicap_stats(team1, patches)
+    mh_stats2 = get_map_handicap_stats(team2, patches)
+    fi_proxy1 = get_first_inhib_proxy(team1, patches)
+    fi_proxy2 = get_first_inhib_proxy(team2, patches)
 
     # Platinum layer (same as renderer.py)
     plat1, plat2 = {}, {}
@@ -1432,7 +1749,7 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
     return {
         "meta": build_meta_section(stats1, stats2, team1, team2, patches),
         "educational": build_educational_section(),
-        "egr": build_egr_section(stats1, stats2, team1, team2),
+        "egr": build_egr_section(stats1, stats2, team1, team2, fi_proxy1, fi_proxy2),
         "mlr": build_mlr_section(stats1, stats2, team1, team2),
         "radar": build_radar_section(stats1, stats2, team1, team2, gold_t1, gold_t2),
         "timeline": build_timeline_section(stats1, stats2, team1, team2, mult_t1, mult_t2),
@@ -1452,4 +1769,11 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
         "league_context": build_league_context_section(l_context, league_name),
         "objective_correlations": obj_corrs,
         "ev_finder": build_ev_finder_section(stats1, stats2, team1, team2, mult_t1, mult_t2),
+        
+        # Novas seções (BetBoom Coverage Gaps)
+        "player_kill_stats": build_player_kill_stats_section(pk_stats1, pk_stats2, team1, team2),
+        "correct_score": build_correct_score_section(cs_history1, cs_history2, team1, team2),
+        "map_handicap": build_map_handicap_section(mh_stats1, mh_stats2, team1, team2),
+        "towers_per_team": build_towers_per_team_section(stats1, stats2, team1, team2),
+        "top_ckpm": [dict(r) for r in top_ckpm] if top_ckpm else None,
     }
