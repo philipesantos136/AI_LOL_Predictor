@@ -21,8 +21,50 @@ load_dotenv("c:/Projetos/AI_LOL_Predictor/.env")
 API_URL_PERSISTED = "https://esports-api.lolesports.com/persisted/gw"
 API_URL_LIVE      = "https://feed.lolesports.com/livestats/v1"
 API_KEY           = "0TvQnueqKa5mxJntVWt0w4LpLfEkrV1Ta8rQBb9Z"
-CHAMPIONS_URL     = "https://ddragon.leagueoflegends.com/cdn/16.5.1/img/champion/"
-ITEMS_URL         = "https://ddragon.leagueoflegends.com/cdn/16.5.1/img/item/"
+DDRAGON_VERSIONS_URL = "https://ddragon.leagueoflegends.com/api/versions.json"
+_DDRAGON_FALLBACK_VERSION = "16.6.1"
+
+# ─── Versionamento dinâmico do DDragon ────────────────────────────────────────
+_ddragon_version: str = _DDRAGON_FALLBACK_VERSION
+_ddragon_version_fetched_at: float = 0.0
+_DDRAGON_CACHE_TTL = 3600  # 1 hora
+
+
+async def fetch_latest_ddragon_version() -> str:
+    """Busca a versão mais recente do DDragon via API da Riot (cacheado por 1h)."""
+    global _ddragon_version, _ddragon_version_fetched_at
+    now = time.time()
+    if now - _ddragon_version_fetched_at < _DDRAGON_CACHE_TTL:
+        return _ddragon_version
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(DDRAGON_VERSIONS_URL)
+            resp.raise_for_status()
+            versions = resp.json()
+            if versions and isinstance(versions, list):
+                _ddragon_version = versions[0]
+                _ddragon_version_fetched_at = now
+    except Exception:
+        pass  # Mantém a versão anterior/fallback
+    return _ddragon_version
+
+
+def get_ddragon_version() -> str:
+    """Retorna a versão atual do DDragon (síncrono, usa cache)."""
+    return _ddragon_version
+
+
+def get_champions_url() -> str:
+    return f"https://ddragon.leagueoflegends.com/cdn/{_ddragon_version}/img/champion/"
+
+
+def get_items_url() -> str:
+    return f"https://ddragon.leagueoflegends.com/cdn/{_ddragon_version}/img/item/"
+
+
+# Aliases para uso legado no módulo (atualizados dinamicamente)
+CHAMPIONS_URL = get_champions_url()
+ITEMS_URL     = get_items_url()
 
 HEADERS = {"x-api-key": API_KEY}
 
@@ -519,21 +561,24 @@ def _champ_img(champion_id: str) -> str:
     # RFC: LoL Esports API retorna nomes como 'Caitlyn', 'MonkeyKing'
     name = champion_id.replace("'", "").replace(" ", "").replace(".", "")
     if name == "KogMaw": name = "KogMaw" # Já está ok
+    champ_url = get_champions_url()
+    version = get_ddragon_version()
     # Fallback para o ícone padrão caso a imagem falhe
     return (
-        '<img src="' + CHAMPIONS_URL + name + '.png" '
+        '<img src="' + champ_url + name + '.png" '
         'title="Campeão: ' + champion_id + '" '
         'style="width:30px;height:30px;border-radius:50%;border:1px solid #334155;cursor:help;" '
-        'onerror="this.src=\'https://ddragon.leagueoflegends.com/cdn/16.5.1/img/profileicon/29.png\'" />'
+        'onerror="this.src=\'https://ddragon.leagueoflegends.com/cdn/' + version + '/img/profileicon/29.png\'" />'
     )
 
 
 def _item_imgs(item_ids: list) -> str:
+    items_url = get_items_url()
     parts = []
     for item_id in item_ids:
         if item_id and item_id != 0:
             parts.append(
-                '<img src="' + ITEMS_URL + str(item_id) + '.png" '
+                '<img src="' + items_url + str(item_id) + '.png" '
                 'style="width:22px;height:22px;border-radius:3px;margin:1px;border:1px solid #1e293b;" '
                 'title="Item ID: ' + str(item_id) + '" '
                 'onerror="this.style.display=\'none\'" />'
@@ -645,6 +690,9 @@ def _render_team_table(team_name: str, participants: list, meta_parts: list,
 # ─── Renderizador principal ───────────────────────────────────────────────────
 async def render_live_match(game_info: dict) -> str:
     """Busca os dados mais recentes e retorna HTML completo da view ao vivo."""
+    # Atualiza a versão do DDragon antes de renderizar
+    await fetch_latest_ddragon_version()
+
     game_id   = game_info["game_id"]
     team_blue = game_info["team_blue"]
     team_red  = game_info["team_red"]
@@ -1297,6 +1345,9 @@ async def _fetch_match_from_event_details(s: dict, requested_game_id: str = None
 
 async def _enrich_match_with_window(game_info: dict) -> dict:
     """Adiciona dados de telemetria (kills, gold, campeões) ao dict da partida."""
+    # Garante que a versão do DDragon está atualizada
+    await fetch_latest_ddragon_version()
+
     game_id = game_info.get("game_id", "unknown")
     result = dict(game_info)
 
