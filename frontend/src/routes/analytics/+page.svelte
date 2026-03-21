@@ -22,8 +22,6 @@
   import EVFinderSection from '../../components/analytics/EVFinderSection.svelte';
   
   import PlayerKillStatsSection from '../../components/analytics/PlayerKillStatsSection.svelte';
-  import CorrectScoreSection from '../../components/analytics/CorrectScoreSection.svelte';
-  import MapHandicapSection from '../../components/analytics/MapHandicapSection.svelte';
   import TowersPerTeamSection from '../../components/analytics/TowersPerTeamSection.svelte';
 
   let teams: string[] = $state([]);
@@ -454,12 +452,6 @@
               <TowersPerTeamSection data={analyticsData.towers_per_team} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
             </div>
           {/if}
-
-          {#if analyticsData.correct_score}
-            <div class="analytics-section">
-              <CorrectScoreSection data={analyticsData.correct_score} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-            </div>
-          {/if}
         </div>
 
         <!-- Coluna Direita: Stack de métricas e distribuições -->
@@ -484,12 +476,6 @@
           {#if analyticsData.player_kill_stats}
             <div class="analytics-section">
               <PlayerKillStatsSection data={analyticsData.player_kill_stats} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
-            </div>
-          {/if}
-
-          {#if analyticsData.map_handicap}
-            <div class="analytics-section">
-              <MapHandicapSection data={analyticsData.map_handicap} team1={analyticsData.meta.team1} team2={analyticsData.meta.team2} />
             </div>
           {/if}
 
