@@ -399,3 +399,235 @@ def get_objective_win_correlations(patches=None):
     except Exception as e:
         print(f"  ⚠️ Erro ao consultar Correlações de Objetivos: {e}")
         return None
+
+
+def get_player_kill_stats(team_name, patches=None):
+    """
+    Retorna estatísticas de kills/deaths/assists por jogador de um time.
+    Usado para mercados de Over/Under de abates por jogador.
+    """
+    db_path = get_db_path()
+    patch_clause, patch_params = build_patch_clause(patches)
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        query = f"""
+            SELECT 
+                playername,
+                position,
+                teamname,
+                AVG(kills) as avg_kills,
+                AVG(deaths) as avg_deaths,
+                AVG(assists) as avg_assists,
+                MIN(kills) as min_kills,
+                MAX(kills) as max_kills,
+                COUNT(*) as games
+            FROM match_data_silver
+            WHERE position != 'team' AND teamname = ?{patch_clause}
+            GROUP BY playername, position
+            ORDER BY avg_kills DESC
+        """
+        params = [team_name] + patch_params
+        c.execute(query, params)
+        rows = c.fetchall()
+        
+        # Também busca o histórico de kills por jogador
+        result = []
+        for row in rows:
+            player_data = dict(row)
+            c.execute(f"""
+                SELECT kills FROM match_data_silver
+                WHERE playername = ? AND teamname = ?{patch_clause}
+                ORDER BY gameid DESC
+            """, [player_data['playername'], team_name] + patch_params)
+            player_data['kills_history'] = [r[0] for r in c.fetchall() if r[0] is not None]
+            result.append(player_data)
+        
+        conn.close()
+        return result
+    except Exception as e:
+        print(f"  ⚠️ Erro ao consultar Player Kill Stats ({team_name}): {e}")
+        return []
+
+
+def get_top_ckpm_teams(min_games=10, limit=10):
+    """
+    Retorna os top N times por CKPM (Combined Kills Per Minute).
+    Usado como referência no Pace Context.
+    """
+    db_path = get_db_path()
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        query = """
+            SELECT 
+                teamname,
+                AVG(ckpm) as avg_ckpm,
+                COUNT(DISTINCT gameid) as games
+            FROM match_data_silver 
+            WHERE position='team'
+            GROUP BY teamname
+            HAVING games >= ?
+            ORDER BY avg_ckpm DESC
+            LIMIT ?
+        """
+        c.execute(query, (min_games, limit))
+        rows = c.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    except Exception as e:
+        print(f"  ⚠️ Erro ao consultar Top CKPM Teams: {e}")
+        return []
+
+
+def get_correct_score_history(team_name, patches=None):
+    """
+    Calcula a frequência histórica de placares exatos em séries MD3/MD5.
+    Agrupa jogos pela série (removendo o número do game do gameid).
+    Retorna dict com contagem de cada placar (e.g., '2:0', '2:1', '1:2', '0:2').
+    """
+    db_path = get_db_path()
+    patch_clause, patch_params = build_patch_clause(patches)
+    try:
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        
+        # Busca todos os resultados do time agrupando por série
+        query = f"""
+            SELECT gameid, game, result
+            FROM match_data_silver
+            WHERE position='team' AND teamname = ?{patch_clause}
+            ORDER BY gameid, game
+        """
+        params = [team_name] + patch_params
+        c.execute(query, params)
+        rows = c.fetchall()
+        conn.close()
+        
+        if not rows:
+            return None
+        
+        # Agrupa por série (gameid sem os últimos dígitos do game)
+        # A estrutura do gameid é como LOLTMNT01_334295 onde os últimos chars diferem por game
+        series = {}
+        for gameid, game_num, result in rows:
+            # Chave simples: prefixo do gameid (remove últimos 2 chars que variam por game na série)
+            series_key = gameid[:-2] if len(gameid) > 2 else gameid
+            if series_key not in series:
+                series[series_key] = []
+            series[series_key].append((game_num, int(result)))
+        
+        # Filtra apenas séries com 2+ jogos (séries reais)
+        score_counts = {}
+        total_series = 0
+        for key, games in series.items():
+            if len(games) < 2:
+                continue
+            wins = sum(r for _, r in games)
+            losses = len(games) - wins
+            score = f"{wins}:{losses}"
+            score_counts[score] = score_counts.get(score, 0) + 1
+            total_series += 1
+        
+        return {
+            "scores": score_counts,
+            "total_series": total_series,
+        }
+    except Exception as e:
+        print(f"  ⚠️ Erro ao consultar Correct Score ({team_name}): {e}")
+        return None
+
+
+def get_map_handicap_stats(team_name, patches=None):
+    """
+    Calcula estatísticas de cobertura de handicap de mapa (ex: -1.5 mapas).
+    Similar ao correct_score mas foca na diferença de vitórias/derrotas na série.
+    """
+    db_path = get_db_path()
+    patch_clause, patch_params = build_patch_clause(patches)
+    try:
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        
+        query = f"""
+            SELECT gameid, game, result
+            FROM match_data_silver
+            WHERE position='team' AND teamname = ?{patch_clause}
+            ORDER BY gameid, game
+        """
+        params = [team_name] + patch_params
+        c.execute(query, params)
+        rows = c.fetchall()
+        conn.close()
+        
+        if not rows:
+            return None
+        
+        # Agrupa por série
+        series = {}
+        for gameid, game_num, result in rows:
+            series_key = gameid[:-2] if len(gameid) > 2 else gameid
+            if series_key not in series:
+                series[series_key] = []
+            series[series_key].append(int(result))
+        
+        # Calcula handicap de mapas para séries com 2+ jogos
+        map_diffs = []  # Diferença W-L de mapas para cada série
+        for key, results in series.items():
+            if len(results) < 2:
+                continue
+            wins = sum(results)
+            losses = len(results) - wins
+            map_diffs.append(wins - losses)
+        
+        return {
+            "map_diffs": map_diffs,
+            "total_series": len(map_diffs),
+        }
+    except Exception as e:
+        print(f"  ⚠️ Erro ao consultar Map Handicap ({team_name}): {e}")
+        return None
+
+
+def get_first_inhib_proxy(team_name, patches=None):
+    """
+    Proxy para First Inhibitor usando inhibitors > 0 como indicador,
+    já que a coluna firstinhib é sempre 0 no banco de dados atual.
+    Retorna a % de jogos onde o time destruiu pelo menos 1 inibidor.
+    """
+    db_path = get_db_path()
+    patch_clause, patch_params = build_patch_clause(patches)
+    try:
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        
+        query = f"""
+            SELECT 
+                COUNT(*) as total_games,
+                SUM(CASE WHEN inhibitors > 0 THEN 1 ELSE 0 END) as games_with_inhib,
+                AVG(CASE WHEN inhibitors > 0 THEN 1.0 ELSE 0.0 END) * 100 as inhib_rate,
+                AVG(inhibitors) as avg_inhibitors
+            FROM match_data_silver
+            WHERE position='team' AND teamname = ?{patch_clause}
+        """
+        params = [team_name] + patch_params
+        c.execute(query, params)
+        row = c.fetchone()
+        conn.close()
+        
+        if not row or not row[0]:
+            return None
+        
+        return {
+            "total_games": row[0],
+            "games_with_inhib": row[1],
+            "inhib_rate": row[2] or 0,
+            "avg_inhibitors": row[3] or 0,
+        }
+    except Exception as e:
+        print(f"  ⚠️ Erro ao consultar First Inhib Proxy ({team_name}): {e}")
+        return None
