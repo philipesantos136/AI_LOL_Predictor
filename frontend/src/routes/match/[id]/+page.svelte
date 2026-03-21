@@ -9,9 +9,9 @@
   let loading = $state(true);
 
   // DDragon dinâmico — busca a versão mais recente da API
-  let CHAMPIONS_URL = $state("https://ddragon.leagueoflegends.com/cdn/16.6.1/img/champion/");
-  let ITEMS_URL = $state("https://ddragon.leagueoflegends.com/cdn/16.6.1/img/item/");
-  let PROFILEICON_URL = $state("https://ddragon.leagueoflegends.com/cdn/16.6.1/img/profileicon/");
+  let CHAMPIONS_URL = $state("https://ddragon.leagueoflegends.com/cdn/15.5.1/img/champion/");
+  let ITEMS_URL = $state("https://ddragon.leagueoflegends.com/cdn/15.5.1/img/item/");
+  let PROFILEICON_URL = $state("https://ddragon.leagueoflegends.com/cdn/15.5.1/img/profileicon/");
 
   async function fetchDDragonVersion() {
     try {
