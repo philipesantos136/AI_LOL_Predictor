@@ -4,7 +4,7 @@
   import gsap from 'gsap';
 
   let matchId = $page.params.id;
-  let gameId = $page.url.searchParams.get('gameId');
+  let gameId = $state($page.url.searchParams.get('gameId'));
   let matchData: any = $state(null);
   let loading = $state(true);
 
@@ -202,6 +202,37 @@
         <div class="text-center py-4 bg-[#0a0f1a] border-b border-[#1f2937]">
             <span class="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">{matchData.league}</span>
         </div>
+
+        <!-- Selecionador de Partida (Game Selector) -->
+        {#if matchData.strategy?.count > 1 && matchData.games && matchData.games.length > 0}
+        <div class="bg-[#0f172a] border-b border-[#1f2937] py-3 px-6 flex justify-center gap-3 overflow-x-auto">
+            {#each matchData.games as g}
+                <button 
+                    onclick={() => { 
+                        gameId = g.id; 
+                        loading = true; 
+                        fetchDetails(); 
+                        // Update default URL to reflect choice without reloading
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('gameId', g.id);
+                        window.history.pushState({}, '', url);
+                    }}
+                    class={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all
+                        ${(gameId ? String(g.id) === String(gameId) : g.number === matchData.game_number) 
+                            ? 'bg-blue-600/20 text-blue-400 border border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.2)]' 
+                            : 'bg-slate-800/50 text-slate-500 border border-slate-700/50 hover:bg-slate-700/50 hover:text-slate-300'}`}
+                >
+                    Jogo {g.number}
+                    {#if g.state === 'inProgress'}
+                        <span class="ml-2 w-2 h-2 inline-block bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
+                    {:else if g.state === 'completed'}
+                        <span class="ml-1 text-[10px] text-green-500">✓</span>
+                    {/if}
+                </button>
+            {/each}
+        </div>
+        {/if}
+
 
         <div class="p-6 md:p-8">
             <!-- VS Section -->
