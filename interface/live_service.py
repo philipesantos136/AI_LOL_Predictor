@@ -1328,6 +1328,7 @@ async def _fetch_match_from_event_details(s: dict, requested_game_id: str = None
         "blue_wins": blue_wins,
         "red_wins": red_wins,
         "strategy": strategy,
+        "games": games,
     }
 
     # Even if unstarted, the match might already be 'in_game' in real-time.
