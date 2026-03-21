@@ -241,6 +241,67 @@ class ObjectiveCorrelations(BaseModel):
 
 
 
+class TopCkpmEntry(BaseModel):
+    teamname: str
+    avg_ckpm: float
+    games: int
+
+
+class PlayerKillStatsEntry(BaseModel):
+    """Stats de kills de um jogador individual para Over/Under."""
+    playername: str
+    position: str
+    avg_kills: float
+    avg_deaths: float
+    avg_assists: float
+    min_kills: int
+    max_kills: int
+    games: int
+    kills_history: List[int]
+    bet_entries: List[BetEntryData]
+
+
+class PlayerKillStatsSection(BaseModel):
+    """Seção de estatísticas de abates por jogador para ambos os times."""
+    t1_players: List[PlayerKillStatsEntry]
+    t2_players: List[PlayerKillStatsEntry]
+    explain_text: str
+    comments: List[str]
+
+
+class CorrectScoreSection(BaseModel):
+    """Frequência de placares exatos em séries MD3/MD5."""
+    t1_scores: Dict[str, int]  # {"2:0": 5, "2:1": 3, ...}
+    t2_scores: Dict[str, int]
+    t1_total_series: int
+    t2_total_series: int
+    bet_entries: List[BetEntryData]
+    explain_text: str
+    comments: List[str]
+
+
+class MapHandicapSection(BaseModel):
+    """Cobertura de handicap de mapas (-1.5, +1.5 etc)."""
+    t1_map_diffs: List[int]
+    t2_map_diffs: List[int]
+    t1_total_series: int
+    t2_total_series: int
+    bet_entries: List[BetEntryData]
+    explain_text: str
+    comments: List[str]
+
+
+class TowersPerTeamSection(BaseModel):
+    """Torres Over/Under por time individual."""
+    t1_histogram: List[float]
+    t2_histogram: List[float]
+    t1_stats: Optional[StatsBadgeData] = None
+    t2_stats: Optional[StatsBadgeData] = None
+    t1_bet_entries: List[BetEntryData]
+    t2_bet_entries: List[BetEntryData]
+    explain_text: str
+    comments: List[str]
+
 
 class AnalyticsResponse(BaseModel):
     """
@@ -271,3 +332,8 @@ class AnalyticsResponse(BaseModel):
     league_context: Optional[LeagueContextSection] = None
     objective_correlations: Optional[ObjectiveCorrelations] = None
     ev_finder: Optional[EVFinderSection] = None
+    player_kill_stats: Optional[PlayerKillStatsSection] = None
+    correct_score: Optional[CorrectScoreSection] = None
+    map_handicap: Optional[MapHandicapSection] = None
+    towers_per_team: Optional[TowersPerTeamSection] = None
+    top_ckpm: Optional[List[TopCkpmEntry]] = None
