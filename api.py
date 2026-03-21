@@ -69,8 +69,9 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    """Inicia o HealthMonitor no startup da aplicação."""
+    """Inicia o HealthMonitor e busca a versão do DDragon no startup da aplicação."""
     health_monitor.start()
+    await live_service.fetch_latest_ddragon_version()
 
 
 @app.get("/api/health")
@@ -87,6 +88,17 @@ async def health_check():
     if status.response_time_ms is not None:
         response["response_time_ms"] = status.response_time_ms
     return response
+
+@app.get("/api/ddragon-version")
+async def get_ddragon_version():
+    """Retorna a versão mais recente do DDragon e as URLs base para CDN de assets."""
+    version = await live_service.fetch_latest_ddragon_version()
+    return {
+        "version": version,
+        "champions_url": f"https://ddragon.leagueoflegends.com/cdn/{version}/img/champion/",
+        "items_url": f"https://ddragon.leagueoflegends.com/cdn/{version}/img/item/",
+        "profileicon_url": f"https://ddragon.leagueoflegends.com/cdn/{version}/img/profileicon/",
+    }
 
 @app.get("/api/metrics")
 async def get_metrics():
