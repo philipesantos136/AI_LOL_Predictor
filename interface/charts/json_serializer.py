@@ -1581,7 +1581,7 @@ def build_towers_per_team_section(s1, s2, t1, t2):
         if not raw or not stats:
             return entries
         avg_t = stats["avg"]
-        for lv in [3.5, 5.5, 7.5, 9.5]:
+        for lv in [3.5, 5.5, 7.5, 9.5, 10.5]:
             prob_o = sum(1 for v in raw if v > lv) / len(raw) * 100
             e_o = make_bet_entry(
                 team, "Over Torres Time", f"{lv:.1f} torres", prob_o, len(raw),
