@@ -144,6 +144,17 @@ async def get_today_games():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/live/yesterday", response_model=List[Dict[str, Any]])
+async def get_yesterday_games():
+    """
+    Returns the completed games for yesterday from LoL Esports API.
+    """
+    try:
+        games = await live_service.get_games_yesterday()
+        return games
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 class InsightRequest(BaseModel):
     time1: str
     time2: str
