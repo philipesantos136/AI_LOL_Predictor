@@ -40,11 +40,20 @@
     </div>
   {/if}
 
-  <!-- League Name -->
-  <div
-    class="mb-4 text-[13px] font-semibold text-[#90CDF4] uppercase tracking-wide"
-  >
-    {league}
+  <!-- League Name & Strategy -->
+  <div class="mb-4 flex flex-col items-center">
+    <div class="text-[13px] font-semibold text-[#90CDF4] uppercase tracking-wide">
+      {league}
+    </div>
+    {#if match.strategy && match.strategy.count > 1}
+       <div class="text-[10px] font-bold text-slate-500 uppercase mt-0.5 px-2 py-0.5 bg-slate-800/50 rounded">
+         MD{match.strategy.count}
+       </div>
+    {:else if match.strategy}
+       <div class="text-[10px] font-bold text-slate-500 uppercase mt-0.5 px-2 py-0.5 bg-slate-800/50 rounded">
+         MD1
+       </div>
+    {/if}
   </div>
 
   <!-- Teams and VS -->
@@ -96,4 +105,20 @@
       {match.team_red?.name || match.team_red?.code || "Team 2"}
     </div>
   </div>
+
+  <!-- Map Buttons -->
+  {#if match.games && match.games.length > 0}
+    <div class="mt-4 flex w-full flex-wrap justify-center gap-2 border-t border-slate-700/50 pt-3">
+      {#each match.games as game, idx}
+         {#if game.state === "completed" || game.state === "inProgress"}
+            <button
+               class="z-10 rounded bg-[#1E222D] border border-slate-700 px-3 py-1.5 text-xs font-semibold text-[#90CDF4] transition-colors hover:bg-slate-700 hover:text-white"
+               onclick={(e) => { e.preventDefault(); window.location.href = `/match/${game.id}`; }}
+            >
+               Mapa {idx + 1}
+            </button>
+         {/if}
+      {/each}
+    </div>
+  {/if}
 </a>
