@@ -8,8 +8,24 @@
   let matchData: any = $state(null);
   let loading = $state(true);
 
-  const CHAMPIONS_URL = "https://ddragon.leagueoflegends.com/cdn/16.5.1/img/champion/";
-  const ITEMS_URL     = "https://ddragon.leagueoflegends.com/cdn/16.5.1/img/item/";
+  // DDragon dinâmico — busca a versão mais recente da API
+  let CHAMPIONS_URL = $state("https://ddragon.leagueoflegends.com/cdn/16.6.1/img/champion/");
+  let ITEMS_URL = $state("https://ddragon.leagueoflegends.com/cdn/16.6.1/img/item/");
+  let PROFILEICON_URL = $state("https://ddragon.leagueoflegends.com/cdn/16.6.1/img/profileicon/");
+
+  async function fetchDDragonVersion() {
+    try {
+      const res = await fetch('http://localhost:8000/api/ddragon-version');
+      if (res.ok) {
+        const data = await res.json();
+        CHAMPIONS_URL = data.champions_url;
+        ITEMS_URL = data.items_url;
+        PROFILEICON_URL = data.profileicon_url;
+      }
+    } catch (e) {
+      console.warn("Usando versão fallback do DDragon:", e);
+    }
+  }
 
   async function fetchDetails() {
     try {
@@ -31,6 +47,7 @@
   }
 
   onMount(() => {
+    fetchDDragonVersion();
     fetchDetails();
     gsap.from('.fade-in', { opacity: 0, y: 15, duration: 0.6, stagger: 0.1 });
     
@@ -86,7 +103,7 @@
   };
 
   function getChampImg(id: string) {
-    if (!id) return "https://ddragon.leagueoflegends.com/cdn/16.5.1/img/profileicon/29.png";
+    if (!id) return `${PROFILEICON_URL}29.png`;
     const mapped = CHAMP_MAPPING[id] || id;
     const sanitized = mapped.replace(/'| |\.|\&/g, '');
     return `${CHAMPIONS_URL}${sanitized}.png`;
@@ -97,7 +114,7 @@
     if (!target) return;
     if (target.src.includes('/champion/')) {
       target.onerror = null;
-      target.src = "https://ddragon.leagueoflegends.com/cdn/16.5.1/img/profileicon/29.png";
+      target.src = `${PROFILEICON_URL}29.png`;
     } else {
       target.style.display = 'none';
     }
