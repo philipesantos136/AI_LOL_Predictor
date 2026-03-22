@@ -284,8 +284,8 @@
                         <img src="/images/dragon-infernal.svg" alt="Dragão" class="w-6 h-6 md:w-7 md:h-7 opacity-80 group-hover:opacity-100 transition-opacity" />
                         <span class="text-sm font-black text-blue-100">{matchData.blue_dragons?.length || 0}</span>
                     </div>
-                    <div class="flex flex-col items-center group cursor-help" title="Barões">
-                        <img src="/images/baron.svg" alt="Barão" class="w-6 h-6 md:w-7 md:h-7 opacity-80 group-hover:opacity-100 transition-opacity" />
+                    <div class="flex flex-col items-center group cursor-help" title="Vastilarvas / Barões">
+                        <img src="/images/baron.svg" alt="Vastilarvas/Barões" class="w-6 h-6 md:w-7 md:h-7 opacity-80 group-hover:opacity-100 transition-opacity" />
                         <span class="text-sm font-black text-blue-100">{matchData.blue_barons || 0}</span>
                     </div>
                     <div class="flex flex-col items-center group cursor-help" title="Arautos">
@@ -324,8 +324,8 @@
                         <img src="/images/herald.png" alt="Arauto" class="w-6 h-6 md:w-7 md:h-7 opacity-80 group-hover:opacity-100 transition-opacity" />
                         <span class="text-sm font-black text-red-100">{matchData.red_heralds || 0}</span>
                     </div>
-                    <div class="flex flex-col items-center group cursor-help" title="Barões">
-                        <img src="/images/baron.svg" alt="Barão" class="w-6 h-6 md:w-7 md:h-7 opacity-80 group-hover:opacity-100 transition-opacity" />
+                    <div class="flex flex-col items-center group cursor-help" title="Vastilarvas / Barões">
+                        <img src="/images/baron.svg" alt="Vastilarvas/Barões" class="w-6 h-6 md:w-7 md:h-7 opacity-80 group-hover:opacity-100 transition-opacity" />
                         <span class="text-sm font-black text-red-100">{matchData.red_barons || 0}</span>
                     </div>
                     <div class="flex flex-col items-center group cursor-help" title="Dragões">
