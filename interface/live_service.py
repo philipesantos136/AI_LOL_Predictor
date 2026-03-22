@@ -1462,6 +1462,8 @@ async def _enrich_match_with_window(game_info: dict) -> dict:
         "red_towers":      red_frame.get("towers", 0),
         "blue_barons":     blue_frame.get("barons", 0),
         "red_barons":      red_frame.get("barons", 0),
+        # Vastilarvas (Voidgrubs) no S14 são frequentemente relatadas no campo 'barons' pela API da Riot 
+        # antes dos 20 min. O frontend pode usar essa lógica.
         "blue_heralds":    blue_frame.get("heralds", 0),
         "red_heralds":     red_frame.get("heralds", 0),
         "blue_inhibitors": blue_frame.get("inhibitors", 0),
