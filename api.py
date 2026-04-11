@@ -1,6 +1,6 @@
 import uvicorn
 import orjson
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -20,6 +20,7 @@ from interface.charts.json_serializer import generate_analytics_json
 from interface.charts.models import AnalyticsResponse
 from interface.health_monitor import HealthMonitor
 from interface.scraper_betboom import get_betboom_data
+from interface.socket_manager import manager as ws_manager
 
 
 from interface.live_service import HEADERS as LIVE_HEADERS
@@ -72,6 +73,24 @@ async def startup_event():
     """Inicia o HealthMonitor e busca a versão do DDragon no startup da aplicação."""
     health_monitor.start()
     await live_service.fetch_latest_ddragon_version()
+
+
+@app.websocket("/ws/match/{match_id}")
+async def websocket_match(websocket: WebSocket, match_id: str):
+    """
+    Endpoint WebSocket para dados ao vivo por match.
+    Push-based: servidor envia atualizações sempre que os dados mudam (~10s).
+    """
+    await ws_manager.connect(match_id, websocket)
+    try:
+        # Mantém a conexão aberta; o cliente não precisa enviar mensagens,
+        # mas receber garante que o loop detecte desconexões limpas.
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        ws_manager.disconnect(match_id, websocket)
+    except Exception:
+        ws_manager.disconnect(match_id, websocket)
 
 
 @app.get("/api/health")
