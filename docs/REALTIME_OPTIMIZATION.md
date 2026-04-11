@@ -40,18 +40,18 @@ The goal is to implement a **Publisher-Subscriber** model where the server manag
 ## 3. Step-by-Step Roadmap
 
 ### Phase 1: Infrastructure (Backend)
-- [ ] Implement `ConnectionManager` class in a new module (e.g., `interface/socket_manager.py`).
-- [ ] Add the WebSocket route to `api.py`.
-- [ ] Create a logic to check if a background polling task for a specific `match_id` is already running.
+- [x] Implement `ConnectionManager` class in a new module (e.g., `interface/socket_manager.py`).
+- [x] Add the WebSocket route to `api.py`.
+- [x] Create a logic to check if a background polling task for a specific `match_id` is already running.
 
 ### Phase 2: Reactive UI (Frontend)
-- [ ] Create a `liveSocket.ts` utility to manage reconnect logic.
-- [ ] Refactor `+page.svelte` to listen for `onmessage` instead of polling.
-- [ ] Add GSAP `to()` animations for the Gold bar and HP bars to smooth out the transitions.
+- [x] Create a `liveSocket.ts` utility to manage reconnect logic.
+- [x] Refactor `+page.svelte` to listen for `onmessage` instead of polling.
+- [x] Add GSAP `to()` animations for the Gold bar and HP bars to smooth out the transitions.
 
 ### Phase 3: Fine-tuning
-- [ ] Test the 40s latency offset for different regions (CBLOL, LCK, etc.).
-- [ ] Add a "Reconnecting..." indicator in the UI.
+- [x] Test the 40s latency offset for different regions (CBLOL, LCK, etc.).
+- [x] Add a "Reconnecting..." indicator in the UI.
 
 ---
 
