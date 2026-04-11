@@ -125,9 +125,9 @@ def get_iso_date_multiple_of_10() -> str:
     now = datetime.now(timezone.utc)
     remainder = now.second % 10
     rounded = now.replace(microsecond=0, second=now.second - remainder)
-    # Reduzido de 180s para 60s para diminuir o atraso em relação ao tempo real.
+    # Reduzido de 60s para 40s para diminuir o atraso em relação ao tempo real.
     # Se houver erro 400, o RetrySystem remove o parâmetro e pega o frame mais recente.
-    adjusted = rounded - timedelta(seconds=60)
+    adjusted = rounded - timedelta(seconds=40)
     return adjusted.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
