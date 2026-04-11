@@ -4,7 +4,7 @@
   import gsap from 'gsap';
   import { createLiveSocket, type WsStatus } from '$lib/liveSocket';
 
-  let matchId = $page.params.id;
+  let matchId = $page.params.id as string;
   let gameId = $state($page.url.searchParams.get('gameId'));
   let matchData: any = $state(null);
   let loading = $state(true);
