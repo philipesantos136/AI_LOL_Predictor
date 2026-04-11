@@ -1391,19 +1391,31 @@ async def _enrich_match_with_window(game_info: dict) -> dict:
         return result
 
     frame = frames[-1]
-    metadata = data.get("gameMetadata") or {}
-
     blue_frame = frame.get("blueTeam", {})
     red_frame = frame.get("redTeam", {})
+    
+    # Riot API Bug Fix: Quando a partida finaliza, a rota window pode começar
+    # a retornar o frame 0 (totalGold == 2500). Se isso ocorrer, resgatamos
+    # o último frame válido da cache para não zerar a UI.
+    if is_completed and blue_frame.get("totalGold", 0) <= 2500:
+        cached_valid = _cache_layer.get(f"enriched_{game_id}")
+        if cached_valid:
+            return cached_valid
+
     blue_parts = blue_frame.get("participants", [])
     red_parts = red_frame.get("participants", [])
     
     # ─── Buscar Detalhes de Itens (Real-time) ───
-    # We must use get_iso_date_multiple_of_10() to get a time 60 seconds in the past
+    # We must use get_iso_date_multiple_of_10() to get a time 40 seconds in the past
     # because the 'details' stream updates less frequently than the 'window' stream.
     # Passing the exact 'rfc460Timestamp' from the window frame often requests future data.
-    ts = get_iso_date_multiple_of_10()
-    details_data = await get_game_details(game_id, timestamp=ts)
+    if is_completed:
+        # Busca detalhes diretos sem startingTime se o jogo finalizou
+        details_data = await get_game_details(game_id, timestamp=None)
+    else:
+        ts = get_iso_date_multiple_of_10()
+        details_data = await get_game_details(game_id, timestamp=ts)
+
     detail_blue = []
     detail_red  = []
     if details_data:
@@ -1453,6 +1465,7 @@ async def _enrich_match_with_window(game_info: dict) -> dict:
         return champs
 
     # Stats Gerais do Time
+    ts_frame = ts if not is_completed else None
     result.update({
         "blue_kills":      blue_frame.get("totalKills", 0),
         "red_kills":       red_frame.get("totalKills", 0),
@@ -1473,8 +1486,11 @@ async def _enrich_match_with_window(game_info: dict) -> dict:
         "blue_champs":     build_champs(blue_parts, blue_meta, detail_blue, red_parts),
         "red_champs":      build_champs(red_parts, red_meta, detail_red, blue_parts),
         "game_state":      frame.get("gameState", "inProgress"),
-        "frame_timestamp": ts
+        "frame_timestamp": ts_frame
     })
+
+    # Cacheia o estado válido caso a partida termine (retenção de 2h)
+    _cache_layer.set(f"enriched_{game_id}", result, ttl_seconds=7200)
 
     return result
 
