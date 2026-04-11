@@ -19,7 +19,7 @@ from interface.charts import generate_charts
 from interface.charts.json_serializer import generate_analytics_json
 from interface.charts.models import AnalyticsResponse
 from interface.health_monitor import HealthMonitor
-from interface.scraper_betboom import get_betboom_data
+
 from interface.socket_manager import manager as ws_manager
 
 
@@ -361,21 +361,9 @@ async def generate_full_analytics_api(req: FullAnalyticsRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro na análise: {str(e)}")
 
-    # 2. Get BetBoom data
-    betboom_data = None
-    try:
-        # We try to get betboom data in parallel or sequentially. 
-        # Since it's a slow browser operation, we await it here.
-        betboom_data = await get_betboom_data(req.time1, req.time2, req.betboom_url)
-    except Exception as e:
-        import traceback
-        print(f"Erro ao buscar dados BetBoom: {e}")
-        traceback.print_exc()
-        betboom_data = {"error": f"{type(e).__name__}: {str(e)}"}
-
     return FullAnalyticsResponse(
         analytics=analytics_response,
-        betboom=betboom_data
+        betboom=None
     )
 
 
