@@ -32,7 +32,7 @@
       Odd = 100 / Prob% = 100 / {entry.probability.toFixed(1)}% = {entry.odd.toFixed(2)}x
     </div>
 
-    <div class="bet-explanation">{entry.explanation}</div>
+    <div class="bet-explanation">{@html entry.explanation}</div>
   </div>
 </details>
 
