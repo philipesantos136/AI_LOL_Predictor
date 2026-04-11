@@ -125,9 +125,9 @@ def get_iso_date_multiple_of_10() -> str:
     now = datetime.now(timezone.utc)
     remainder = now.second % 10
     rounded = now.replace(microsecond=0, second=now.second - remainder)
-    # Reduzido de 60s para 40s para diminuir o atraso em relação ao tempo real.
-    # Se houver erro 400, o RetrySystem remove o parâmetro e pega o frame mais recente.
-    adjusted = rounded - timedelta(seconds=40)
+    # Reduzido de 60s para 40s causou HTTP 400 constantes na Riot. 
+    # Voltando para 60s para garantir estabilidade da janela.
+    adjusted = rounded - timedelta(seconds=60)
     return adjusted.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
@@ -1370,20 +1370,16 @@ async def _enrich_match_with_window(game_info: dict) -> dict:
             url=f"{API_URL_LIVE}/window/{game_id}",
             params={"hl": "pt-BR", "startingTime": get_iso_date_multiple_of_10(), "_": _get_cache_buster()},
             headers=HEADERS,
-            timeout=10,
-            retry_without_param="startingTime"
+            timeout=10
+            # Não usamos retry_without_param="startingTime" pois a Riot retorna 
+            # os 10 PRIMEIROS frames do jogo (tudo zerado) se omitirmos o parâmetro.
         )
-        
-        # Fallback
-        if not data or not data.get("frames"):
-            data = await _retry_system.async_fetch_with_retry(
-                url=f"{API_URL_LIVE}/window/{game_id}",
-                params={"hl": "pt-BR", "_": _get_cache_buster()},
-                headers=HEADERS,
-                timeout=10
-            )
 
-    if not data:
+    if not data or not data.get("frames"):
+        # Se falhou em buscar frame atualizado, retorna a última cache válida
+        cached = _cache_layer.get(f"enriched_{game_id}")
+        if cached:
+            return cached
         return result
 
     frames = data.get("frames", [])
