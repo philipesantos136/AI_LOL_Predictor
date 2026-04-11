@@ -1,12 +1,14 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import gsap from 'gsap';
+  import { createLiveSocket, type WsStatus } from '$lib/liveSocket';
 
   let matchId = $page.params.id;
   let gameId = $state($page.url.searchParams.get('gameId'));
   let matchData: any = $state(null);
   let loading = $state(true);
+  let wsStatus = $state<WsStatus>('connecting');
 
   // DDragon dinâmico — busca a versão mais recente da API
   let CHAMPIONS_URL = $state("https://ddragon.leagueoflegends.com/cdn/15.5.1/img/champion/");
@@ -27,6 +29,7 @@
     }
   }
 
+  // Chamada HTTP inicial — popula dados antes do WS conectar
   async function fetchDetails() {
     try {
       let url = `http://localhost:8000/api/live/match/${matchId}`;
@@ -46,16 +49,28 @@
     }
   }
 
+  let liveSocket: ReturnType<typeof createLiveSocket> | null = null;
+
   onMount(() => {
     fetchDDragonVersion();
-    fetchDetails();
+    fetchDetails(); // popula dados imediatamente via HTTP
     gsap.from('.fade-in', { opacity: 0, y: 15, duration: 0.6, stagger: 0.1 });
-    
-    const interval = setInterval(() => {
-      if (matchData?.state === 'completed') return;
-      fetchDetails();
-    }, 500);
-    return () => clearInterval(interval);
+
+    // Substitui o setInterval por WebSocket push-based
+    liveSocket = createLiveSocket(
+      matchId,
+      (data) => {
+        matchData = data;
+        if (loading) loading = false;
+      },
+      (status) => {
+        wsStatus = status;
+      }
+    );
+  });
+
+  onDestroy(() => {
+    liveSocket?.close();
   });
 
   function fmtGold(val: number) {
@@ -138,6 +153,14 @@
   });
 
   let pcts = $derived(matchData ? getGoldPct(matchData.blue_gold ?? 0, matchData.red_gold ?? 0) : { blue: 50, red: 50 });
+
+  // Configurações do badge de status WebSocket
+  const WS_BADGE: Record<string, { label: string; dot: string; text: string }> = {
+    connected:    { label: 'WS',            dot: 'bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.8)]',  text: 'text-green-400' },
+    connecting:   { label: 'Conectando...', dot: 'bg-yellow-500 animate-pulse',                         text: 'text-yellow-400' },
+    reconnecting: { label: 'Reconectando...',dot: 'bg-amber-500 animate-pulse',                         text: 'text-amber-400' },
+    closed:       { label: 'Desconectado',  dot: 'bg-red-500',                                           text: 'text-red-400' },
+  };
 </script>
 
 <div class="p-4 md:p-8 font-sans bg-[#0f172a] min-h-screen text-slate-200 fade-in">
@@ -147,13 +170,17 @@
       <span class="text-lg">←</span> Voltar ao Dashboard
     </a>
     
-    {#if matchData}
     <div class="flex gap-2">
-       <div class="px-4 py-2 rounded-xl bg-[#1e293b] border border-slate-700 text-xs font-bold text-slate-400 uppercase tracking-widest">
-         API: <span class="text-green-400">ONLINE</span>
-       </div>
+      {#if WS_BADGE[wsStatus]}
+        {@const badge = WS_BADGE[wsStatus]}
+        <div class="px-4 py-2 rounded-xl bg-[#1e293b] border border-slate-700 text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full flex-shrink-0 {badge.dot}"></span>
+          <span class={badge.text}>{badge.label}</span>
+        </div>
+      {/if}
     </div>
-    {/if}
+
+
   </div>
 
   {#if loading}
