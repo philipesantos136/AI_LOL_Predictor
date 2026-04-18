@@ -534,16 +534,17 @@ def build_recent_form_section(s1, s2, t1, t2):
     """Returns RecentFormSection dict."""
     r1 = s1.get("recent_results", [])
     r2 = s2.get("recent_results", [])
-    wr1 = sum(1 for r in r1 if r == "1") / len(r1) * 100 if r1 else 0
-    wr2 = sum(1 for r in r2 if r == "1") / len(r2) * 100 if r2 else 0
+    wr1 = sum(1 for r in r1 if r["result"] == "1") / len(r1) * 100 if r1 else 0
+    wr2 = sum(1 for r in r2 if r["result"] == "1") / len(r2) * 100 if r2 else 0
 
     comments = []
     for team_name, results, color in [(t1, r1, "#3b82f6"), (t2, r2, "#ef4444")]:
         if not results:
             continue
-        recent_wr = sum(1 for r in results if r == "1") / len(results) * 100
+        recent_wr = sum(1 for r in results if r["result"] == "1") / len(results) * 100
         streak_type, streak_count = None, 0
-        for r in reversed(results):
+        for r_dict in reversed(results):
+            r = r_dict["result"]
             if streak_type is None:
                 streak_type = r
                 streak_count = 1
@@ -561,8 +562,8 @@ def build_recent_form_section(s1, s2, t1, t2):
             comments.append(f'⚠️ {team_name} com apenas <b>{recent_wr:.0f}% WR recente</b>. Time em crise — risco elevado para ML.')
 
     return {
-        "t1_results": [str(r) for r in r1],
-        "t2_results": [str(r) for r in r2],
+        "t1_results": r1,
+        "t2_results": r2,
         "t1_recent_wr": wr1,
         "t2_recent_wr": wr2,
         "comments": comments,
