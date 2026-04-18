@@ -56,7 +56,11 @@ def popular_tabela_silver():
                 game
             )
             SELECT
-                gameid, participantid, playername, patch, league, split, side, position, teamname, champion, result, kills,
+                CASE 
+                    WHEN teamname LIKE 'L_S' OR teamname = 'LÃ˜S' OR (teamname LIKE 'L%S' AND length(teamname) <= 4) THEN 'Los Grandes'
+                    ELSE teamname 
+                END as teamname,
+                champion, result, kills,
                 deaths, assists, teamkills, teamdeaths, firstblood, firstdragon,
                 firstherald, firstbaron, dragons, heralds, barons, gamelength,
                 "team kpm", ckpm, totalgold, earnedgold, goldspent, "total cs",
