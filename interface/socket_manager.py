@@ -4,8 +4,10 @@ Publisher-Subscriber WebSocket manager para transmissão de dados ao vivo.
 
 Arquitetura:
   - Um único background task por match_id ativo.
-  - O task faz polling na Riot API a cada 10s e só faz broadcast
-    quando os dados mudam (request collapsing).
+  - O task resolve o game_id uma única vez (via getEventDetails) e
+    depois faz polling apenas em window + details a cada 3s.
+  - Window e details são buscados em paralelo (asyncio.gather).
+  - Só faz broadcast quando os dados mudam (comparação por hash).
   - Quando o último cliente desconecta, o task é cancelado automaticamente.
 """
 
@@ -13,11 +15,19 @@ import asyncio
 import hashlib
 import json
 import logging
-from typing import Dict, Set
+from typing import Dict, Set, Optional
 
 from fastapi import WebSocket, WebSocketDisconnect
 
 logger = logging.getLogger(__name__)
+
+# Intervalo otimizado: 3s é um compromisso entre latência e carga na API.
+# A Riot atualiza frames a cada ~10s, mas polling mais rápido captura
+# o novo frame quase imediatamente após disponível.
+POLL_INTERVAL = 3  # segundos
+
+# Intervalo para re-resolver o game_id (troca de mapa em BO3/BO5)
+GAME_ID_REFRESH_INTERVAL = 30  # segundos
 
 
 class ConnectionManager:
@@ -86,27 +96,58 @@ class ConnectionManager:
         for ws in dead:
             self.disconnect(match_id, ws)
 
-    # ─── Background Polling Task ─────────────────────────────────────────────
+    # ─── Background Polling Task (Otimizado) ─────────────────────────────────
 
     async def _polling_task(self, match_id: str) -> None:
         """
-        Loop que roda enquanto há clientes conectados para um match_id.
+        Loop otimizado que roda enquanto há clientes conectados para um match_id.
 
-        - Faz poll na Riot API a cada 10s via live_service.
-        - Só faz broadcast quando os dados mudaram (comparação por hash).
+        Estratégia:
+          1. Resolve game_id uma vez via getEventDetails (chamada pesada).
+          2. A cada POLL_INTERVAL, busca window + details em paralelo (chamadas leves).
+          3. Só faz broadcast quando os dados mudaram (comparação por hash).
+          4. Re-resolve game_id a cada GAME_ID_REFRESH_INTERVAL para detectar
+             mudanças de mapa em BO3/BO5.
         """
         # Import tardio para evitar circular imports
-        from interface.live_service import get_match_data_by_id
+        from interface.live_service import (
+            resolve_active_game_id,
+            get_fast_match_telemetry,
+        )
 
         last_hash: str = ""
-        POLL_INTERVAL = 10  # segundos
+        cached_game_id: Optional[str] = None
+        cycles_since_resolve: int = 0
+        resolve_every_n_cycles = max(1, GAME_ID_REFRESH_INTERVAL // POLL_INTERVAL)
 
-        logger.info(f"[WS] Polling task rodando para match_id={match_id}")
+        logger.info(f"[WS] Polling task rodando para match_id={match_id} "
+                    f"(intervalo={POLL_INTERVAL}s)")
 
         try:
             while self._clients.get(match_id):
                 try:
-                    data = await get_match_data_by_id(match_id)
+                    # Re-resolve game_id periodicamente ou na primeira iteração
+                    if cached_game_id is None or cycles_since_resolve >= resolve_every_n_cycles:
+                        new_game_id = await resolve_active_game_id(match_id)
+                        if new_game_id and new_game_id != "unknown":
+                            if new_game_id != cached_game_id:
+                                logger.info(
+                                    f"[WS] game_id resolvido: {cached_game_id} → {new_game_id} "
+                                    f"para match_id={match_id}"
+                                )
+                                cached_game_id = new_game_id
+                                last_hash = ""  # Força broadcast no novo game
+                        cycles_since_resolve = 0
+
+                    cycles_since_resolve += 1
+
+                    if not cached_game_id or cached_game_id == "unknown":
+                        # Ainda não conseguiu resolver, tenta no próximo ciclo
+                        await asyncio.sleep(POLL_INTERVAL)
+                        continue
+
+                    # Busca telemetria leve (window + details em paralelo)
+                    data = await get_fast_match_telemetry(match_id, cached_game_id)
 
                     if data:
                         # Serializa para string estável e calcula hash
