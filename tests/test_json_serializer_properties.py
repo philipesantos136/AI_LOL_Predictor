@@ -254,7 +254,13 @@ def _make_full_stats(team_name="Team1", wins=10, total=20):
         "wardsplaced": 30.0,
         "wardskilled": 20.0,
         "controlwardsbought": 5.0,
-        "recent_results": ["1", "0", "1", "1", "0", "1", "0", "1", "1", "0"],
+        "recent_results": [
+            {"result": "1", "opponent": "opp"}, {"result": "0", "opponent": "opp"},
+            {"result": "1", "opponent": "opp"}, {"result": "1", "opponent": "opp"},
+            {"result": "0", "opponent": "opp"}, {"result": "1", "opponent": "opp"},
+            {"result": "0", "opponent": "opp"}, {"result": "1", "opponent": "opp"},
+            {"result": "1", "opponent": "opp"}, {"result": "0", "opponent": "opp"}
+        ],
         "kills_history": [10, 12, 15, 8, 20, 14, 11, 16, 9, 13],
         "kill_diff_history": [2, -3, 5, -1, 8, 3, -2, 4, -4, 1],
         "dragons_history": [3, 4, 2, 5, 3, 4, 3, 2, 4, 3],
