@@ -21,9 +21,12 @@
         <span class="recent-wr t1">WR recente: {data.t1_recent_wr.toFixed(1)}%</span>
       </div>
       <div class="blocks-row">
-        {#each data.t1_results as result}
-          <div class="wl-block {result === '1' ? 'win' : 'loss'}" title={result === '1' ? 'Vitória' : 'Derrota'}>
-            {result === '1' ? 'W' : 'L'}
+        {#each data.t1_results as item}
+          <div class="result-wrapper">
+            <div class="wl-block {item.result === '1' ? 'win' : 'loss'}" title="{item.result === '1' ? 'Vitória' : 'Derrota'} contra {item.opponent}">
+              {item.result === '1' ? 'W' : 'L'}
+            </div>
+            <span class="opponent-name" title={item.opponent}>{item.opponent}</span>
           </div>
         {/each}
       </div>
@@ -35,9 +38,12 @@
         <span class="recent-wr t2">WR recente: {data.t2_recent_wr.toFixed(1)}%</span>
       </div>
       <div class="blocks-row">
-        {#each data.t2_results as result}
-          <div class="wl-block {result === '1' ? 'win' : 'loss'}" title={result === '1' ? 'Vitória' : 'Derrota'}>
-            {result === '1' ? 'W' : 'L'}
+        {#each data.t2_results as item}
+          <div class="result-wrapper">
+            <div class="wl-block {item.result === '1' ? 'win' : 'loss'}" title="{item.result === '1' ? 'Vitória' : 'Derrota'} contra {item.opponent}">
+              {item.result === '1' ? 'W' : 'L'}
+            </div>
+            <span class="opponent-name" title={item.opponent}>{item.opponent}</span>
           </div>
         {/each}
       </div>
@@ -144,5 +150,23 @@
     background: rgba(239, 68, 68, 0.25);
     color: #f87171;
     border: 1px solid rgba(239, 68, 68, 0.4);
+  }
+
+  .result-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    width: 40px;
+  }
+
+  .opponent-name {
+    font-size: 0.65rem;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    text-align: center;
   }
 </style>
