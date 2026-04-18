@@ -34,6 +34,14 @@ def main():
         df = pd.read_csv(csv_file, low_memory=False)
         print(f"✅ CSV carregado com sucesso. {len(df)} linhas encontradas.")
         
+        # 3.1 Limpeza de Nomes de Times (Ex: Los Grandes com encoding quebrado)
+        if 'teamname' in df.columns:
+            print("🧹 Limpando nomes de times...")
+            # Padrão para pegar Los Grandes com encoding quebrado (LÃ˜S)
+            df['teamname'] = df['teamname'].replace(['LÃ˜S', 'LØS'], 'Los Grandes')
+            # Fallback para regex caso o encoding no arquivo venha diferente (L followed by non-ascii then S)
+            df['teamname'] = df['teamname'].str.replace(r'^L[^a-zA-Z]S$', 'Los Grandes', regex=True)
+        
         # 4. Conecta (ou cria) o banco SQLite
         print(f"🔌 Conectando ao banco SQLite '{db_file}'...")
         con = sqlite3.connect(db_file)
