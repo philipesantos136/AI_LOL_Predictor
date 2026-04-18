@@ -149,11 +149,16 @@ class WinRateSection(BaseModel):
     comments: List[str]
 
 
+class RecentResult(BaseModel):
+    result: str
+    opponent: str
+
+
 class RecentFormSection(BaseModel):
     """Recent form (last N games) as W/L sequences with rolling win rate."""
 
-    t1_results: List[str]  # ["1", "0", "1", ...]
-    t2_results: List[str]
+    t1_results: List[RecentResult]
+    t2_results: List[RecentResult]
     t1_recent_wr: float
     t2_recent_wr: float
     comments: List[str]

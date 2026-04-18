@@ -56,6 +56,7 @@ def popular_tabela_silver():
                 game
             )
             SELECT
+                gameid, participantid, playername, patch, league, split, side, position,
                 CASE 
                     WHEN teamname LIKE 'L_S' OR teamname = 'LÃ˜S' OR (teamname LIKE 'L%S' AND length(teamname) <= 4) THEN 'Los Grandes'
                     ELSE teamname 

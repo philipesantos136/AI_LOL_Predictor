@@ -4,6 +4,10 @@ Property-based tests for interface/charts/json_serializer.py (and helpers).
 Feature: advanced-analytics-svelte-refactor
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 import statistics
 
 from hypothesis import given, settings
