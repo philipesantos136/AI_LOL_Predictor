@@ -110,8 +110,8 @@ export interface WinRateSection {
 }
 
 export interface RecentFormSection {
-  t1_results: string[];
-  t2_results: string[];
+  t1_results: { result: string; opponent: string }[];
+  t2_results: { result: string; opponent: string }[];
   t1_recent_wr: number;
   t2_recent_wr: number;
   comments: string[];
