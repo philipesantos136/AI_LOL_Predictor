@@ -160,8 +160,15 @@ def get_team_stats(team_name, patches=None, tournaments=None):
         c.execute(f"SELECT gamelength / 60.0 FROM match_data_silver WHERE {base_where} ORDER BY gameid DESC", params)
         stats["duration_history"] = [r[0] for r in c.fetchall() if r[0] is not None]
 
-        c.execute(f"SELECT result FROM match_data_silver WHERE {base_where} ORDER BY gameid DESC LIMIT 10", params)
-        stats["recent_results"] = [r[0] for r in c.fetchall() if r[0] is not None]
+        query_recent = f"""
+            SELECT m1.result, m2.teamname 
+            FROM match_data_silver m1
+            JOIN match_data_silver m2 ON m1.gameid = m2.gameid AND m2.position = 'team' AND m1.teamname != m2.teamname
+            WHERE m1.position='team' AND m1.teamname = ?{patch_clause.replace(' patch ', ' m1.patch ').replace(' league ', ' m1.league ')}
+            ORDER BY m1.gameid DESC LIMIT 10
+        """
+        c.execute(query_recent, params)
+        stats["recent_results"] = [{"result": r[0], "opponent": r[1]} for r in c.fetchall() if r[0] is not None]
 
         conn.close()
         return stats
