@@ -1203,6 +1203,7 @@ def is_match_finished(game_data: dict) -> bool:
     series_count = strategy.get("count", 3)
     win_threshold = 2 if series_count == 3 else (3 if series_count == 5 else 1)
 
+
     teams = game_data.get("teams", [])
     if teams and any(
         t.get("result", {}).get("gameWins", 0) >= win_threshold
@@ -1211,6 +1212,206 @@ def is_match_finished(game_data: dict) -> bool:
         return True
 
     return False
+
+
+# ─── Funções otimizadas para polling WebSocket ──────────────────────────────
+# Estas funções separam a resolução de game_id (pesada) da busca de
+# telemetria (leve), permitindo polling mais rápido no socket_manager.
+
+async def resolve_active_game_id(match_id: str) -> str | None:
+    """
+    Resolve o game_id ativo para um match_id usando getEventDetails.
+    
+    Esta chamada é 'pesada' (requer HTTP para getEventDetails), por isso
+    deve ser cacheada pelo caller e re-chamada apenas a cada ~30s.
+    
+    Returns:
+        game_id string ou None se não conseguir resolver.
+    """
+    try:
+        data = await _retry_system.async_fetch_with_retry(
+            url=f"{API_URL_PERSISTED}/getEventDetails",
+            params={"hl": "pt-BR", "id": match_id},
+            headers=HEADERS,
+            timeout=10,
+        )
+        if not data:
+            return None
+        
+        event_data = (data.get("data") or data).get("event", {})
+        match_data = event_data.get("match", {})
+        games = match_data.get("games", [])
+        
+        if not games:
+            return None
+        
+        # Prioridade: game inProgress > último completed > primeiro unstarted
+        for g in games:
+            if g.get("state") == "inProgress":
+                gid = g.get("id")
+                if gid:
+                    return str(gid)
+                # Fallback heurístico (match_id + game.number)
+                return str(int(match_id) + g.get("number", 1))
+        
+        # Se nenhum em progresso, pega o último completed
+        completed = [g for g in games if g.get("state") == "completed"]
+        if completed:
+            g = completed[-1]
+            gid = g.get("id")
+            if gid:
+                return str(gid)
+            return str(int(match_id) + g.get("number", 1))
+        
+        # Fallback: primeiro game
+        g = games[0]
+        gid = g.get("id")
+        if gid:
+            return str(gid)
+        return str(int(match_id) + g.get("number", 1))
+        
+    except Exception as e:
+        logger.error(f"Erro ao resolver game_id para match_id={match_id}: {e}")
+        return None
+
+
+async def get_fast_match_telemetry(match_id: str, game_id: str) -> dict | None:
+    """
+    Busca telemetria leve de uma partida (window + details em paralelo).
+    
+    Diferente de get_match_data_by_id, esta função NÃO chama getSchedule
+    nem getEventDetails — usa o game_id já resolvido. Isso a torna
+    ~3x mais rápida por ciclo de polling.
+    
+    Args:
+        match_id: ID da série (usado para metadados e estado).
+        game_id: ID do game ativo (já resolvido por resolve_active_game_id).
+    
+    Returns:
+        Dict com dados da partida ou None.
+    """
+    try:
+        ts = get_iso_date_multiple_of_10()
+        
+        # Busca window e details EM PARALELO (asyncio.gather)
+        window_coro = _retry_system.async_fetch_with_retry(
+            url=f"{API_URL_LIVE}/window/{game_id}",
+            params={"hl": "pt-BR", "startingTime": ts, "_": _get_cache_buster()},
+            headers=HEADERS,
+            timeout=8,
+        )
+        details_coro = _retry_system.async_fetch_with_retry(
+            url=f"{API_URL_LIVE}/details/{game_id}",
+            params={"hl": "pt-BR", "startingTime": ts, "_": _get_cache_buster()},
+            headers=HEADERS,
+            timeout=8,
+        )
+        
+        window_data, details_data = await asyncio.gather(
+            window_coro, details_coro, return_exceptions=True
+        )
+        
+        # Trata exceptions do gather
+        if isinstance(window_data, Exception):
+            logger.warning(f"Erro ao buscar window para game {game_id}: {window_data}")
+            window_data = None
+        if isinstance(details_data, Exception):
+            logger.warning(f"Erro ao buscar details para game {game_id}: {details_data}")
+            details_data = None
+        
+        if not window_data or not window_data.get("frames"):
+            # Sem dados de window, tenta retornar cache anterior
+            cached = _cache_layer.get(f"fast_telemetry_{game_id}")
+            return cached
+        
+        frames = window_data["frames"]
+        frame = frames[-1]
+        metadata = window_data.get("gameMetadata") or {}
+        
+        blue_frame = frame.get("blueTeam", {})
+        red_frame = frame.get("redTeam", {})
+        blue_parts = blue_frame.get("participants", [])
+        red_parts = red_frame.get("participants", [])
+        
+        blue_meta = (metadata.get("blueTeamMetadata") or {}).get("participantMetadata", [])
+        red_meta = (metadata.get("redTeamMetadata") or {}).get("participantMetadata", [])
+        
+        # Processa details (itens)
+        detail_blue = []
+        detail_red = []
+        if details_data and not isinstance(details_data, Exception):
+            det_frames = details_data.get("frames", [])
+            if det_frames:
+                det_frame = det_frames[-1]
+                all_parts = det_frame.get("participants", [])
+                if all_parts and len(all_parts) >= 10:
+                    detail_blue = all_parts[:5]
+                    detail_red = all_parts[5:]
+                else:
+                    detail_blue = (det_frame.get("blueTeam") or {}).get("participants", [])
+                    detail_red = (det_frame.get("redTeam") or {}).get("participants", [])
+        
+        def build_champs(parts, meta, details, opp_parts):
+            champs = []
+            for i, p in enumerate(parts):
+                m = meta[i] if i < len(meta) else {}
+                d = details[i] if i < len(details) else {}
+                opp_p = opp_parts[i] if i < len(opp_parts) else {}
+                gold_diff = p.get("totalGold", 0) - opp_p.get("totalGold", 0)
+                raw_items = d.get("items", [])
+                if not isinstance(raw_items, list):
+                    raw_items = []
+                items = raw_items + [0] * (7 - len(raw_items))
+                champs.append({
+                    "champion": m.get("championId", ""),
+                    "summonerName": m.get("summonerName", m.get("esportsPlayerId", "")),
+                    "role": m.get("role", ""),
+                    "level": p.get("level", 1),
+                    "kills": p.get("kills", 0),
+                    "deaths": p.get("deaths", 0),
+                    "assists": p.get("assists", 0),
+                    "cs": p.get("creepScore", 0),
+                    "gold": p.get("totalGold", 0),
+                    "goldDiff": gold_diff,
+                    "currentHealth": p.get("currentHealth", 0),
+                    "maxHealth": p.get("maxHealth", 1),
+                    "items": items,
+                })
+            return champs
+        
+        result = {
+            "match_id": match_id,
+            "game_id": game_id,
+            "blue_kills": blue_frame.get("totalKills", 0),
+            "red_kills": red_frame.get("totalKills", 0),
+            "blue_gold": blue_frame.get("totalGold", 0),
+            "red_gold": red_frame.get("totalGold", 0),
+            "blue_towers": blue_frame.get("towers", 0),
+            "red_towers": red_frame.get("towers", 0),
+            "blue_barons": blue_frame.get("barons", 0),
+            "red_barons": red_frame.get("barons", 0),
+            "blue_heralds": blue_frame.get("heralds", 0),
+            "red_heralds": red_frame.get("heralds", 0),
+            "blue_inhibitors": blue_frame.get("inhibitors", 0),
+            "red_inhibitors": red_frame.get("inhibitors", 0),
+            "blue_dragons": blue_frame.get("dragons", []),
+            "red_dragons": red_frame.get("dragons", []),
+            "blue_champs": build_champs(blue_parts, blue_meta, detail_blue, red_parts),
+            "red_champs": build_champs(red_parts, red_meta, detail_red, blue_parts),
+            "game_state": frame.get("gameState", "inProgress"),
+            "frame_timestamp": ts,
+        }
+        
+        # Cacheia resultado válido por 5s (fallback para falhas)
+        _cache_layer.set(f"fast_telemetry_{game_id}", result, ttl_seconds=5)
+        
+        return result
+    
+    except Exception as e:
+        logger.error(f"Erro em get_fast_match_telemetry game_id={game_id}: {e}")
+        cached = _cache_layer.get(f"fast_telemetry_{game_id}")
+        return cached
+
 async def get_match_data_by_id(match_id: str, requested_game_id: str = None) -> dict | None:
     """
     Busca dados completos de uma partida pelo match_id usando getEventDetails.
