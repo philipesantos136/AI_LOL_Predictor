@@ -44,21 +44,28 @@ def get_db_path():
     return candidates[0]
 
 
-def build_patch_clause(patches):
-    """Constrói cláusula SQL para filtro de patches."""
-    if not patches or "Todos" in patches:
-        return "", []
-    placeholders = ",".join(["?" for _ in patches])
-    return f" AND patch IN ({placeholders})", list(patches)
+def build_patch_clause(patches, tournaments=None):
+    """Constrói cláusula SQL para filtro de patches e torneios."""
+    clause = ""
+    params = []
+    if patches and "Todos" not in patches:
+        placeholders = ",".join(["?" for _ in patches])
+        clause += f" AND patch IN ({placeholders})"
+        params.extend(patches)
+    if tournaments and "Todos" not in tournaments:
+        placeholders = ",".join(["?" for _ in tournaments])
+        clause += f" AND league IN ({placeholders})"
+        params.extend(tournaments)
+    return clause, params
 
 
-def get_team_stats(team_name, patches=None):
+def get_team_stats(team_name, patches=None, tournaments=None):
     """
     Consulta completa de estatísticas de um time na camada Silver.
     Retorna dict com ~25 métricas agregadas + 11 listas históricas para distribuições.
     """
     db_path = get_db_path()
-    patch_clause, patch_params = build_patch_clause(patches)
+    patch_clause, patch_params = build_patch_clause(patches, tournaments)
     try:
         conn = sqlite3.connect(db_path)
         c = conn.cursor()
@@ -162,14 +169,14 @@ def get_team_stats(team_name, patches=None):
         print(f"  ⚠️ Erro ao consultar DB (team={team_name}): {e}")
         return None
 
-def get_gold_team_stats(team_name, patches=None):
+def get_gold_team_stats(team_name, patches=None, tournaments=None):
     """
     Busca as métricas preditivas avançadas da camada Gold para um time.
     Versão dinâmica: calcula na hora para respeitar o filtro de patches.
     Threshold de Throw/Comeback aumentado para 2000g (vantagem real).
     """
     db_path = get_db_path()
-    patch_clause, patch_params = build_patch_clause(patches)
+    patch_clause, patch_params = build_patch_clause(patches, tournaments)
     try:
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
@@ -224,13 +231,13 @@ def get_gold_player_stats(team_name):
         print(f"  ⚠️ Erro ao consultar Gold Player DB ({team_name}): {e}")
         return []
 
-def get_global_baseline_stats(patches=None):
+def get_global_baseline_stats(patches=None, tournaments=None):
     """
     Busca a média estrita do Mundial (World Average Baseline) 
     sem filtro de campeão. Usado como denominador para criar fatores preditivos.
     """
     db_path = get_db_path()
-    patch_clause, patch_params = build_patch_clause(patches)
+    patch_clause, patch_params = build_patch_clause(patches, tournaments)
     try:
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
@@ -293,10 +300,10 @@ def get_platinum_champion_stats(team_name, champion):
 
 
 
-def get_side_stats(team_name, patches=None):
+def get_side_stats(team_name, patches=None, tournaments=None):
     """Retorna vitórias e jogos por lado (Blue/Red) para um time."""
     db_path = get_db_path()
-    patch_clause, patch_params = build_patch_clause(patches)
+    patch_clause, patch_params = build_patch_clause(patches, tournaments)
     try:
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
@@ -349,10 +356,10 @@ def get_league_context(league_name):
         return None
 
 
-def get_objective_win_correlations(patches=None):
+def get_objective_win_correlations(patches=None, tournaments=None):
     """Calcula a correlação global entre o primeiro objetivo e a vitória final."""
     db_path = get_db_path()
-    patch_clause, patch_params = build_patch_clause(patches)
+    patch_clause, patch_params = build_patch_clause(patches, tournaments)
     try:
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
@@ -401,13 +408,13 @@ def get_objective_win_correlations(patches=None):
         return None
 
 
-def get_player_kill_stats(team_name, patches=None):
+def get_player_kill_stats(team_name, patches=None, tournaments=None):
     """
     Retorna estatísticas de kills/deaths/assists por jogador de um time.
     Usado para mercados de Over/Under de abates por jogador.
     """
     db_path = get_db_path()
-    patch_clause, patch_params = build_patch_clause(patches)
+    patch_clause, patch_params = build_patch_clause(patches, tournaments)
     try:
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
@@ -485,14 +492,14 @@ def get_top_ckpm_teams(min_games=10, limit=10):
 
 
 
-def get_first_inhib_proxy(team_name, patches=None):
+def get_first_inhib_proxy(team_name, patches=None, tournaments=None):
     """
     Proxy para First Inhibitor usando inhibitors > 0 como indicador,
     já que a coluna firstinhib é sempre 0 no banco de dados atual.
     Retorna a % de jogos onde o time destruiu pelo menos 1 inibidor.
     """
     db_path = get_db_path()
-    patch_clause, patch_params = build_patch_clause(patches)
+    patch_clause, patch_params = build_patch_clause(patches, tournaments)
     try:
         conn = sqlite3.connect(db_path)
         c = conn.cursor()

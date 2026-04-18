@@ -191,6 +191,7 @@ class InsightRequest(BaseModel):
     time1: str
     time2: str
     patches: List[str]
+    tournaments: List[str] = ["Todos"]
     t1_top: str = ""
     t1_jg: str = ""
     t1_mid: str = ""
@@ -233,6 +234,42 @@ def get_patches():
             return {"patches": ["Todos"] + patches}
     except Exception as e:
         return {"patches": ["Todos"]}
+
+@app.get("/api/analytics/tournaments")
+def get_tournaments(team1: Optional[str] = None, team2: Optional[str] = None):
+    db_file = Path(__file__).parent / "data" / "db" / "lol_datamatches.db"
+    try:
+        with sqlite3.connect(db_file) as conn:
+            cursor = conn.cursor()
+            if team1 and team2:
+                # Return tournaments played by either team
+                cursor.execute("""
+                    SELECT DISTINCT league 
+                    FROM match_data_silver 
+                    WHERE league IS NOT NULL 
+                    AND (teamname = ? OR teamname = ?)
+                    ORDER BY league
+                """, (team1, team2))
+            elif team1:
+                cursor.execute("""
+                    SELECT DISTINCT league 
+                    FROM match_data_silver 
+                    WHERE league IS NOT NULL AND teamname = ?
+                    ORDER BY league
+                """, (team1,))
+            elif team2:
+                cursor.execute("""
+                    SELECT DISTINCT league 
+                    FROM match_data_silver 
+                    WHERE league IS NOT NULL AND teamname = ?
+                    ORDER BY league
+                """, (team2,))
+            else:
+                cursor.execute("SELECT DISTINCT league FROM match_data_silver WHERE league IS NOT NULL ORDER BY league")
+            leagues = [str(row[0]).strip() for row in cursor.fetchall()]
+            return {"tournaments": ["Todos"] + leagues}
+    except Exception as e:
+        return {"tournaments": ["Todos"]}
 
 @app.get("/api/analytics/champions")
 def get_champions():
@@ -291,8 +328,8 @@ def generate_insights_api(req: InsightRequest):
 
     try:
         from interface.charts.data_provider import get_team_stats
-        stats1 = get_team_stats(req.time1, req.patches)
-        stats2 = get_team_stats(req.time2, req.patches)
+        stats1 = get_team_stats(req.time1, req.patches, req.tournaments)
+        stats2 = get_team_stats(req.time2, req.patches, req.tournaments)
         if not stats1:
             raise HTTPException(
                 status_code=422,
@@ -312,6 +349,7 @@ def generate_insights_api(req: InsightRequest):
         result = generate_analytics_json(
             req.time1, req.time2,
             patches=req.patches,
+            tournaments=req.tournaments,
             champs_t1=champs_t1,
             champs_t2=champs_t2,
         )
@@ -351,6 +389,7 @@ async def generate_full_analytics_api(req: FullAnalyticsRequest):
         analytics_dict = generate_analytics_json(
             req.time1, req.time2,
             patches=req.patches,
+            tournaments=req.tournaments,
             champs_t1=champs_t1,
             champs_t2=champs_t2,
         )

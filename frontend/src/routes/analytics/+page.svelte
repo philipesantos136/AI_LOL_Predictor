@@ -31,6 +31,8 @@
   let time1 = $state('');
   let time2 = $state('');
   let selectedPatches: string[] = $state([]);
+  let tournaments: string[] = $state([]);
+  let selectedTournaments: string[] = $state([]);
 
   type Role = 'top' | 'jg' | 'mid' | 'adc' | 'sup';
   const roles: Role[] = ['top', 'jg', 'mid', 'adc', 'sup'];
@@ -99,6 +101,18 @@
     }
   }
 
+  function toggleTournament(t: string) {
+    if (t === "Todos") {
+      selectedTournaments = [];
+      return;
+    }
+    if (selectedTournaments.includes(t)) {
+      selectedTournaments = selectedTournaments.filter(tourney => tourney !== t);
+    } else {
+      selectedTournaments = [...selectedTournaments, t];
+    }
+  }
+
   // Fetch logos when teams change
   $effect(() => {
     if (time1 && time1 !== "Rode o Pipeline Primeiro" && time1 !== "Erro ao carregar times") {
@@ -128,6 +142,19 @@
     }
   });
 
+  $effect(() => {
+    if (time1 && time2 && time1 !== time2 && time1 !== "Rode o Pipeline Primeiro" && time2 !== "Rode o Pipeline Primeiro") {
+      fetch(`http://localhost:8000/api/analytics/tournaments?team1=${encodeURIComponent(time1)}&team2=${encodeURIComponent(time2)}`)
+        .then(r => r.json())
+        .then(data => {
+            tournaments = data.tournaments || [];
+        });
+    } else {
+        tournaments = [];
+        selectedTournaments = [];
+    }
+  });
+
   async function generateInsights() {
     errorMsg = '';
     analyticsData = null;
@@ -151,6 +178,7 @@
         time1: time1,
         time2: time2,
         patches: selectedPatches.length > 0 ? selectedPatches : ["Todos"],
+        tournaments: selectedTournaments.length > 0 ? selectedTournaments : ["Todos"],
         t1_top: t1_champs.top,
         t1_jg: t1_champs.jg,
         t1_mid: t1_champs.mid,
@@ -318,6 +346,22 @@
         {/each}
       </div>
     </div>
+
+    {#if tournaments.length > 0}
+      <div class="mb-6">
+        <span class="block text-sm font-semibold text-slate-300 mb-2">🏆 Campeonatos Filtrados (Por Padrão: Todos)</span>
+        <div class="flex flex-wrap gap-2">
+          {#each tournaments as t}
+            <button 
+              class="px-3 py-1.5 rounded-full text-sm font-medium border transition-colors {(t === 'Todos' && selectedTournaments.length === 0) || selectedTournaments.includes(t) ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_10px_rgba(79,70,229,0.5)]' : 'bg-[#0f172a] border-[#334155] text-slate-400 hover:text-slate-200 hover:border-slate-500'}"
+              onclick={() => toggleTournament(t)}
+            >
+              {t}
+            </button>
+          {/each}
+        </div>
+      </div>
+    {/if}
 
     <!-- Advanced Champions -->
     <details class="mb-8 border border-[#334155] rounded-lg overflow-hidden group">

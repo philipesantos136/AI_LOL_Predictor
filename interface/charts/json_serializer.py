@@ -1526,7 +1526,7 @@ def build_towers_per_team_section(s1, s2, t1, t2):
 # Main Orchestrator
 # ============================================================================
 
-def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t2=None):
+def generate_analytics_json(team1, team2, patches=None, tournaments=None, champs_t1=None, champs_t2=None):
     """
     Replaces generate_charts(). Returns a structured dict matching AnalyticsResponse.
     All computation logic is preserved; only the output format changes.
@@ -1544,32 +1544,32 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
         get_first_inhib_proxy,
     )
 
-    stats1 = get_team_stats(team1, patches)
-    stats2 = get_team_stats(team2, patches)
+    stats1 = get_team_stats(team1, patches, tournaments)
+    stats2 = get_team_stats(team2, patches, tournaments)
 
     if not stats1 or not stats2:
         return None
 
-    gold_t1 = get_gold_team_stats(team1, patches)
-    gold_t2 = get_gold_team_stats(team2, patches)
+    gold_t1 = get_gold_team_stats(team1, patches, tournaments)
+    gold_t2 = get_gold_team_stats(team2, patches, tournaments)
 
 
 
-    s1_side = get_side_stats(team1, patches)
-    s2_side = get_side_stats(team2, patches)
+    s1_side = get_side_stats(team1, patches, tournaments)
+    s2_side = get_side_stats(team2, patches, tournaments)
 
     # Contexto de liga (usando a liga do time 1 como referência)
     league_name = stats1.get("league", "Unknown")
     l_context = get_league_context(league_name)
 
-    obj_corrs = get_objective_win_correlations(patches)
+    obj_corrs = get_objective_win_correlations(patches, tournaments)
 
     # Novos dados (BetBoom Coverage Gaps)
-    pk_stats1 = get_player_kill_stats(team1, patches)
-    pk_stats2 = get_player_kill_stats(team2, patches)
+    pk_stats1 = get_player_kill_stats(team1, patches, tournaments)
+    pk_stats2 = get_player_kill_stats(team2, patches, tournaments)
     top_ckpm = get_top_ckpm_teams()
-    fi_proxy1 = get_first_inhib_proxy(team1, patches)
-    fi_proxy2 = get_first_inhib_proxy(team2, patches)
+    fi_proxy1 = get_first_inhib_proxy(team1, patches, tournaments)
+    fi_proxy2 = get_first_inhib_proxy(team2, patches, tournaments)
 
     # Platinum layer (same as renderer.py)
     plat1, plat2 = {}, {}
@@ -1582,7 +1582,7 @@ def generate_analytics_json(team1, team2, patches=None, champs_t1=None, champs_t
             if champ:
                 plat2[champ] = get_platinum_champion_stats(team2, champ)
 
-    global_baseline = get_global_baseline_stats(patches)
+    global_baseline = get_global_baseline_stats(patches, tournaments)
 
     def calc_multipliers(plat_data):
         if not plat_data or not global_baseline:
